@@ -1395,14 +1395,6 @@ const BookingRequest = ({ slots, onSubmit, users, bookings = [] }) => {
                           ))}
                         </div>
                       )}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -2988,7 +2980,6 @@ export default function SportvereinBuchung() {
         bookings={bookings}
         users={users}
       />
-      </span></span></span></span>
-    </div></div></div>
+    </div>
   );
 }
