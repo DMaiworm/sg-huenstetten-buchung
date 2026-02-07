@@ -2459,7 +2459,7 @@ const EmailLog = ({ emailService }) => {
           <Button 
             variant="secondary" 
             onClick={() => {
-              if (confirm('Möchten Sie wirklich alle E-Mails aus dem Log löschen?')) {
+              if (window.confirm('Möchten Sie wirklich alle E-Mails aus dem Log löschen?')) {
                 emailService.clearEmails();
                 setSelectedEmail(null);
               }
@@ -2619,7 +2619,7 @@ const UserManagement = ({ users, setUsers }) => {
   };
 
   const handleDelete = (id) => {
-    if (confirm('Benutzer wirklich löschen?')) {
+    if (window.confirm('Benutzer wirklich löschen?')) {
       setUsers(users.filter(u => u.id !== id));
     }
   };
