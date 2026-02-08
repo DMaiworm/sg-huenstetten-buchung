@@ -223,15 +223,6 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
           <div className="font-medium text-center px-3 py-1.5" style={{ minWidth: '220px' }}>
             <div className="flex items-center justify-center">
               <div className="relative">
-                {/* sichtbar: Startdatum (Montag) - klick öffnet Picker */}
-                <button
-                  type="button"
-                  onClick={handleOpenPicker}
-                  className="select-none cursor-pointer bg-transparent p-0"
-                >
-                  
-                </button>
-
                 {/* Controlled react-datepicker */}
                 
               <DatePicker
