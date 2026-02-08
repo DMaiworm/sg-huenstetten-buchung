@@ -215,7 +215,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                   onClick={handleOpenPicker}
                   className="select-none cursor-pointer bg-transparent p-0"
                 >
-                  {formatDate(weekDates[0])}
+                  
                 </button>
 
                 {/* Controlled react-datepicker */}
@@ -227,7 +227,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                     onClickOutside={() => setPickerOpen(false)}
                     open={pickerOpen}
                     onSelect={(date) => handleDatePickerSelect(date)}
-                    inline
+                    inline={false}
                     withPortal={false}
                     // optional: showMonthDropdown, showYearDropdown, etc.
                     // prevent keyboard from closing unexpectedly
