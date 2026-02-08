@@ -184,47 +184,44 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => navigateWeek(-1)}>
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" onClick={() => navigateWeek(-1)}>
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
 
-          <div className="relative inline-block">
-            <button
-              onClick={() => datePickerRef.current?.showPicker()}
-              className="font-medium text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              style={{ minWidth: '220px' }}
-            >
-              {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
-            </button>
-
-            <input
-              ref={datePickerRef}
-              type="date"
-              className="absolute top-0 left-0 w-full h-full opacity-0"
-              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-              value={formatDateISO(currentDate)}
-              onChange={(e) => {
-                handleDatePickerChange(e);
-                datePickerRef.current?.blur();
-              }}
-            />    
-          </div>
-
-
-
-              
-          <Button variant="ghost" onClick={() => navigateWeek(1)}>
-            <ChevronRight className="w-5 h-5" />
-          </Button>
-
-          <Button
-            variant="secondary"
-            onClick={() => setCurrentDate(getWeekStart(new Date()))}
-            >
-            Heute
-          </Button>
+        <div className="font-medium text-center px-3 py-1.5" style={{ minWidth: '220px' }}>
+          {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
         </div>
+
+        <Button variant="ghost" onClick={() => navigateWeek(1)}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+
+        <div className="relative">
+          <Button variant="ghost" onClick={() => datePickerRef.current?.showPicker()}>
+            <Calendar className="w-5 h-5" />
+          </Button>
+
+          <input
+            ref={datePickerRef}
+            type="date"
+            className="absolute top-0 left-0 w-full h-full opacity-0"
+            style={{ pointerEvents: 'none' }}
+            value={formatDateISO(currentDate)}
+            onChange={(e) => {
+              handleDatePickerChange(e);
+              datePickerRef.current?.blur();
+            }}
+          />
+        </div>
+
+        <Button
+          variant="secondary"
+          onClick={() => setCurrentDate(getWeekStart(new Date()))}
+        >
+          Heute
+        </Button>
+      </div>
       </div>
 
 
