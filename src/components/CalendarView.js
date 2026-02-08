@@ -141,7 +141,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               {res.type === 'limited' && <span>⚠️</span>}
               {res.name.replace('Große ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
-                <span className="min-w-12 h-12 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                <span className="min-[48px] h-[48px] px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
                   {getBookingCountForResource(res.id)}
                 </span>               
               )}
@@ -149,7 +149,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
           ))}
         </div>
       </div>
-
+        
       {/* Ressource Info + Navigation */}
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
