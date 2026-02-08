@@ -206,7 +206,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
             ref={datePickerRef}
             type="date"
             className="absolute top-0 left-0 w-full h-full opacity-0"
-            style={{ pointerEvents: 'auto', width: '1px', height: '1px', cursor: 'pointer' }}
+            style={{ pointerEvents: 'auto', width: '40px', height: '40px', cursor: 'pointer' }}
             value={formatDateISO(currentDate)}
             onChange={(e) => {
               handleDatePickerChange(e);
