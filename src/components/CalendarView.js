@@ -242,6 +242,7 @@ const navigateWeek = (direction) => {
                 shouldCloseOnSelect={true}
                 popperPlacement="bottom"
                 dateFormat="dd.MM.yyyy"
+                locale="de"  
                 customInput={<PickerButton fallback={formatDate(weekDates[0])} />}
               />
                 
