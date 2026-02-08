@@ -134,12 +134,22 @@ body {
 
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+
+.react-datepicker__input-container {
+  display: inline-block;
+  position: relative;
+  z-index: 1;
+}
+
 /* DatePicker Input: transparent, kein Rahmen, kleinere Breite */
 .react-datepicker__input-container input {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 2; /* sicherstellen, dass das Input über evtl. Button liegt */
+  min-width: 60px;
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
-  min-width: 90px;      /* gewünschte minimale Breite anpassen */
   width: auto !important;
   box-shadow: none !important;
   outline: none !important;
