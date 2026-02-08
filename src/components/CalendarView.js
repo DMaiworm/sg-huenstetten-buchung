@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Shield, Maximize } from 'lucide-react';
 import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
 import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
-const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users }) => {
+const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef(null);
 
   const getUserName = (userId) => {
     const user = users.find(u => u.id === userId);
@@ -21,10 +23,10 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
   const isComposite = resource?.isComposite;
 
   const categories = [
-    { id: 'all', label: 'Alle Anlagen', icon: 'ALL' },
-    { id: 'outdoor', label: 'Aussenanlagen', icon: 'OUT' },
-    { id: 'indoor', label: 'Innenraeume', icon: 'IN' },
-    { id: 'shared', label: 'Geteilte Hallen', icon: 'SHARED' },
+    { id: 'all', label: 'Alle Anlagen', icon: '\ud83d\udccb' },
+    { id: 'outdoor', label: 'Au\u00dfenanlagen', icon: '\ud83c\udfdf\ufe0f' },
+    { id: 'indoor', label: 'Innenr\u00e4ume', icon: '\ud83c\udfe0' },
+    { id: 'shared', label: 'Geteilte Hallen', icon: '\ud83e\udd1d' },
   ];
 
   const categoryResources = selectedCategory === 'all'
@@ -99,11 +101,19 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
     setCurrentDate(newDate);
   };
 
+  const handleDatePickerChange = (e) => {
+    const picked = new Date(e.target.value);
+    if (!isNaN(picked.getTime())) {
+      setCurrentDate(picked);
+    }
+    setShowDatePicker(false);
+  };
+
   return (
     <div className="h-full flex flex-col">
-      {/* Kategorie-Tabs */}
-      <div className="mb-4">
-        <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
+      {/* Kategorie-Tabs + Admin-Checkbox in einer Zeile */}
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg flex-1">
           {categories.map(cat => (
             <button
               key={cat.id}
@@ -122,10 +132,11 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
             </button>
           ))}
         </div>
+        {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
-      {/* Ressourcen-Tabs */}
-      <div className="mb-4">
+      {/* Ressourcen-Tabs - feste Hoehe */}
+      <div className="mb-3" style={{ minHeight: '42px' }}>
         <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
           {categoryResources.map(res => (
             <button
@@ -136,7 +147,9 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               }`}
               style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
             >
-              {res.name.replace('Grosse ', '').replace('Kleine ', 'Kl. ')}
+              {res.isComposite && <span>\u2b50</span>}
+              {res.type === 'limited' && <span>\u26a0\ufe0f</span>}
+              {res.name.replace('Gro\u00dfe ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
                 <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
                   {getBookingCountForResource(res.id)}
@@ -147,31 +160,39 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
         </div>
       </div>
 
-      {/* Ressource Info + Navigation */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-8 rounded" style={{ backgroundColor: resource?.color }} />
-          <div>
-            <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
-            <div className="flex items-center gap-2">
-              {isLimited && (
-                <Badge variant="warning"><Shield className="w-3 h-3 inline mr-1" />Nur in zugewiesenen Slots</Badge>
-              )}
-              {isComposite && (
-                <Badge variant="info"><Maximize className="w-3 h-3 inline mr-1" />Beide Haelften</Badge>
-              )}
-            </div>
-          </div>
+      {/* Ressource Info + Navigation - kompakt */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-6 rounded" style={{ backgroundColor: resource?.color }} />
+          <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
+          {isLimited && (
+            <Badge variant="warning"><Shield className="w-3 h-3 inline mr-1" />Nur in zugewiesenen Slots</Badge>
+          )}
+          {isComposite && (
+            <Badge variant="info"><Maximize className="w-3 h-3 inline mr-1" />Beide H\u00e4lften</Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => navigateWeek(-1)}><ChevronLeft className="w-5 h-5" /></Button>
-          <span className="font-medium min-w-48 text-center">{formatDate(weekDates[0])} - {formatDate(weekDates[6])}</span>
+          <button
+            onClick={() => { if (datePickerRef.current) datePickerRef.current.showPicker(); }}
+            className="font-medium min-w-48 text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative"
+          >
+            {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
+            <input
+              ref={datePickerRef}
+              type="date"
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              value={formatDateISO(currentDate)}
+              onChange={handleDatePickerChange}
+            />
+          </button>
           <Button variant="ghost" onClick={() => navigateWeek(1)}><ChevronRight className="w-5 h-5" /></Button>
           <Button variant="secondary" onClick={() => setCurrentDate(new Date())}>Heute</Button>
         </div>
       </div>
 
-      <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 380px)', minHeight: '400px' }}>
+      <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 340px)', minHeight: '400px' }}>
         {/* Wochen-Header */}
         <div className="grid grid-cols-8 min-w-[800px] flex-shrink-0">
           <div className="bg-gray-50 border-b border-r border-gray-200 p-2"></div>
@@ -214,16 +235,18 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                   })}
                   {dayBookings.map(booking => {
                     const bookingResource = RESOURCES.find(r => r.id === booking.resourceId);
+                    const bookingType = BOOKING_TYPES.find(t => t.id === booking.bookingType);
                     const isBlocking = booking.isBlocking;
                     const startMinutes = timeToMinutes(booking.startTime);
                     const endMinutes = timeToMinutes(booking.endTime);
                     const durationMinutes = endMinutes - startMinutes;
                     const topPx = ((startMinutes - firstHour * 60) / 60) * 48;
                     const heightPx = (durationMinutes / 60) * 48;
+                    const userName = getUserName(booking.userId);
                     return (
                       <div
                         key={`${booking.id}-${isBlocking ? 'block' : 'own'}`}
-                        className={`absolute left-1 right-1 rounded px-1 py-0.5 text-xs overflow-hidden ${
+                        className={`absolute left-1 right-1 rounded px-1.5 py-0.5 overflow-hidden ${
                           isBlocking ? 'bg-gray-300 text-gray-600 border border-gray-400 border-dashed'
                             : booking.status === 'approved' ? 'text-white' : 'bg-yellow-200 text-yellow-800 border border-yellow-400'
                         }`}
@@ -231,19 +254,29 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                           top: `${topPx}px`, height: `${heightPx - 2}px`,
                           backgroundColor: !isBlocking && booking.status === 'approved' ? bookingResource?.color : undefined,
                           zIndex: isBlocking ? 5 : 10,
+                          fontSize: '10px', lineHeight: '1.3',
                         }}
-                        title={isBlocking
-                          ? `Blockiert: ${booking.title} (${booking.blockingReason}) ${booking.startTime}-${booking.endTime}`
-                          : `${booking.bookingType ? BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon + ' ' : ''}${booking.title} (${booking.startTime}-${booking.endTime}) - ${getUserName(booking.userId)}`
-                        }
+                        title={`${bookingType?.icon || ''} ${bookingType?.label || ''} - ${booking.title} - ${userName} - ${booking.startTime}-${booking.endTime}`}
                       >
-                        <div className="font-medium truncate">
-                          {isBlocking && 'X '}
-                          {!isBlocking && booking.bookingType && BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon && `${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon} `}
-                          {booking.title}
-                        </div>
-                        {heightPx > 30 && (
-                          <div className="text-xs opacity-80 truncate">{booking.startTime} - {booking.endTime}</div>
+                        {isBlocking ? (
+                          <>
+                            <div className="truncate opacity-80">{'\ud83d\udeab'} Blockiert</div>
+                            {heightPx > 25 && <div className="truncate opacity-70">{booking.title}</div>}
+                          </>
+                        ) : (
+                          <>
+                            {/* Zeile 1: Icon links, Typ rechts */}
+                            <div className="flex items-center justify-between">
+                              <span>{bookingType?.icon || '\ud83d\udccb'}</span>
+                              <span className="truncate opacity-90" style={{ fontSize: '9px' }}>{bookingType?.label || ''}</span>
+                            </div>
+                            {/* Zeile 2: Titel */}
+                            {heightPx > 25 && <div className="font-medium truncate">{booking.title}</div>}
+                            {/* Zeile 3: Trainer */}
+                            {heightPx > 40 && <div className="truncate opacity-80">{userName}</div>}
+                            {/* Zeile 4: Zeiten (fett) */}
+                            {heightPx > 55 && <div className="font-bold truncate">{booking.startTime} - {booking.endTime}</div>}
+                          </>
                         )}
                       </div>
                     );
@@ -256,19 +289,19 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
       </div>
 
       {/* Legende */}
-      <div className="mt-4 flex gap-6 text-sm flex-wrap">
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded"></div><span>Genehmigt</span></div>
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded"></div><span>Ausstehend</span></div>
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-300 border border-gray-400 border-dashed rounded"></div><span>Blockiert</span></div>
-        <div className="w-px h-6 bg-gray-300 mx-2"></div>
+      <div className="mt-3 flex gap-4 text-xs flex-wrap items-center">
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-blue-500 rounded"></div><span>Genehmigt</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-yellow-200 border border-yellow-400 rounded"></div><span>Ausstehend</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 border border-gray-400 border-dashed rounded"></div><span>Blockiert</span></div>
+        <div className="w-px h-4 bg-gray-300"></div>
         {BOOKING_TYPES.map(type => (
-          <div key={type.id} className="flex items-center gap-2"><span>{type.icon}</span><span>{type.label}</span></div>
+          <div key={type.id} className="flex items-center gap-1"><span>{type.icon}</span><span>{type.label}</span></div>
         ))}
         {isLimited && (
           <>
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div><span>Verfuegbarer Slot</span></div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded"></div><span>Nicht verfuegbar</span></div>
+            <div className="w-px h-4 bg-gray-300"></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-green-50 border border-green-200 rounded"></div><span>Verf\u00fcgbarer Slot</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded"></div><span>Nicht verf\u00fcgbar</span></div>
           </>
         )}
       </div>
