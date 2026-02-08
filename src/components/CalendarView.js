@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Shield, Maximize } from 'lucide-react';
 import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
-import { formatDate, formatDateISO, getWeekDates, getMondayForDate, timeToMinutes } from '../utils/helpers';
+import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
-import { Button } from './ui/Badge';
+import { Button } from './ui/Button';
 
 const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -100,7 +100,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
   const handleDatePickerChange = (e) => {
     const picked = new Date(e.target.value + 'T12:00:00');
     if (!isNaN(picked.getTime())) {
-      setCurrentDate(getMondayForDate(picked));
+      setCurrentDate(getWeekStart(picked));
     }
   };
   
