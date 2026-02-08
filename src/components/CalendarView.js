@@ -216,7 +216,7 @@ const navigateWeek = (direction) => {
           )}
 
           {isComposite && (
-            <Badge variant="info">
+            <Badge variant="info" className="inline-flex items-center whitespace-nowrap">
               <Maximize className="w-3 h-3 inline mr-1" />
               Beide Hälften
             </Badge>
