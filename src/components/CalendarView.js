@@ -34,12 +34,13 @@ const PickerButton = React.forwardRef(({ value, onClick }, ref) => (
 ));
 PickerButton.displayName = 'PickerButton';
 
-  const handleDatePickerSelect = (date) => {
-    if (!date) return;
-    setPickerDate(date);
-    setCurrentDate(getWeekStart(date));
-    setPickerOpen(false);
-  };
+const handleDatePickerSelect = (date) => {
+  if (!date) return;
+  const weekStart = getWeekStart(date);
+  setPickerDate(weekStart);
+  setCurrentDate(weekStart);
+  setPickerOpen(false);
+};
 
   const handleOpenPicker = () => {
     setPickerDate(new Date(currentDate));
@@ -127,11 +128,13 @@ PickerButton.displayName = 'PickerButton';
     return d;
   };
   
-  const navigateWeek = (direction) => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + direction * 7);
-    setCurrentDate(newDate);
-  };
+const navigateWeek = (direction) => {
+  const newDate = new Date(currentDate);
+  newDate.setDate(newDate.getDate() + direction * 7);
+  const newWeekStart = getWeekStart(newDate);
+  setCurrentDate(newWeekStart);
+  setPickerDate(newWeekStart);
+};
 
   const handleDatePickerChange = (e) => {
     const picked = new Date(e.target.value + 'T12:00:00');
