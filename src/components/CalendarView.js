@@ -114,7 +114,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
 
               {getBookingCountForCategory(cat.id) > 0 && (
                 <span
-                  className={`ml-2 min-w-8 h-8 px-2 flex items-center justify-center text-sm font-bold rounded-full ${
+                  className={`ml-2 min-w-10 h-10 px-1 flex items-center justify-center text-sm font-bold rounded-full ${
                    selectedCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-700'
               }`}
               >
@@ -143,7 +143,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               {res.type === 'limited' && <span>⚠️</span>}
               {res.name.replace('Große ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
-                <span className="min-[48px] h-[48px] px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                <span className="min-10 h-10 px-1 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
                   {getBookingCountForResource(res.id)}
                 </span>               
               )}
