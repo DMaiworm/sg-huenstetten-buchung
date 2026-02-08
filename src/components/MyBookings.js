@@ -137,58 +137,66 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                      booking.status === 'approved' 
-                        ? 'bg-green-500 text-white' 
-                        : booking.status === 'pending' 
-                        ? 'bg-yellow-400 text-gray-800' 
-                        : 'bg-red-500 text-white'
-                    }`}>
-                      {booking.status === 'approved' ? 'Genehmigt' : booking.status === 'pending' ? 'Ausstehend' : 'Abgelehnt'}
-                    </span>
-                    {isAdmin && (
-                      <div className="flex flex-col gap-1">
-                        {deleteConfirm?.id === booking.id ? (
-                          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
-                            <p className="text-red-700 font-medium mb-2">Wirklich loeschen?</p>
-                            <div className="flex gap-1">
-                              <Button variant="danger" size="sm" onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}>Ja</Button>
-                              <Button variant="secondary" size="sm" onClick={() => setDeleteConfirm(null)}>Nein</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>{isSeries ? (
-                            <div className="flex gap-1">
-                              <button 
-                                onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
-                                className="px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-1.5"
-                                title="Nur diesen Termin loeschen"
-                              >
-                                <X className="w-4 h-4" />
-                                <span>1 Termin</span>
-                              </button>
-                              <button 
-                                onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} 
-                                className="px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-1.5"
-                                title="Ganze Serie loeschen"
-                              >
-                                <X className="w-4 h-4" />
-                                <span>Serie</span>
-                              </button>
-                            </div>
-                          ) : (
-                            <button 
-                              onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
-                              className="px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-1.5"
-                            >
-                              <X className="w-4 h-4" />
-                              <span>Loeschen</span>
-                            </button>
-                          )}</>
-                        )}
-                      </div>
-                    )}
-                  </div>
+  {/* Status Badge als Bubble */}
+  {booking.status === 'approved' && (
+    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-500 text-white">
+      Genehmigt
+    </span>
+  )}
+  {booking.status === 'pending' && (
+    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">
+      Ausstehend
+    </span>
+  )}
+  {booking.status === 'rejected' && (
+    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white">
+      Abgelehnt
+    </span>
+  )}
+  
+  {isAdmin && (
+    <div className="flex flex-col gap-1">
+      {deleteConfirm?.id === booking.id ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
+          <p className="text-red-700 font-medium mb-2">Wirklich loeschen?</p>
+          <div className="flex gap-1">
+            <Button variant="danger" size="sm" onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}>Ja</Button>
+            <Button variant="secondary" size="sm" onClick={() => setDeleteConfirm(null)}>Nein</Button>
+          </div>
+        </div>
+      ) : (
+        <>{isSeries ? (
+          <div className="flex gap-1">
+            <button 
+              onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
+              className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
+              title="Nur diesen Termin loeschen"
+            >
+              <X className="w-4 h-4" />
+              <span>1 Termin</span>
+            </button>
+            <button 
+              onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} 
+              className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
+              title="Ganze Serie loeschen"
+            >
+              <X className="w-4 h-4" />
+              <span>Serie</span>
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
+            className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
+          >
+            <X className="w-4 h-4" />
+            <span>Loeschen</span>
+          </button>
+        )}</>
+      )}
+    </div>
+  )}
+</div>
                 </div>
               </div>
             );
