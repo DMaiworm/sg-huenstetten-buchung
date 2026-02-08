@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Shield, Maximize } from 'lucide-react';
 import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
-import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
+import { formatDate, formatDateISO, getWeekDates, getMondayForDate, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
@@ -15,7 +15,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
   };
 
   const weekDates = getWeekDates(currentDate);
-  const hours = Array.from({ length: 15 }, (_, i) => i + 7);
+  const hours = Array.from({ length: 16 }, (_, i) => i + 7);
 
   const resource = RESOURCES.find(r => r.id === selectedResource);
   const isLimited = resource?.type === 'limited';
@@ -33,30 +33,19 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
     : RESOURCES.filter(r => r.category === selectedCategory);
 
   const getBookingCountForCategory = (catId) => {
-    const weekStart = weekDates[0];
-    const weekEnd = weekDates[6];
+    const weekStart = formatDateISO(weekDates[0]);
+    const weekEnd = formatDateISO(weekDates[6]);
     if (catId === 'all') {
-      return bookings.filter(b => {
-        const bookingDate = new Date(b.date);
-        return bookingDate >= weekStart && bookingDate <= weekEnd;
-      }).length;
+      return bookings.filter(b => b.date >= weekStart && b.date <= weekEnd).length;
     }
     const categoryResourceIds = RESOURCES.filter(r => r.category === catId).map(r => r.id);
-    return bookings.filter(b => {
-      if (!categoryResourceIds.includes(b.resourceId)) return false;
-      const bookingDate = new Date(b.date);
-      return bookingDate >= weekStart && bookingDate <= weekEnd;
-    }).length;
+    return bookings.filter(b => categoryResourceIds.includes(b.resourceId) && b.date >= weekStart && b.date <= weekEnd).length;
   };
 
   const getBookingCountForResource = (resId) => {
-    const weekStart = weekDates[0];
-    const weekEnd = weekDates[6];
-    return bookings.filter(b => {
-      if (b.resourceId !== resId) return false;
-      const bookingDate = new Date(b.date);
-      return bookingDate >= weekStart && bookingDate <= weekEnd;
-    }).length;
+    const weekStart = formatDateISO(weekDates[0]);
+    const weekEnd = formatDateISO(weekDates[6]);
+    return bookings.filter(b => b.resourceId === resId && b.date >= weekStart && b.date <= weekEnd).length;
   };
 
   const handleCategoryChange = (catId) => {
@@ -101,9 +90,9 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
   };
 
   const handleDatePickerChange = (e) => {
-    const picked = new Date(e.target.value);
+    const picked = new Date(e.target.value + 'T12:00:00');
     if (!isNaN(picked.getTime())) {
-      setCurrentDate(picked);
+      setCurrentDate(getMondayForDate(picked));
     }
   };
 
@@ -122,8 +111,8 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
             >
               <span>{cat.icon}</span>
               {cat.label}
-              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                selectedCategory === cat.id ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
+              <span className={`min-w-5 h-5 flex items-center justify-center text-xs rounded-full ${
+                selectedCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-700'
               }`}>
                 {getBookingCountForCategory(cat.id)}
               </span>
@@ -133,14 +122,14 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
         {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
-      {/* Ressourcen-Tabs */}
-      <div className="mb-3" style={{ minHeight: '42px' }}>
-        <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+      {/* Ressourcen-Tabs - horizontal scrollbar, feste Höhe */}
+      <div className="mb-3" style={{ height: '42px' }}>
+        <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto" style={{ height: '40px', whiteSpace: 'nowrap', scrollbarWidth: 'thin' }}>
           {categoryResources.map(res => (
             <button
               key={res.id}
               onClick={() => setSelectedResource(res.id)}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 flex-shrink-0 ${
                 selectedResource === res.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-100'
               }`}
               style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
@@ -149,7 +138,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               {res.type === 'limited' && <span>⚠️</span>}
               {res.name.replace('Große ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
-                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                <span className="min-w-5 h-5 flex items-center justify-center bg-blue-600 text-white text-xs rounded-full">
                   {getBookingCountForResource(res.id)}
                 </span>
               )}
@@ -160,8 +149,8 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
 
       {/* Ressource Info + Navigation */}
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-6 rounded" style={{ backgroundColor: resource?.color }} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: resource?.color }} />
           <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
           {isLimited && (
             <Badge variant="warning"><Shield className="w-3 h-3 inline mr-1" />Nur in zugewiesenen Slots</Badge>
@@ -194,7 +183,8 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
         </div>
       </div>
 
-      <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 340px)', minHeight: '400px' }}>
+      {/* Kalender-Grid - flexibel bis zum unteren Rand */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '400px' }}>
         <div className="grid grid-cols-8 min-w-[800px] flex-shrink-0">
           <div className="bg-gray-50 border-b border-r border-gray-200 p-2"></div>
           {weekDates.map((date, i) => (
@@ -218,8 +208,9 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               const slot = getSlotForDay(date.getDay());
               const dayBookings = getBookingsForDay(date);
               const firstHour = hours[0];
+              const totalHeight = hours.length * 48;
               return (
-                <div key={dayIndex} className="relative border-r border-gray-200 last:border-r-0">
+                <div key={dayIndex} className="relative border-r border-gray-200 last:border-r-0" style={{ height: `${totalHeight}px` }}>
                   {hours.map(hour => {
                     const hourStart = hour * 60;
                     const hourEnd = (hour + 1) * 60;
@@ -241,20 +232,22 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                     const endMinutes = timeToMinutes(booking.endTime);
                     const durationMinutes = endMinutes - startMinutes;
                     const topPx = ((startMinutes - firstHour * 60) / 60) * 48;
-                    const heightPx = (durationMinutes / 60) * 48;
+                    const heightPx = Math.max((durationMinutes / 60) * 48, 20);
+                    const clampedTop = Math.max(0, Math.min(topPx, totalHeight - heightPx));
                     const userName = getUserName(booking.userId);
                     return (
                       <div
                         key={`${booking.id}-${isBlocking ? 'block' : 'own'}`}
-                        className={`absolute left-1 right-1 rounded px-1.5 py-0.5 overflow-hidden ${
+                        className={`absolute left-1 right-1 rounded overflow-hidden ${
                           isBlocking ? 'bg-gray-300 text-gray-600 border border-gray-400 border-dashed'
                             : booking.status === 'approved' ? 'text-white' : 'bg-yellow-200 text-yellow-800 border border-yellow-400'
                         }`}
                         style={{
-                          top: `${topPx}px`, height: `${heightPx - 2}px`,
+                          top: `${clampedTop}px`, height: `${heightPx - 2}px`,
                           backgroundColor: !isBlocking && booking.status === 'approved' ? bookingResource?.color : undefined,
                           zIndex: isBlocking ? 5 : 10,
                           fontSize: '11px', lineHeight: '1.35',
+                          padding: '3px 6px',
                         }}
                         title={`${bookingType ? bookingType.icon + ' ' + bookingType.label : ''} | ${booking.title} | ${userName} | ${booking.startTime}-${booking.endTime}`}
                       >
@@ -269,7 +262,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                               <span style={{ fontSize: '13px' }}>{bookingType ? bookingType.icon : '📋'}</span>
                               <span className="truncate opacity-90 font-medium">{bookingType ? bookingType.label : ''}</span>
                             </div>
-                            {heightPx > 28 && <div className="font-medium truncate">{booking.title}</div>}
+                            {heightPx > 28 && <div className="font-bold truncate">{booking.title}</div>}
                             {heightPx > 42 && <div className="truncate opacity-80">{userName}</div>}
                             {heightPx > 56 && <div className="font-bold truncate">{booking.startTime} – {booking.endTime}</div>}
                           </>
@@ -285,7 +278,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
       </div>
 
       {/* Legende */}
-      <div className="mt-4 flex gap-6 text-sm flex-wrap items-center">
+      <div className="mt-2 py-2 flex gap-6 text-sm flex-wrap items-center border-t border-gray-200">
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded"></div><span>Genehmigt</span></div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded"></div><span>Ausstehend</span></div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-300 border border-gray-400 border-dashed rounded"></div><span>Blockiert</span></div>
