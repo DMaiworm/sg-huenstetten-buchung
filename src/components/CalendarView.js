@@ -14,6 +14,8 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
   const [pickerDate, setPickerDate] = useState(new Date(currentDate));
   const datePickerRef = useRef(null);
 
+  const weekDates = getWeekDates(currentDate);
+  
   // innerhalb CalendarView, nach const weekDates = ...
   const PickerButton = React.forwardRef(({ value, onClick, fallback }, ref) => (
     <button
@@ -45,7 +47,6 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
     return user ? `${user.firstName} ${user.lastName}` : 'Unbekannt';
   };
 
-  const weekDates = getWeekDates(currentDate);
   const hours = Array.from({ length: 16 }, (_, i) => i + 7);
 
   const resource = RESOURCES.find(r => r.id === selectedResource);
