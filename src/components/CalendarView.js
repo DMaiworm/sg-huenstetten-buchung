@@ -151,7 +151,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               {res.type === 'limited' && <span>⚠️</span>}
               {res.name.replace('Große ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
-                <span className="ml-2 min-10 h-10 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                <span className="ml-2 min-w-10 h-10 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
                   {getBookingCountForResource(res.id)}
                 </span>               
               )}
@@ -189,37 +189,37 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
             <ChevronLeft className="w-5 h-5" />
           </Button>
 
-        <div className="relative inline-block">
-          <button
-            onClick={() => datePickerRef.current?.showPicker()}
-            className="font-medium text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-            style={{ minWidth: '220px' }}
-           >
-            {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
-          </button>
+          <div className="relative inline-block">
+            <button
+              onClick={() => datePickerRef.current?.showPicker()}
+              className="font-medium text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              style={{ minWidth: '220px' }}
+             >
+              {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
+            </button>
 
-          <input
-            ref={datePickerRef}
-            type="date"
-            className="absolute top-0 left-0 w-full h-full opacity-0"
-            style={{ pointerEvents: 'none' }}
-            value={formatDateISO(currentDate)}   {/* = Wochenstart */}
-            onChange={handleDatePickerChange}
-          />
+            <input
+              ref={datePickerRef}
+              type="date"
+              className="absolute top-0 left-0 w-full h-full opacity-0"
+              style={{ pointerEvents: 'none' }}
+              value={formatDateISO(currentDate)}   {/* = Wochenstart */}
+              onChange={handleDatePickerChange}
+            />
+          </div>
+
+          <Button variant="ghost" onClick={() => navigateWeek(1)}>
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => setCurrentDate(getWeekStart(new Date()))}
+            >
+            Heute
+          </Button>
         </div>
-
-        <Button variant="ghost" onClick={() => navigateWeek(1)}>
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-
-        <Button
-          variant="secondary"
-          onClick={() => setCurrentDate(getWeekStart(new Date()))}
-        >
-          Heute
-        </Button>
       </div>
-    </div>
 
 
       {/* Kalender-Grid - flexibel bis zum unteren Rand */}
