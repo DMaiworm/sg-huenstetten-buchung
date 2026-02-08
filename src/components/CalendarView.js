@@ -203,7 +203,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               type="date"
               className="absolute top-0 left-0 w-full h-full opacity-0"
               style={{ pointerEvents: 'none' }}
-              value={formatDateISO(currentDate)}   {/* = Wochenstart */}
+              value={formatDateISO(currentDate)}
               onChange={handleDatePickerChange}
             />
           </div>
