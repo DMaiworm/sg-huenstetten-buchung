@@ -111,10 +111,13 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
             >
               <span>{cat.icon}</span>
               {cat.label}
+
               <span className={`min-w-5 h-5 flex items-center justify-center text-xs rounded-full ${
                 selectedCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-700'
               }`}>
-                {getBookingCountForCategory(cat.id)}
+              {getBookingCountForCategory (cat.id) > 0 && (
+                <span className="min-w-12 h-12 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                  {getBookingCountForCategory(cat.id)}
               </span>
             </button>
           ))}
@@ -138,7 +141,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               {res.type === 'limited' && <span>⚠️</span>}
               {res.name.replace('Große ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
-                <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                <span className="min-w-12 h-12 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
                   {getBookingCountForResource(res.id)}
                 </span>               
               )}
