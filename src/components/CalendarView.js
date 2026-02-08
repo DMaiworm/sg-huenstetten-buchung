@@ -1,14 +1,31 @@
 import React, { useState, useRef } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { ChevronLeft, ChevronRight, Shield, Maximize, Calendar } from 'lucide-react';
 import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
 import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
+
 const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date(currentDate));
   const datePickerRef = useRef(null);
 
+  const handleDatePickerSelect = (date) => {
+    if (!date) return;
+    setPickerDate(date);
+    setCurrentDate(getWeekStart(date));
+    setPickerOpen(false);
+  };
+
+  const handleOpenPicker = () => {
+    setPickerDate(new Date(currentDate));
+    setPickerOpen(true);
+  };
+  
   const getUserName = (userId) => {
     const user = users.find(u => u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'Unbekannt';
@@ -184,62 +201,64 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
           )}
         </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={() => navigateWeek(-1)}>
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
+       <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => navigateWeek(-1)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
 
-        <div className="font-medium text-center px-3 py-1.5" style={{ minWidth: '220px' }}>
-          {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
+          <div className="font-medium text-center px-3 py-1.5" style={{ minWidth: '220px' }}>
+            <div className="flex items-center justify-center">
+              <div className="relative">
+                {/* sichtbar: Startdatum (Montag) - klick öffnet Picker */}
+                <button
+                  type="button"
+                  onClick={handleOpenPicker}
+                  className="select-none cursor-pointer bg-transparent p-0"
+                >
+                  {formatDate(weekDates[0])}
+                </button>
+
+                {/* Controlled react-datepicker */}
+                <div className="absolute left-0 top-full z-50">
+                  <DatePicker
+                    ref={datePickerRef}
+                    selected={pickerDate}
+                    onChange={(date) => handleDatePickerSelect(date)}
+                    onClickOutside={() => setPickerOpen(false)}
+                    open={pickerOpen}
+                    onSelect={(date) => handleDatePickerSelect(date)}
+                    inline={false}
+                    withPortal={false}
+                    // optional: showMonthDropdown, showYearDropdown, etc.
+                    // prevent keyboard from closing unexpectedly
+                    shouldCloseOnSelect={true}
+                    // position the popper right under the trigger
+                    popperPlacement="bottom"
+                    // don't render unless open (keeps DOM small)
+                    portalId="react-datepicker-portal"
+                    // keep it controlled
+                    dateFormat="dd.MM.yyyy"
+                  />
+                </div>
+              </div>
+
+              <span className="mx-2">–</span>
+
+              <span className="select-none">{formatDate(weekDates[6])}</span>
+            </div>
+          </div>
+
+          <Button variant="ghost" onClick={() => navigateWeek(1)}>
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => setCurrentDate(getWeekStart(new Date()))}
+          >
+            Heute
+          </Button>
         </div>
-
-        <Button variant="ghost" onClick={() => navigateWeek(1)}>
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-
-<div className="relative inline-block">
-  <Button 
-    variant="ghost" 
-    onClick={() => datePickerRef.current?.showPicker()}
-    style={{ pointerEvents: 'none' }}
-  >
-    <Calendar className="w-5 h-5" />
-  </Button>
-
-  <input
-    ref={datePickerRef}
-    type="date"
-    className="absolute top-0 left-0 opacity-0"
-    style={{ 
-      pointerEvents: 'auto',
-      width: '100%',
-      height: '100%',
-      cursor: 'pointer',
-      fontSize: '0',
-      color: 'transparent',
-      border: 'none',
-      background: 'transparent'
-    }}
-    value={formatDateISO(currentDate)}
-    onChange={(e) => {
-      handleDatePickerChange(e);
-      datePickerRef.current?.blur();
-    }}
-    onBlur={() => {
-      datePickerRef.current?.blur();
-    }}
-  />
-</div>
-
-        <Button
-          variant="secondary"
-          onClick={() => setCurrentDate(getWeekStart(new Date()))}
-        >
-          Heute
-        </Button>
-      </div>
-      </div>
-
 
       {/* Kalender-Grid - flexibel bis zum unteren Rand */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '400px' }}>
