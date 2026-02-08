@@ -212,6 +212,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               handleDatePickerChange(e);
               datePickerRef.current?.blur();
             }}
+            onBlur={() => datePickerRef.current?.blur()}
           />
         </div>
 
