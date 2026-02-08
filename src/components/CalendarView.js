@@ -83,6 +83,14 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
     return result;
   };
 
+  const getWeekStart = (date) => {
+    const d = new Date(date);
+    const day = d.getDay() || 7; // Sonntag = 7
+    d.setDate(d.getDate() - day + 1); // Montag
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+  
   const navigateWeek = (direction) => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + direction * 7);
@@ -95,7 +103,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
       setCurrentDate(getMondayForDate(picked));
     }
   };
-
+  
   return (
     <div className="h-full flex flex-col">
       {/* Kategorie-Tabs + Admin-Checkbox */}
@@ -155,38 +163,64 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
       {/* Ressource Info + Navigation */}
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: resource?.color }} />
+          <div
+            className="w-3 h-6 rounded flex-shrink-0"
+            style={{ backgroundColor: resource?.color }}
+          />
           <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
+
           {isLimited && (
-            <Badge variant="warning"><Shield className="w-3 h-3 inline mr-1" />Nur in zugewiesenen Slots</Badge>
+            <Badge variant="warning">
+              <Shield className="w-3 h-3 inline mr-1" />
+              Nur in zugewiesenen Slots
+            </Badge>
           )}
+
           {isComposite && (
-            <Badge variant="info"><Maximize className="w-3 h-3 inline mr-1" />Beide Hälften</Badge>
+            <Badge variant="info">
+              <Maximize className="w-3 h-3 inline mr-1" />
+              Beide Hälften
+            </Badge>
           )}
         </div>
+
         <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => navigateWeek(-1)}><ChevronLeft className="w-5 h-5" /></Button>
-          <div className="relative inline-block">
-            <button
-              onClick={() => { if (datePickerRef.current) datePickerRef.current.showPicker(); }}
-              className="font-medium text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              style={{ minWidth: '220px' }}
-            >
-              {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
-            </button>
-            <input
-              ref={datePickerRef}
-              type="date"
-              className="absolute top-0 left-0 w-full h-full opacity-0"
-              style={{ pointerEvents: 'none' }}
-              value={formatDateISO(currentDate)}
-              onChange={handleDatePickerChange}
-            />
-          </div>
-          <Button variant="ghost" onClick={() => navigateWeek(1)}><ChevronRight className="w-5 h-5" /></Button>
-          <Button variant="secondary" onClick={() => setCurrentDate(new Date())}>Heute</Button>
+          <Button variant="ghost" onClick={() => navigateWeek(-1)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+
+        <div className="relative inline-block">
+          <button
+            onClick={() => datePickerRef.current?.showPicker()}
+            className="font-medium text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+            style={{ minWidth: '220px' }}
+           >
+            {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
+          </button>
+
+          <input
+            ref={datePickerRef}
+            type="date"
+            className="absolute top-0 left-0 w-full h-full opacity-0"
+            style={{ pointerEvents: 'none' }}
+            value={formatDateISO(currentDate)}   {/* = Wochenstart */}
+            onChange={handleDatePickerChange}
+          />
         </div>
+
+        <Button variant="ghost" onClick={() => navigateWeek(1)}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+
+        <Button
+          variant="secondary"
+          onClick={() => setCurrentDate(getWeekStart(new Date()))}
+        >
+          Heute
+        </Button>
       </div>
+    </div>
+
 
       {/* Kalender-Grid - flexibel bis zum unteren Rand */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '400px' }}>
