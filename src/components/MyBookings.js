@@ -139,10 +139,10 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
                   <div className="flex flex-col items-end gap-2">
                     <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
                       booking.status === 'approved' 
-                        ? 'bg-green-100 text-green-700' 
+                        ? 'bg-green-500 text-white' 
                         : booking.status === 'pending' 
-                        ? 'bg-yellow-100 text-yellow-700' 
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-yellow-400 text-gray-800' 
+                        : 'bg-red-500 text-white'
                     }`}>
                       {booking.status === 'approved' ? 'Genehmigt' : booking.status === 'pending' ? 'Ausstehend' : 'Abgelehnt'}
                     </span>
@@ -161,7 +161,7 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
                             <div className="flex gap-1">
                               <button 
                                 onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
-                                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-1.5"
                                 title="Nur diesen Termin loeschen"
                               >
                                 <X className="w-4 h-4" />
@@ -169,7 +169,7 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
                               </button>
                               <button 
                                 onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} 
-                                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-1.5"
                                 title="Ganze Serie loeschen"
                               >
                                 <X className="w-4 h-4" />
@@ -179,7 +179,7 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
                           ) : (
                             <button 
                               onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
-                              className="px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1.5"
+                              className="px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-1.5"
                             >
                               <X className="w-4 h-4" />
                               <span>Loeschen</span>
