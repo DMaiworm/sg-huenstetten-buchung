@@ -219,7 +219,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                 </button>
 
                 {/* Controlled react-datepicker */}
-                <div className="absolute left-0 top-full z-50">
+                
                   <DatePicker
                     ref={datePickerRef}
                     selected={pickerDate}
@@ -239,7 +239,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                     // keep it controlled
                     dateFormat="dd.MM.yyyy"
                   />
-                </div>
+                
               </div>
 
               <span className="mx-2">–</span>
