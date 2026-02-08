@@ -209,7 +209,7 @@ const navigateWeek = (direction) => {
           <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
 
           {isLimited && (
-            <Badge variant="warning">
+            <Badge variant="warning" className="inline-flex items-center whitespace-nowrap">
               <Shield className="w-3 h-3 inline mr-1" />
               Nur in zugewiesenen Slots
             </Badge>
