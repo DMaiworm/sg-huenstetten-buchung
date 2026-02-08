@@ -133,3 +133,22 @@ body {
 .min-w-48 { min-width: 12rem; }
 
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* DatePicker Input: transparent, kein Rahmen, kleinere Breite */
+.react-datepicker__input-container input {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  min-width: 90px;      /* gewünschte minimale Breite anpassen */
+  width: auto !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: inherit !important;
+  font: inherit !important;
+}
+
+/* optional: entferne den blauen Fokus-Rahmen in manchen Browsern */
+.react-datepicker__input-container input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
