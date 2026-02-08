@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Shield, Maximize } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Shield, Maximize, Calendar } from 'lucide-react';
 import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
 import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
