@@ -243,7 +243,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                 shouldCloseOnSelect={true}
                 popperPlacement="bottom"
                 dateFormat="dd.MM.yyyy"
-                customInput={<PickerButton />}
+                customInput={<PickerButton fallback={formatDate(weekDates[0])} />}
               />
                 
               </div>
