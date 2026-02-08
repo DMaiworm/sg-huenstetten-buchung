@@ -16,19 +16,23 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
 
   const weekDates = getWeekDates(currentDate);
   
-  // innerhalb CalendarView, nach const weekDates = ...
-  const PickerButton = React.forwardRef(({ value, onClick, fallback }, ref) => (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      className="select-none cursor-pointer bg-transparent p-0"
-      style={{ minWidth: '90px' }}
-    >
-      {value || fallback}
-    </button>
-  ));
-  PickerButton.displayName = 'PickerButton';
+const PickerButton = React.forwardRef(({ value, onClick }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={(e) => {
+      // erst das react-datepicker onClick aufrufen (falls nötig)
+      if (onClick) onClick(e);
+      // dann selbst den controlled open-state setzen
+      setPickerOpen(prev => !prev);
+    }}
+    className="select-none cursor-pointer bg-transparent p-0"
+    style={{ minWidth: '90px' }}
+  >
+    {value || formatDate(weekDates[0])}
+  </button>
+));
+PickerButton.displayName = 'PickerButton';
 
   const handleDatePickerSelect = (date) => {
     if (!date) return;
