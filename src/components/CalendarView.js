@@ -259,6 +259,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
             Heute
           </Button>
         </div>
+      </div> 
 
       {/* Kalender-Grid - flexibel bis zum unteren Rand */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '400px' }}>
