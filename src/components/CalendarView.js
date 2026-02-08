@@ -8,6 +8,21 @@ import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
 
+// Button als customInput (forwardRef nötig)
+const PickerButton = React.forwardRef(({ value, onClick }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    className="select-none cursor-pointer bg-transparent p-0"
+    style={{ minWidth: "90px" }} // anpassen: Breite des geschlossenen Pickers
+  >
+    {/* Wenn react-datepicker keinen value übergibt, fallback auf dein formatDate */}
+    {value || formatDate(weekDates[0])}
+  </button>
+));
+PickerButton.displayName = "PickerButton";
+
 const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -220,25 +235,17 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
 
                 {/* Controlled react-datepicker */}
                 
-                  <DatePicker
-                    ref={datePickerRef}
-                    selected={pickerDate}
-                    onChange={(date) => handleDatePickerSelect(date)}
-                    onClickOutside={() => setPickerOpen(false)}
-                    open={pickerOpen}
-                    onSelect={(date) => handleDatePickerSelect(date)}
-                    inline={false}
-                    withPortal={false}
-                    // optional: showMonthDropdown, showYearDropdown, etc.
-                    // prevent keyboard from closing unexpectedly
-                    shouldCloseOnSelect={true}
-                    // position the popper right under the trigger
-                    popperPlacement="bottom"
-                    // don't render unless open (keeps DOM small)
-                    portalId="react-datepicker-portal"
-                    // keep it controlled
-                    dateFormat="dd.MM.yyyy"
-                  />
+              <DatePicker
+                selected={pickerDate}
+                onChange={handleDatePickerSelect}
+                onClickOutside={() => setPickerOpen(false)}
+                open={pickerOpen}
+                onSelect={handleDatePickerSelect}
+                shouldCloseOnSelect={true}
+                popperPlacement="bottom"
+                dateFormat="dd.MM.yyyy"
+                customInput={<PickerButton />}
+              />
                 
               </div>
 
