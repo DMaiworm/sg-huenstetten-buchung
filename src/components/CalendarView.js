@@ -194,7 +194,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               onClick={() => datePickerRef.current?.showPicker()}
               className="font-medium text-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               style={{ minWidth: '220px' }}
-             >
+            >
               {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
             </button>
 
