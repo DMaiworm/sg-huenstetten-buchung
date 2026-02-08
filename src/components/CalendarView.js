@@ -227,7 +227,7 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
                     onClickOutside={() => setPickerOpen(false)}
                     open={pickerOpen}
                     onSelect={(date) => handleDatePickerSelect(date)}
-                    inline={false}
+                    inline
                     withPortal={false}
                     // optional: showMonthDropdown, showYearDropdown, etc.
                     // prevent keyboard from closing unexpectedly
