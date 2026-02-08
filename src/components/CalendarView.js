@@ -197,24 +197,29 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
           <ChevronRight className="w-5 h-5" />
         </Button>
 
-        <div className="relative">
-          <Button variant="ghost" onClick={() => datePickerRef.current?.showPicker()}>
-            <Calendar className="w-5 h-5" />
-          </Button>
+     <div className="relative">
+        <Button variant="ghost" onClick={() => datePickerRef.current?.showPicker()}>
+          <Calendar className="w-5 h-5" />
+        </Button>
 
-          <input
-            ref={datePickerRef}
-            type="date"
-            className="absolute top-0 left-0 w-full h-full opacity-0"
-            style={{ pointerEvents: 'auto', width: '40px', height: '40px', cursor: 'pointer' }}
-            value={formatDateISO(currentDate)}
-            onChange={(e) => {
-              handleDatePickerChange(e);
-              datePickerRef.current?.blur();
-            }}
-            onBlur={() => datePickerRef.current?.blur()}
-          />
-        </div>
+        <input
+          ref={datePickerRef}
+          type="date"
+          className="absolute opacity-0"
+          style={{ 
+            pointerEvents: 'auto',
+            position: 'absolute',
+            left: '-9999px',
+            width: '1px',
+            height: '1px'
+          }}
+          value={formatDateISO(currentDate)}
+          onChange={(e) => {
+            handleDatePickerChange(e);
+            setTimeout(() => datePickerRef.current?.blur(), 100);
+          }}
+        />
+      </div>
 
         <Button
           variant="secondary"
