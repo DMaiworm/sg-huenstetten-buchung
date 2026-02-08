@@ -202,12 +202,18 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
               ref={datePickerRef}
               type="date"
               className="absolute top-0 left-0 w-full h-full opacity-0"
-              style={{ pointerEvents: 'none' }}
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
               value={formatDateISO(currentDate)}
-              onChange={handleDatePickerChange}
-            />
+              onChange={(e) => {
+                handleDatePickerChange(e);
+                datePickerRef.current?.blur();
+              }}
+                
           </div>
 
+
+
+              
           <Button variant="ghost" onClick={() => navigateWeek(1)}>
             <ChevronRight className="w-5 h-5" />
           </Button>
