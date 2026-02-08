@@ -5,17 +5,32 @@ export const formatDate = (date) => {
 };
 
 export const formatDateISO = (date) => {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 export const getWeekDates = (date) => {
   const start = new Date(date);
-  start.setDate(start.getDate() - start.getDay() + 1);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     return d;
   });
+};
+
+export const getMondayForDate = (date) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 };
 
 export const timeToMinutes = (time) => {
@@ -53,12 +68,12 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
     if (isLimited) {
       const availableSlot = slots.find(s => s.resourceId === resourceId && s.dayOfWeek === dayOfWeek && new Date(date) >= new Date(s.validFrom) && new Date(date) <= new Date(s.validUntil));
       if (!availableSlot) {
-        dateConflicts.push({ type: 'no_slot', message: 'Kein verf\u00fcgbarer Slot an diesem Tag', severity: 'error' });
+        dateConflicts.push({ type: 'no_slot', message: 'Kein verfügbarer Slot an diesem Tag', severity: 'error' });
       } else {
         const reqStart = timeToMinutes(startTime); const reqEnd = timeToMinutes(endTime);
         const slotStart = timeToMinutes(availableSlot.startTime); const slotEnd = timeToMinutes(availableSlot.endTime);
         if (reqStart < slotStart || reqEnd > slotEnd) {
-          dateConflicts.push({ type: 'outside_slot', message: `Zeit au\u00dferhalb des Slots (${availableSlot.startTime}-${availableSlot.endTime})`, severity: 'error', slot: availableSlot });
+          dateConflicts.push({ type: 'outside_slot', message: `Zeit außerhalb des Slots (${availableSlot.startTime}-${availableSlot.endTime})`, severity: 'error', slot: availableSlot });
         }
       }
     }
@@ -71,15 +86,15 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
 
       if (booking.resourceId === resourceId) {
         const severity = (!requestedType?.allowOverlap || !existingType?.allowOverlap) ? 'error' : 'warning';
-        dateConflicts.push({ type: 'time_overlap', message: `${existingType?.icon || '\ud83d\udccb'} ${existingType?.label || 'Buchung'}: "${booking.title}"`, severity, booking, existingType, explanation: severity === 'error' ? 'Diese Buchungstypen k\u00f6nnen sich nicht \u00fcberschneiden' : '\u00dcberschneidung m\u00f6glich, aber pr\u00fcfen Sie ob sinnvoll' });
+        dateConflicts.push({ type: 'time_overlap', message: `${existingType?.icon || '📋'} ${existingType?.label || 'Buchung'}: "${booking.title}"`, severity, booking, existingType, explanation: severity === 'error' ? 'Diese Buchungstypen können sich nicht überschneiden' : 'Überschneidung möglich, aber prüfen Sie ob sinnvoll' });
       }
       if (isComposite && resource.includes?.includes(booking.resourceId)) {
         const severity = (!requestedType?.allowOverlap || !existingType?.allowOverlap) ? 'error' : 'warning';
-        dateConflicts.push({ type: 'composite_blocked', message: `Teilfeld belegt: ${existingType?.icon || '\ud83d\udccb'} "${booking.title}"`, severity, booking, existingType });
+        dateConflicts.push({ type: 'composite_blocked', message: `Teilfeld belegt: ${existingType?.icon || '📋'} "${booking.title}"`, severity, booking, existingType });
       }
       if (resource?.partOf && booking.resourceId === resource.partOf) {
         const severity = (!requestedType?.allowOverlap || !existingType?.allowOverlap) ? 'error' : 'warning';
-        dateConflicts.push({ type: 'parent_blocked', message: `Ganzes Feld gebucht: ${existingType?.icon || '\ud83d\udccb'} "${booking.title}"`, severity, booking, existingType });
+        dateConflicts.push({ type: 'parent_blocked', message: `Ganzes Feld gebucht: ${existingType?.icon || '📋'} "${booking.title}"`, severity, booking, existingType });
       }
     });
 
