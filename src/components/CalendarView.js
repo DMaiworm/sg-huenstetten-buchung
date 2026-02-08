@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Shield, Maximize } from 'lucide-react';
 import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
 import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
+import { Button } from './ui/Badge';
 
 const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
