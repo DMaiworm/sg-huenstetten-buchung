@@ -205,18 +205,21 @@ const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, 
         <input
           ref={datePickerRef}
           type="date"
-          className="absolute opacity-0"
+          className="absolute top-0 left-0 opacity-0"
           style={{ 
             pointerEvents: 'auto',
-            position: 'absolute',
-            left: '-9999px',
-            width: '1px',
-            height: '1px'
+            width: '100%',
+            height: '100%',
+            cursor: 'pointer',
+            fontSize: '0',
+            color: 'transparent',
+            border: 'none',
+            background: 'transparent'
           }}
           value={formatDateISO(currentDate)}
           onChange={(e) => {
             handleDatePickerChange(e);
-            setTimeout(() => datePickerRef.current?.blur(), 100);
+            datePickerRef.current?.blur();
           }}
         />
       </div>
