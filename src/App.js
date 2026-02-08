@@ -11,6 +11,10 @@ import UserManagement from './components/admin/UserManagement';
 import EmailLog from './components/admin/EmailLog';
 import PDFExportDialog from './components/PDFExportDialog';
 
+import { registerLocale } from 'react-datepicker';
+import de from 'date-fns/locale/de';
+registerLocale('de', de);
+
 export default function SportvereinBuchung() {
   const [currentView, setCurrentView] = useState('calendar');
   const [isAdmin, setIsAdmin] = useState(true);
