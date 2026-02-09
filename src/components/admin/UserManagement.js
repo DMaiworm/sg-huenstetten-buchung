@@ -142,16 +142,20 @@ const UserManagement = ({ users, setUsers }) => {
                 <div className="flex items-start gap-4">
                   {/* Avatar - bereit für Foto in der Zukunft */}
                   <div 
-                    className="w-20 h-20 min-w-[5rem] rounded-full flex items-center justify-center text-white font-mono font-semibold text-2xl flex-shrink-0 overflow-hidden" 
-                    style={{ backgroundColor: role?.color }}
-                  >
-                    {/* Wenn user.photo vorhanden ist, wird hier später ein <img> angezeigt */}
-                    {user.photo ? (
-                      <img src={user.photo} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <span style={{ letterSpacing: '-0.05em' }}>{initials}</span>
-                    )}
-                  </div>
+  className="w-20 h-20 rounded-full flex items-center justify-center text-white font-semibold text-2xl flex-shrink-0 overflow-hidden" 
+  style={{ 
+    backgroundColor: role?.color,
+    minWidth: '5rem',
+    maxWidth: '5rem',
+    flexShrink: 0
+  }}
+>
+  {user.photo ? (
+    <img src={user.photo} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
+  ) : (
+    <span className="font-mono" style={{ letterSpacing: '-0.05em' }}>{initials}</span>
+  )}
+</div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-gray-800">{user.firstName} {user.lastName}</h3>
