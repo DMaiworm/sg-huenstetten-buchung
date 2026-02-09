@@ -142,9 +142,7 @@ const UserManagement = ({ users, setUsers }) => {
                 <div className="flex items-start gap-4">
                   {/* Avatar - bereit für Foto in der Zukunft */}
                   <div 
-                    className="w-16 h-16 min-w-[4rem] rounded-full flex items-center justify-center text-white font-semibold text-xl flex-shrink-0 overflow-hidden"
-                    style={{ backgroundColor: role?.color }}
-                  >
+                    className="w-20 h-20 min-w-[5rem] rounded-full flex items-center justify-center text-white font-semibold text-2xl flex-shrink-0 overflow-hidden"
                     {/* Wenn user.photo vorhanden ist, wird hier später ein <img> angezeigt */}
                     {user.photo ? (
                       <img src={user.photo} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
