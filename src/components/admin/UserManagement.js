@@ -148,7 +148,7 @@ const UserManagement = ({ users, setUsers }) => {
         </div>
       </div>
 
-      {/* Modal - außerhalb des Haupt-Divs */}
+            {/* Modal - außerhalb des Haupt-Divs */}
       {showForm && (
         <div 
           style={{
@@ -173,13 +173,13 @@ const UserManagement = ({ users, setUsers }) => {
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
               maxWidth: '42rem',
               width: '100%',
-              maxHeight: '90vh',
+              maxHeight: '95vh',
               overflowY: 'auto'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1f2937' }}>
                 {editingUser ? 'Benutzer bearbeiten' : 'Neuen Benutzer anlegen'}
               </h3>
@@ -190,42 +190,42 @@ const UserManagement = ({ users, setUsers }) => {
 
             {/* Modal Body */}
             <form onSubmit={handleSubmit}>
-              <div style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              <div style={{ padding: '1.25rem 1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Vorname *</label>
-                    <input type="text" value={newUser.firstName} onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }} required />
+                    <input type="text" value={newUser.firstName} onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Nachname *</label>
-                    <input type="text" value={newUser.lastName} onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }} required />
+                    <input type="text" value={newUser.lastName} onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Verein *</label>
-                    <input type="text" value={newUser.club} onChange={(e) => setNewUser({ ...newUser, club: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }} required />
+                    <input type="text" value={newUser.club} onChange={(e) => setNewUser({ ...newUser, club: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Mannschaft / Kurs</label>
-                    <input type="text" value={newUser.team} onChange={(e) => setNewUser({ ...newUser, team: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }} />
+                    <input type="text" value={newUser.team} onChange={(e) => setNewUser({ ...newUser, team: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>E-Mail *</label>
-                    <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }} required />
+                    <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Telefon</label>
-                    <input type="tel" value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }} />
+                    <input type="tel" value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} />
                   </div>
                   <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>Rolle *</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.375rem' }}>Rolle *</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {ROLES.map(role => (
-                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.75rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
+                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer', padding: '0.5rem 0.75rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
                           <input type="radio" name="role" value={role.id} checked={newUser.role === role.id} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} style={{ width: '1rem', height: '1rem' }} />
-                          <span style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }} />
+                          <span style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }} />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '500', fontSize: '0.875rem' }}>{role.label}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{role.description}</div>
+                            <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{role.label}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.5rem' }}>- {role.description}</span>
                           </div>
                         </label>
                       ))}
@@ -235,17 +235,17 @@ const UserManagement = ({ users, setUsers }) => {
               </div>
 
               {/* Modal Footer */}
-              <div style={{ display: 'flex', gap: '0.75rem', padding: '1.5rem', borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', padding: '1.25rem 1.5rem', borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
                 <button 
                   type="submit"
-                  style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.625rem 1rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '0.5rem', fontWeight: '500', border: 'none', cursor: 'pointer' }}
+                  style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.625rem 1rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '0.5rem', fontWeight: '500', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
                 >
                   {editingUser ? 'Änderungen speichern' : 'Benutzer anlegen'}
                 </button>
                 <button 
                   type="button"
                   onClick={closeModal}
-                  style={{ padding: '0.625rem 1.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', border: '1px solid #d1d5db', color: '#374151', borderRadius: '0.5rem', fontWeight: '500', cursor: 'pointer' }}
+                  style={{ padding: '0.625rem 1.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', border: '1px solid #d1d5db', color: '#374151', borderRadius: '0.5rem', fontWeight: '500', cursor: 'pointer', fontSize: '0.875rem' }}
                 >
                   Abbrechen
                 </button>
