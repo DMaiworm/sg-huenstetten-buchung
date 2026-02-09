@@ -41,22 +41,32 @@ const UserManagement = ({ users, setUsers }) => {
           <h2 className="text-2xl font-bold text-gray-800">Benutzerverwaltung</h2>
           <p className="text-gray-500">{users.length} Benutzer registriert</p>
         </div>
-        <Button onClick={() => { setShowForm(!showForm); setEditingUser(null); setNewUser({ firstName: '', lastName: '', club: 'SG Huenstetten', team: '', email: '', phone: '', role: 'trainer' }); }}>
-          <UserPlus className="w-5 h-5 mr-2" />Neuer Benutzer
-        </Button>
+        <button 
+          onClick={() => { setShowForm(!showForm); setEditingUser(null); setNewUser({ firstName: '', lastName: '', club: 'SG Huenstetten', team: '', email: '', phone: '', role: 'trainer' }); }}
+          className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors gap-2"
+        >
+          <UserPlus className="w-5 h-5" />
+          <span>Neuer Benutzer</span>
+        </button>
       </div>
 
       <div className="mb-4">
         <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
           <button onClick={() => setFilterRole('all')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${filterRole === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
-            Alle ({users.length})
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${filterRole === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
+            <span>Alle</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+              {users.length}
+            </span>
           </button>
           {ROLES.map(role => (
             <button key={role.id} onClick={() => setFilterRole(role.id)}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${filterRole === role.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: role.color }} />
-              {role.label} ({users.filter(u => u.role === role.id).length})
+              <span>{role.label}</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+                {users.filter(u => u.role === role.id).length}
+              </span>
             </button>
           ))}
         </div>
@@ -105,8 +115,19 @@ const UserManagement = ({ users, setUsers }) => {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <Button type="submit">{editingUser ? 'Speichern' : 'Anlegen'}</Button>
-            <Button type="button" variant="secondary" onClick={() => { setShowForm(false); setEditingUser(null); }}>Abbrechen</Button>
+            <button 
+              type="submit"
+              className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+            >
+              {editingUser ? 'Speichern' : 'Anlegen'}
+            </button>
+            <button 
+              type="button"
+              onClick={() => { setShowForm(false); setEditingUser(null); }}
+              className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+            >
+              Abbrechen
+            </button>
           </div>
         </form>
       )}
@@ -114,12 +135,16 @@ const UserManagement = ({ users, setUsers }) => {
       <div className="space-y-3">
         {filteredUsers.map(user => {
           const role = ROLES.find(r => r.id === user.role);
+          const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
           return (
             <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold" style={{ backgroundColor: role?.color }}>
-                    {user.firstName[0]}{user.lastName[0]}
+                  <div 
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base flex-shrink-0" 
+                    style={{ backgroundColor: role?.color }}
+                  >
+                    {initials}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -128,25 +153,37 @@ const UserManagement = ({ users, setUsers }) => {
                         {role?.label}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      <Building className="w-4 h-4 inline mr-1" />
-                      {user.club} {user.team && ` - ${user.team}`}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      <Mail className="w-4 h-4 inline mr-1" />{user.email}
-                    </p>
-                    {user.phone && (
-                      <p className="text-sm text-gray-500">
-                        <Phone className="w-4 h-4 inline mr-1" />{user.phone}
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Building className="w-4 h-4" />
+                        <span>{user.club} {user.team && ` - ${user.team}`}</span>
                       </p>
-                    )}
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        <span>{user.email}</span>
+                      </p>
+                      {user.phone && (
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Phone className="w-4 h-4" />
+                          <span>{user.phone}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => handleEdit(user)}>Bearbeiten</Button>
-                  <Button variant="danger" size="sm" onClick={() => handleDelete(user.id)}>
+                  <button 
+                    onClick={() => handleEdit(user)}
+                    className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors"
+                  >
+                    Bearbeiten
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(user.id)}
+                    className="inline-flex items-center justify-center w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
                     <X className="w-4 h-4" />
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
