@@ -140,11 +140,17 @@ const UserManagement = ({ users, setUsers }) => {
             <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
+                  {/* Avatar - bereit für Foto in der Zukunft */}
                   <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base flex-shrink-0" 
+                    className="w-14 h-14 min-w-[3.5rem] rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0 overflow-hidden" 
                     style={{ backgroundColor: role?.color }}
                   >
-                    {initials}
+                    {/* Wenn user.photo vorhanden ist, wird hier später ein <img> angezeigt */}
+                    {user.photo ? (
+                      <img src={user.photo} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <span style={{ letterSpacing: '-0.05em' }}>{initials}</span>
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -180,9 +186,10 @@ const UserManagement = ({ users, setUsers }) => {
                   </button>
                   <button 
                     onClick={() => handleDelete(user.id)}
-                    className="inline-flex items-center justify-center w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
                   >
                     <X className="w-4 h-4" />
+                    <span>Löschen</span>
                   </button>
                 </div>
               </div>
