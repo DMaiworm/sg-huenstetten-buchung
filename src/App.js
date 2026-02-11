@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DEMO_BOOKINGS, DEMO_SLOTS, DEMO_USERS } from './config/constants';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
+import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
@@ -12,6 +13,7 @@ import UserManagement from './components/admin/UserManagement';
 import EmailLog from './components/admin/EmailLog';
 import PDFExportPage from './components/PDFExportPage';
 import FacilityManagement from './components/admin/FacilityManagement';
+import OrganizationManagement from './components/admin/OrganizationManagement';
 
 import { registerLocale } from 'react-datepicker';
 import de from 'date-fns/locale/de';
@@ -27,13 +29,19 @@ export default function SportvereinBuchung() {
   const [users, setUsers] = useState(DEMO_USERS);
   const [emailService] = useState(() => new EmailService());
 
-  // Multi-facility config state
+  // Facility config state
   const [club] = useState(DEFAULT_CLUB);
   const [facilities, setFacilities] = useState(DEFAULT_FACILITIES);
   const [resourceGroups, setResourceGroups] = useState(DEFAULT_RESOURCE_GROUPS);
   const [configResources, setConfigResources] = useState(DEFAULT_RESOURCES);
 
-  // Build legacy RESOURCES from config (dynamically updates when admin changes config)
+  // Organization config state
+  const [orgClubs, setOrgClubs] = useState(DEFAULT_CLUBS);
+  const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
+  const [teams, setTeams] = useState(DEFAULT_TEAMS);
+  const [trainerAssignments, setTrainerAssignments] = useState(DEFAULT_TRAINER_ASSIGNMENTS);
+
+  // Build legacy RESOURCES from config
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
 
   const handleApprove = async (id) => {
@@ -139,6 +147,7 @@ export default function SportvereinBuchung() {
           {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
           {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
           {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
+          {currentView === 'organization' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs} departments={departments} setDepartments={setDepartments} teams={teams} setTeams={setTeams} trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments} users={users} /></>}
         </div>
       </main>
     </div>

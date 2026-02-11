@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, Check, Plus, Settings, Home, List, UserPlus, Mail, FileDown, Building2 } from 'lucide-react';
+import { Calendar, Users, Check, Plus, Settings, Home, List, UserPlus, Mail, FileDown, Building2, Building } from 'lucide-react';
 
 const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailService, facilityName }) => {
   const navItems = [
@@ -11,8 +11,9 @@ const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailServi
   const adminItems = [
     { id: 'approvals', label: 'Genehmigungen', icon: Check },
     { id: 'slots', label: 'Slot-Verwaltung', icon: Settings },
-    { id: 'users', label: 'Benutzerverwaltung', icon: UserPlus },
-    { id: 'facility', label: 'Anlagen-Verwaltung', icon: Building2 },
+    { id: 'users', label: 'Personen', icon: UserPlus },
+    { id: 'organization', label: 'Organisation', icon: Building },
+    { id: 'facility', label: 'Anlagen', icon: Building2 },
     { id: 'emails', label: 'E-Mail-Log', icon: Mail, badge: emailService?.getSentEmails().length || 0 },
   ];
 
