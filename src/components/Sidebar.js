@@ -1,7 +1,7 @@
 import React from 'react';
-import { Calendar, Users, Check, Plus, Settings, Home, List, UserPlus, Mail, FileDown } from 'lucide-react';
+import { Calendar, Users, Check, Plus, Settings, Home, List, UserPlus, Mail, FileDown, Building2 } from 'lucide-react';
 
-const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailService }) => {
+const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailService, facilityName }) => {
   const navItems = [
     { id: 'calendar', label: 'Kalender', icon: Calendar },
     { id: 'bookings', label: 'Meine Buchungen', icon: List },
@@ -12,6 +12,7 @@ const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailServi
     { id: 'approvals', label: 'Genehmigungen', icon: Check },
     { id: 'slots', label: 'Slot-Verwaltung', icon: Settings },
     { id: 'users', label: 'Benutzerverwaltung', icon: UserPlus },
+    { id: 'facility', label: 'Anlagen-Verwaltung', icon: Building2 },
     { id: 'emails', label: 'E-Mail-Log', icon: Mail, badge: emailService?.getSentEmails().length || 0 },
   ];
 
@@ -20,7 +21,7 @@ const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailServi
       <div className="p-4 border-b border-gray-200">
         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
           <Home className="w-6 h-6 text-blue-600" />
-          SG Hünstetten
+          {facilityName || 'SG H' + String.fromCharCode(252) + 'nstetten'}
         </h1>
         <p className="text-sm text-gray-500 mt-1">Ressourcen-Buchung</p>
       </div>
@@ -36,7 +37,7 @@ const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailServi
         </div>
 
         <div className="mt-6 mb-2 px-3 text-xs font-semibold text-gray-400 uppercase">Export</div>
-        <button onClick={onExportPDF} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-gray-600 hover:bg-green-50 hover:text-green-700">
+        <button onClick={onExportPDF} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${currentView === 'export' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-green-50 hover:text-green-700'}`}>
           <FileDown className="w-5 h-5" />Monatsplan PDF
         </button>
 
