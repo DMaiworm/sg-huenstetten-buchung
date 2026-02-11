@@ -1,50 +1,70 @@
 // Facility & Resource Configuration
-// This replaces the hardcoded RESOURCES array with a hierarchical, multi-tenant model
+// Hierarchical multi-facility model:
+//   Verein -> Facility[] -> ResourceGroup[] -> Resource[] -> SubResource[]
 
-// ---- Helper: generate slug from name ----
-const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+const UMLAUT_A = String.fromCharCode(228);
+const UMLAUT_O = String.fromCharCode(246);
+const UMLAUT_U = String.fromCharCode(252);
+const UMLAUT_SS = String.fromCharCode(223);
 
 // ---- Default Demo Data ----
-export const DEFAULT_FACILITY = {
-  id: 'facility-1',
-  name: 'Biogrund Sportpark',
-  street: 'Am Sportpark',
-  houseNumber: '1',
-  zip: '65510',
-  city: 'H' + String.fromCharCode(252) + 'nstetten-G' + String.fromCharCode(246) + 'rsroth',
-  club: 'SG H' + String.fromCharCode(252) + 'nstetten',
-  logo: null,
+export const DEFAULT_CLUB = {
+  name: 'SG H' + UMLAUT_U + 'nstetten',
   primaryColor: '#2563eb',
 };
 
+export const DEFAULT_FACILITIES = [
+  {
+    id: 'facility-biogrund',
+    name: 'Biogrund Sportpark',
+    street: 'Am Sportpark',
+    houseNumber: '1',
+    zip: '65510',
+    city: 'H' + UMLAUT_U + 'nstetten-G' + UMLAUT_O + 'rsroth',
+    sortOrder: 1,
+  },
+  {
+    id: 'facility-dgh',
+    name: 'Dorfgemeinschaftshaus G' + UMLAUT_O + 'rsroth',
+    street: 'Hauptstra' + UMLAUT_SS + 'e',
+    houseNumber: '',
+    zip: '65510',
+    city: 'H' + UMLAUT_U + 'nstetten-G' + UMLAUT_O + 'rsroth',
+    sortOrder: 2,
+  },
+];
+
 export const DEFAULT_RESOURCE_GROUPS = [
+  // --- Biogrund Sportpark ---
   {
     id: 'group-outdoor',
-    facilityId: 'facility-1',
-    name: 'Au' + String.fromCharCode(223) + 'enanlagen',
+    facilityId: 'facility-biogrund',
+    name: 'Au' + UMLAUT_SS + 'enanlagen',
     icon: 'outdoor',
     sortOrder: 1,
     sharedScheduling: false,
   },
   {
     id: 'group-indoor',
-    facilityId: 'facility-1',
-    name: 'Innenr' + String.fromCharCode(228) + 'ume',
+    facilityId: 'facility-biogrund',
+    name: 'Innenr' + UMLAUT_A + 'ume',
     icon: 'indoor',
     sortOrder: 2,
     sharedScheduling: false,
   },
+  // --- DGH Görsroth ---
   {
     id: 'group-shared',
-    facilityId: 'facility-1',
-    name: 'Geteilte Hallen',
+    facilityId: 'facility-dgh',
+    name: 'Mehrzweckhallen',
     icon: 'shared',
-    sortOrder: 3,
+    sortOrder: 1,
     sharedScheduling: true,
   },
 ];
 
 export const DEFAULT_RESOURCES = [
+  // --- Biogrund: Außenanlagen ---
   {
     id: 'sportplatz-ganz',
     groupId: 'group-outdoor',
@@ -60,12 +80,13 @@ export const DEFAULT_RESOURCES = [
   {
     id: 'kleinfeld',
     groupId: 'group-outdoor',
-    name: 'Fu' + String.fromCharCode(223) + 'ball-Kleinfeld',
+    name: 'Fu' + UMLAUT_SS + 'ball-Kleinfeld',
     color: '#84cc16',
     splittable: false,
     bookingMode: 'free',
     subResources: [],
   },
+  // --- Biogrund: Innenräume ---
   {
     id: 'gymnastik',
     groupId: 'group-indoor',
@@ -93,10 +114,11 @@ export const DEFAULT_RESOURCES = [
     bookingMode: 'free',
     subResources: [],
   },
+  // --- DGH: Mehrzweckhallen ---
   {
     id: 'halle-gross',
     groupId: 'group-shared',
-    name: 'Gro' + String.fromCharCode(223) + 'e Mehrzweckhalle',
+    name: 'Gro' + UMLAUT_SS + 'e Mehrzweckhalle',
     color: '#ef4444',
     splittable: false,
     bookingMode: 'slotOnly',
@@ -127,7 +149,6 @@ export function buildLegacyResources(resourceGroups, resources) {
     const type = res.bookingMode === 'slotOnly' ? 'limited' : 'regular';
 
     if (res.splittable && res.subResources && res.subResources.length > 0) {
-      // Composite (whole)
       legacy.push({
         id: res.id,
         name: res.name,
@@ -137,7 +158,6 @@ export function buildLegacyResources(resourceGroups, resources) {
         isComposite: true,
         includes: res.subResources.map(sr => sr.id),
       });
-      // Sub-resources
       res.subResources.forEach(sr => {
         legacy.push({
           id: sr.id,

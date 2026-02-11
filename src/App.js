@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DEMO_BOOKINGS, DEMO_SLOTS, DEMO_USERS } from './config/constants';
-import { DEFAULT_FACILITY, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
+import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
@@ -27,8 +27,9 @@ export default function SportvereinBuchung() {
   const [users, setUsers] = useState(DEMO_USERS);
   const [emailService] = useState(() => new EmailService());
 
-  // Facility config state
-  const [facility, setFacility] = useState(DEFAULT_FACILITY);
+  // Multi-facility config state
+  const [club] = useState(DEFAULT_CLUB);
+  const [facilities, setFacilities] = useState(DEFAULT_FACILITIES);
   const [resourceGroups, setResourceGroups] = useState(DEFAULT_RESOURCE_GROUPS);
   const [configResources, setConfigResources] = useState(DEFAULT_RESOURCES);
 
@@ -123,7 +124,7 @@ export default function SportvereinBuchung() {
       <Sidebar
         currentView={currentView} setCurrentView={setCurrentView}
         isAdmin={isAdmin} onExportPDF={() => setCurrentView('export')}
-        emailService={emailService} facilityName={facility.name}
+        emailService={emailService} facilityName={club.name}
       />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
@@ -137,7 +138,7 @@ export default function SportvereinBuchung() {
           {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
           {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
           {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
-          {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><FacilityManagement facility={facility} setFacility={setFacility} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
+          {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
         </div>
       </main>
     </div>
