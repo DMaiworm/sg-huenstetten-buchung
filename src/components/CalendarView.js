@@ -21,9 +21,7 @@ const PickerButton = React.forwardRef(({ value, onClick }, ref) => (
     ref={ref}
     type="button"
     onClick={(e) => {
-      // erst das react-datepicker onClick aufrufen (falls nötig)
       if (onClick) onClick(e);
-      // dann selbst den controlled open-state setzen
       setPickerOpen(prev => !prev);
     }}
     className="select-none cursor-pointer bg-transparent p-0"
@@ -53,16 +51,18 @@ const handleDatePickerSelect = (date) => {
   };
 
   const hours = Array.from({ length: 16 }, (_, i) => i + 7);
+  const HOUR_HEIGHT = 48;
+  const TOTAL_HEIGHT = hours.length * HOUR_HEIGHT;
 
   const resource = RESOURCES.find(r => r.id === selectedResource);
   const isLimited = resource?.type === 'limited';
   const isComposite = resource?.isComposite;
 
   const categories = [
-    { id: 'all', label: 'Alle Anlagen', icon: '📋' },
-    { id: 'outdoor', label: 'Außenanlagen', icon: '🏟️' },
-    { id: 'indoor', label: 'Innenräume', icon: '🏠' },
-    { id: 'shared', label: 'Geteilte Hallen', icon: '🤝' },
+    { id: 'all', label: 'Alle Anlagen', icon: '\u{1f4cb}' },
+    { id: 'outdoor', label: 'Au\u00dfenanlagen', icon: '\u{1f3df}\ufe0f' },
+    { id: 'indoor', label: 'Innenr\u00e4ume', icon: '\u{1f3e0}' },
+    { id: 'shared', label: 'Geteilte Hallen', icon: '\u{1f91d}' },
   ];
 
   const categoryResources = selectedCategory === 'all'
@@ -122,8 +122,8 @@ const handleDatePickerSelect = (date) => {
 
   const getWeekStart = (date) => {
     const d = new Date(date);
-    const day = d.getDay() || 7; // Sonntag = 7
-    d.setDate(d.getDate() - day + 1); // Montag
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1);
     d.setHours(0, 0, 0, 0);
     return d;
   };
@@ -174,7 +174,7 @@ const navigateWeek = (direction) => {
         {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
-      {/* Ressourcen-Tabs - horizontal scrollbar, feste Höhe */}
+      {/* Ressourcen-Tabs - horizontal scrollbar, feste H\u00f6he */}
       <div className="mb-3" style={{ height: '42px' }}>
         <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto" style={{ height: '40px', whiteSpace: 'nowrap', scrollbarWidth: 'thin' }}>
           {categoryResources.map(res => (
@@ -186,9 +186,9 @@ const navigateWeek = (direction) => {
               }`}
               style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
             >
-              {res.isComposite && <span>⭐</span>}
-              {res.type === 'limited' && <span>⚠️</span>}
-              {res.name.replace('Große ', '').replace('Kleine ', 'Kl. ')}
+              {res.isComposite && <span>\u2b50</span>}
+              {res.type === 'limited' && <span>\u26a0\ufe0f</span>}
+              {res.name.replace('Gro\u00dfe ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
                 <span className="ml-2 min-w-10 h-10 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
                   {getBookingCountForResource(res.id)}
@@ -218,7 +218,7 @@ const navigateWeek = (direction) => {
           {isComposite && (
             <Badge variant="info" className="inline-flex items-center whitespace-nowrap">
               <Maximize className="w-3 h-3 inline mr-1" />
-              Beide Hälften
+              Beide H\u00e4lften
             </Badge>
           )}
         </div>
@@ -231,7 +231,6 @@ const navigateWeek = (direction) => {
           <div className="font-medium text-center px-3 py-1.5" style={{ minWidth: '220px' }}>
             <div className="flex items-center justify-center">
               <div className="relative">
-                {/* Controlled react-datepicker */}
                 
               <DatePicker
                 selected={pickerDate}
@@ -248,7 +247,7 @@ const navigateWeek = (direction) => {
                 
               </div>
 
-              <span className="mx-2">–</span>
+              <span className="mx-2">\u2013</span>
 
               <span className="select-none">{formatDate(weekDates[6])}</span>
             </div>
@@ -267,8 +266,9 @@ const navigateWeek = (direction) => {
         </div>
       </div> 
 
-      {/* Kalender-Grid - flexibel bis zum unteren Rand */}
+      {/* Kalender-Grid */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '400px' }}>
+        {/* Wochen-Header - fixiert */}
         <div className="grid grid-cols-8 min-w-[800px] flex-shrink-0">
           <div className="bg-gray-50 border-b border-r border-gray-200 p-2"></div>
           {weekDates.map((date, i) => (
@@ -281,21 +281,34 @@ const navigateWeek = (direction) => {
           ))}
         </div>
 
+        {/* Scrollbarer Kalender-Bereich */}
         <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-8 min-w-[800px]">
-            <div className="border-r border-gray-200">
+          <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)', minWidth: '800px' }}>
+            {/* Stunden-Spalte */}
+            <div style={{ borderRight: '1px solid #e5e7eb' }}>
               {hours.map(hour => (
-                <div key={hour} className="h-12 border-b border-gray-200 p-2 text-xs text-gray-500 text-right">{hour}:00</div>
+                <div key={hour} style={{ height: `${HOUR_HEIGHT}px`, borderBottom: '1px solid #e5e7eb', padding: '8px', fontSize: '12px', color: '#6b7280', textAlign: 'right' }}>
+                  {hour}:00
+                </div>
               ))}
             </div>
+
+            {/* Tages-Spalten */}
             {weekDates.map((date, dayIndex) => {
               const slot = getSlotForDay(date.getDay());
               const dayBookings = getBookingsForDay(date);
               const firstHour = hours[0];
-              const totalHeight = hours.length * 48;
               return (
-                <div key={dayIndex} className="relative border-r border-gray-200 last:border-r-0" style={{ height: `${totalHeight}px` }}>
-                  {hours.map(hour => {
+                <div
+                  key={dayIndex}
+                  style={{
+                    position: 'relative',
+                    height: `${TOTAL_HEIGHT}px`,
+                    borderRight: dayIndex < 6 ? '1px solid #e5e7eb' : 'none',
+                  }}
+                >
+                  {/* Stunden-Hintergrund-Zellen */}
+                  {hours.map((hour, hourIdx) => {
                     const hourStart = hour * 60;
                     const hourEnd = (hour + 1) * 60;
                     let isInSlot = !isLimited;
@@ -304,10 +317,26 @@ const navigateWeek = (direction) => {
                       const slotEnd = timeToMinutes(slot.endTime);
                       isInSlot = hourStart >= slotStart && hourEnd <= slotEnd;
                     }
+                    let bgColor = '#ffffff';
+                    if (isLimited && !isInSlot) bgColor = '#f3f4f6';
+                    if (isLimited && isInSlot) bgColor = '#f0fdf4';
                     return (
-                      <div key={hour} className={`h-12 border-b border-gray-200 ${isLimited && !isInSlot ? 'bg-gray-100' : 'bg-white'} ${isLimited && isInSlot ? 'bg-green-50' : ''}`} />
+                      <div
+                        key={hour}
+                        style={{
+                          position: 'absolute',
+                          top: `${hourIdx * HOUR_HEIGHT}px`,
+                          left: 0,
+                          right: 0,
+                          height: `${HOUR_HEIGHT}px`,
+                          borderBottom: '1px solid #e5e7eb',
+                          backgroundColor: bgColor,
+                        }}
+                      />
                     );
                   })}
+
+                  {/* Booking-Eintr\u00e4ge */}
                   {dayBookings.map(booking => {
                     const bookingResource = RESOURCES.find(r => r.id === booking.resourceId);
                     const bookingType = BOOKING_TYPES.find(t => t.id === booking.bookingType);
@@ -315,40 +344,61 @@ const navigateWeek = (direction) => {
                     const startMinutes = timeToMinutes(booking.startTime);
                     const endMinutes = timeToMinutes(booking.endTime);
                     const durationMinutes = endMinutes - startMinutes;
-                    const topPx = ((startMinutes - firstHour * 60) / 60) * 48;
-                    const heightPx = Math.max((durationMinutes / 60) * 48, 20);
-                    const clampedTop = Math.max(0, Math.min(topPx, totalHeight - heightPx));
+                    const topPx = ((startMinutes - firstHour * 60) / 60) * HOUR_HEIGHT;
+                    const heightPx = Math.max((durationMinutes / 60) * HOUR_HEIGHT, 20);
                     const userName = getUserName(booking.userId);
+
+                    let bgColor = undefined;
+                    let textColor = undefined;
+                    let borderStyle = undefined;
+                    if (isBlocking) {
+                      bgColor = '#d1d5db';
+                      textColor = '#4b5563';
+                      borderStyle = '1px dashed #9ca3af';
+                    } else if (booking.status === 'approved') {
+                      bgColor = bookingResource?.color;
+                      textColor = '#ffffff';
+                    } else {
+                      bgColor = '#fef08a';
+                      textColor = '#854d0e';
+                      borderStyle = '1px solid #facc15';
+                    }
+
                     return (
                       <div
                         key={`${booking.id}-${isBlocking ? 'block' : 'own'}`}
-                        className={`absolute left-1 right-1 rounded overflow-hidden ${
-                          isBlocking ? 'bg-gray-300 text-gray-600 border border-gray-400 border-dashed'
-                            : booking.status === 'approved' ? 'text-white' : 'bg-yellow-200 text-yellow-800 border border-yellow-400'
-                        }`}
                         style={{
-                          top: `${clampedTop}px`, height: `${heightPx - 2}px`,
-                          backgroundColor: !isBlocking && booking.status === 'approved' ? bookingResource?.color : undefined,
+                          position: 'absolute',
+                          top: `${topPx}px`,
+                          left: '4px',
+                          right: '4px',
+                          height: `${heightPx - 2}px`,
+                          backgroundColor: bgColor,
+                          color: textColor,
+                          border: borderStyle,
+                          borderRadius: '4px',
+                          overflow: 'hidden',
                           zIndex: isBlocking ? 5 : 10,
-                          fontSize: '11px', lineHeight: '1.35',
+                          fontSize: '11px',
+                          lineHeight: '1.35',
                           padding: '3px 6px',
                         }}
                         title={`${bookingType ? bookingType.icon + ' ' + bookingType.label : ''} | ${booking.title} | ${userName} | ${booking.startTime}-${booking.endTime}`}
                       >
                         {isBlocking ? (
                           <>
-                            <div className="truncate opacity-80">🚫 Blockiert</div>
-                            {heightPx > 25 && <div className="truncate opacity-70">{booking.title}</div>}
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>{'\u{1f6ab}'} Blockiert</div>
+                            {heightPx > 25 && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.7 }}>{booking.title}</div>}
                           </>
                         ) : (
                           <>
-                            <div className="flex items-center justify-between">
-                              <span style={{ fontSize: '13px' }}>{bookingType ? bookingType.icon : '📋'}</span>
-                              <span className="truncate opacity-90 font-medium">{bookingType ? bookingType.label : ''}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '13px' }}>{bookingType ? bookingType.icon : '\u{1f4cb}'}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.9, fontWeight: 500 }}>{bookingType ? bookingType.label : ''}</span>
                             </div>
-                            {heightPx > 28 && <div className="font-bold truncate">{booking.title}</div>}
-                            {heightPx > 42 && <div className="truncate opacity-80">{userName}</div>}
-                            {heightPx > 56 && <div className="font-bold truncate">{booking.startTime} – {booking.endTime}</div>}
+                            {heightPx > 28 && <div style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.title}</div>}
+                            {heightPx > 42 && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>{userName}</div>}
+                            {heightPx > 56 && <div style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.startTime} \u2013 {booking.endTime}</div>}
                           </>
                         )}
                       </div>
@@ -373,8 +423,8 @@ const navigateWeek = (direction) => {
         {isLimited && (
           <>
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div><span>Verfügbarer Slot</span></div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded"></div><span>Nicht verfügbar</span></div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div><span>Verf\u00fcgbarer Slot</span></div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded"></div><span>Nicht verf\u00fcgbar</span></div>
           </>
         )}
       </div>
