@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ChevronLeft, ChevronRight, Shield, Maximize, Calendar } from 'lucide-react';
-import { RESOURCES, BOOKING_TYPES, DAYS } from '../config/constants';
+import { BOOKING_TYPES, DAYS } from '../config/constants';
 import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
@@ -20,7 +20,8 @@ const HOUSE = String.fromCharCode(55356, 57312);
 const HANDSHAKE = String.fromCharCode(55358, 56605);
 const NOGO = String.fromCharCode(55357, 56619);
 
-const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
+const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox, resources }) => {
+  const RESOURCES = resources;
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date(currentDate));
@@ -100,7 +101,7 @@ const handleDatePickerSelect = (date) => {
   const handleCategoryChange = (catId) => {
     setSelectedCategory(catId);
     if (catId === 'all') {
-      setSelectedResource(RESOURCES[0].id);
+      if (RESOURCES.length > 0) setSelectedResource(RESOURCES[0].id);
     } else {
       const firstResource = RESOURCES.find(r => r.category === catId);
       if (firstResource) setSelectedResource(firstResource.id);
@@ -148,13 +149,6 @@ const navigateWeek = (direction) => {
   setPickerDate(newWeekStart);
 };
 
-  const handleDatePickerChange = (e) => {
-    const picked = new Date(e.target.value + 'T12:00:00');
-    if (!isNaN(picked.getTime())) {
-      setCurrentDate(getWeekStart(picked));
-    }
-  };
-  
   return (
     <div className="h-full flex flex-col">
       {/* Kategorie-Tabs + Admin-Checkbox */}

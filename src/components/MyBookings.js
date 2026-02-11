@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, MapPin, Users, X, List, Repeat } from 'lucide-react';
-import { RESOURCES, BOOKING_TYPES, ROLES } from '../config/constants';
+import { BOOKING_TYPES, ROLES } from '../config/constants';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
-const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
+const MyBookings = ({ bookings, isAdmin, onDelete, users, resources }) => {
+  const RESOURCES = resources;
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedResource, setSelectedResource] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -39,7 +40,7 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
     let filtered = bookings.filter(b => categoryResourceIds.includes(b.resourceId));
     if (selectedResource !== 'all') filtered = filtered.filter(b => b.resourceId === selectedResource);
     return filtered;
-  }, [bookings, selectedCategory, selectedResource]);
+  }, [bookings, selectedCategory, selectedResource, RESOURCES]);
 
   const groupedBookings = useMemo(() => {
     const series = {};
@@ -104,56 +105,24 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
                         {isSeries && (<Badge variant="info"><Repeat className="w-3 h-3 inline mr-1" />Serie ({booking.dates.length}x)</Badge>)}
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <MapPin className="w-4 h-4" />
-                          <span>{resource?.name}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>{booking.startTime} - {booking.endTime}</span>
-                        </p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{resource?.name}</span></p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2"><Clock className="w-4 h-4" /><span>{booking.startTime} - {booking.endTime}</span></p>
                         {isSeries ? (
-                          <p className="text-sm text-gray-600 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>{booking.dates.length} Termine ({booking.dates[0]} bis {booking.dates[booking.dates.length - 1]})</span>
-                          </p>
+                          <p className="text-sm text-gray-600 flex items-center gap-2"><Calendar className="w-4 h-4" /><span>{booking.dates.length} Termine ({booking.dates[0]} bis {booking.dates[booking.dates.length - 1]})</span></p>
                         ) : (
-                          <p className="text-sm text-gray-600 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>{booking.date}</span>
-                          </p>
+                          <p className="text-sm text-gray-600 flex items-center gap-2"><Calendar className="w-4 h-4" /><span>{booking.date}</span></p>
                         )}
                         <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Users className="w-4 h-4" />
-                          <span>{userInfo.name}</span>
-                          {userInfo.role && (
-                            <span className="flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} />
-                              <span className="text-xs">({userInfo.role.label})</span>
-                            </span>
-                          )}
+                          <Users className="w-4 h-4" /><span>{userInfo.name}</span>
+                          {userInfo.role && (<span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} /><span className="text-xs">({userInfo.role.label})</span></span>)}
                         </p>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-  {/* Status Badge als Bubble */}
-  {booking.status === 'approved' && (
-    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-500 text-white">
-      Genehmigt
-    </span>
-  )}
-  {booking.status === 'pending' && (
-    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">
-      Ausstehend
-    </span>
-  )}
-  {booking.status === 'rejected' && (
-    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white">
-      Abgelehnt
-    </span>
-  )}
-  
+  {booking.status === 'approved' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-500 text-white">Genehmigt</span>)}
+  {booking.status === 'pending' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">Ausstehend</span>)}
+  {booking.status === 'rejected' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white">Abgelehnt</span>)}
   {isAdmin && (
     <div className="flex flex-col gap-1">
       {deleteConfirm?.id === booking.id ? (
@@ -167,31 +136,11 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users }) => {
       ) : (
         <>{isSeries ? (
           <div className="flex gap-1">
-            <button 
-              onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
-              className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
-              title="Nur diesen Termin loeschen"
-            >
-              <X className="w-4 h-4" />
-              <span>1 Termin</span>
-            </button>
-            <button 
-              onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} 
-              className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
-              title="Ganze Serie loeschen"
-            >
-              <X className="w-4 h-4" />
-              <span>Serie</span>
-            </button>
+            <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5" title="Nur diesen Termin loeschen"><X className="w-4 h-4" /><span>1 Termin</span></button>
+            <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5" title="Ganze Serie loeschen"><X className="w-4 h-4" /><span>Serie</span></button>
           </div>
         ) : (
-          <button 
-            onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} 
-            className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
-          >
-            <X className="w-4 h-4" />
-            <span>Loeschen</span>
-          </button>
+          <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"><X className="w-4 h-4" /><span>Loeschen</span></button>
         )}</>
       )}
     </div>

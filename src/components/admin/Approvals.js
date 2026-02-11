@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Calendar, MapPin, Users, Check, X, Clock } from 'lucide-react';
-import { RESOURCES, BOOKING_TYPES, ROLES } from '../../config/constants';
+import { BOOKING_TYPES, ROLES } from '../../config/constants';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Badge';
 
-const Approvals = ({ bookings, onApprove, onReject, users }) => {
+const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
+  const RESOURCES = resources;
   const pendingBookings = bookings.filter(b => b.status === 'pending');
   const [rejectDialog, setRejectDialog] = useState(null);
 
@@ -57,28 +58,13 @@ const Approvals = ({ bookings, onApprove, onReject, users }) => {
                         {booking.seriesId && <Badge variant="default">Serie</Badge>}
                       </div>
                       <div className="space-y-1">
+                        <p className="text-sm text-gray-600 flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{resource?.name}</span></p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2"><Clock className="w-4 h-4" /><span>{booking.startTime} - {booking.endTime}</span></p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2"><Calendar className="w-4 h-4" /><span>{booking.date}</span></p>
                         <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <MapPin className="w-4 h-4" />
-                          <span>{resource?.name}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>{booking.startTime} - {booking.endTime}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>{booking.date}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Users className="w-4 h-4" />
-                          <span>Angefragt von: {userInfo.name}</span>
-                          {userInfo.role && (
-                            <span className="flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} />
-                              <span className="text-xs">({userInfo.role.label})</span>
-                            </span>
-                          )}
-                          {userInfo.team && <span className="text-xs">• {userInfo.team}</span>}
+                          <Users className="w-4 h-4" /><span>Angefragt von: {userInfo.name}</span>
+                          {userInfo.role && (<span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} /><span className="text-xs">({userInfo.role.label})</span></span>)}
+                          {userInfo.team && <span className="text-xs">{String.fromCharCode(8226)} {userInfo.team}</span>}
                         </p>
                       </div>
 
@@ -95,17 +81,12 @@ const Approvals = ({ bookings, onApprove, onReject, users }) => {
                             className="w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 text-sm"
                           />
                           <div className="flex gap-2 mt-2">
-                            <button 
-                              onClick={() => handleReject(booking.id)}
-                              className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5"
-                            >
-                              <X className="w-4 h-4" />
-                              <span>Ablehnen & E-Mail senden</span>
+                            <button onClick={() => handleReject(booking.id)}
+                              className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5">
+                              <X className="w-4 h-4" /><span>Ablehnen & E-Mail senden</span>
                             </button>
-                            <button 
-                              onClick={() => setRejectDialog(null)}
-                              className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors"
-                            >
+                            <button onClick={() => setRejectDialog(null)}
+                              className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors">
                               Abbrechen
                             </button>
                           </div>
@@ -116,19 +97,13 @@ const Approvals = ({ bookings, onApprove, onReject, users }) => {
 
                   {!showingRejectDialog && (
                     <div className="flex gap-2 ml-4">
-                      <button 
-                        onClick={() => onApprove(booking.id)}
-                        className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors gap-1.5"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Genehmigen</span>
+                      <button onClick={() => onApprove(booking.id)}
+                        className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors gap-1.5">
+                        <Check className="w-4 h-4" /><span>Genehmigen</span>
                       </button>
-                      <button 
-                        onClick={() => setRejectDialog({ bookingId: booking.id, reason: '' })}
-                        className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5"
-                      >
-                        <X className="w-4 h-4" />
-                        <span>Ablehnen</span>
+                      <button onClick={() => setRejectDialog({ bookingId: booking.id, reason: '' })}
+                        className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5">
+                        <X className="w-4 h-4" /><span>Ablehnen</span>
                       </button>
                     </div>
                   )}

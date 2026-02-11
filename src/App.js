@@ -27,12 +27,12 @@ export default function SportvereinBuchung() {
   const [users, setUsers] = useState(DEMO_USERS);
   const [emailService] = useState(() => new EmailService());
 
-  // New facility config state
+  // Facility config state
   const [facility, setFacility] = useState(DEFAULT_FACILITY);
   const [resourceGroups, setResourceGroups] = useState(DEFAULT_RESOURCE_GROUPS);
   const [configResources, setConfigResources] = useState(DEFAULT_RESOURCES);
 
-  // Build legacy RESOURCES from new config (used by existing components)
+  // Build legacy RESOURCES from config (dynamically updates when admin changes config)
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
 
   const handleApprove = async (id) => {
@@ -128,15 +128,15 @@ export default function SportvereinBuchung() {
       <main className="flex-1 overflow-auto">
         <div className="p-6">
           {currentView === 'calendar' && (
-            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} />
+            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} resources={RESOURCES} />
           )}
-          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} /></>}
-          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} /></>}
-          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} /></>}
+          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} /></>}
+          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} /></>}
+          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
           {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
           {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
           {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
-          {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} />}
+          {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
           {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><FacilityManagement facility={facility} setFacility={setFacility} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
         </div>
       </main>

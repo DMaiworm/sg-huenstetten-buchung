@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { FileDown, ArrowLeft } from 'lucide-react';
-import { RESOURCES } from '../config/constants';
 import { Button } from './ui/Badge';
 
-const PDFExportPage = ({ bookings, users, onBack }) => {
+const PDFExportPage = ({ bookings, users, onBack, resources }) => {
+  const RESOURCES = resources;
   const [selectedCategory, setSelectedCategory] = useState('outdoor');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -40,7 +40,7 @@ const PDFExportPage = ({ bookings, users, onBack }) => {
       }
       const { jsPDF } = window.jspdf;
       const category = categories.find(c => c.id === selectedCategory);
-      const resources = category.resources;
+      const catResources = category.resources;
       const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
       const firstDay = getFirstDayOfMonth(selectedYear, selectedMonth);
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -59,7 +59,7 @@ const PDFExportPage = ({ bookings, users, onBack }) => {
       const dayWidth = (pageWidth - 2 * margin) / 7;
       const numWeeks = Math.ceil((firstDay + daysInMonth) / 7);
       const weekHeight = (pageHeight - gridTop - margin) / numWeeks;
-      const resourceColWidth = dayWidth / resources.length;
+      const resourceColWidth = dayWidth / catResources.length;
 
       const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
       doc.setFontSize(9);
@@ -89,7 +89,7 @@ const PDFExportPage = ({ bookings, users, onBack }) => {
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(0, 0, 0);
             doc.text(String(currentDay), cellX + 2, cellY + 4);
-            resources.forEach((res, i) => {
+            catResources.forEach((res, i) => {
               if (i > 0) { doc.setDrawColor(230, 230, 230); doc.line(cellX + i * resourceColWidth, cellY + 5, cellX + i * resourceColWidth, cellY + weekHeight); }
               doc.setFontSize(4);
               doc.setFont('helvetica', 'normal');
@@ -98,7 +98,7 @@ const PDFExportPage = ({ bookings, users, onBack }) => {
               doc.text(shortName, cellX + i * resourceColWidth + 1, cellY + 8);
             });
             const dateStr = selectedYear + '-' + String(selectedMonth + 1).padStart(2, '0') + '-' + String(currentDay).padStart(2, '0');
-            resources.forEach((res, resIndex) => {
+            catResources.forEach((res, resIndex) => {
               const dayBookings = bookings.filter(b => b.date === dateStr && b.resourceId === res.id && b.status === 'approved')
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
@@ -132,7 +132,7 @@ const PDFExportPage = ({ bookings, users, onBack }) => {
       doc.setTextColor(0, 0, 0);
       doc.text('Legende:', margin, legendY);
       let legendX = margin + 15;
-      resources.forEach(res => {
+      catResources.forEach(res => {
         const rgb = hexToRgb(res.color);
         doc.setFillColor(rgb.r, rgb.g, rgb.b);
         doc.rect(legendX, legendY - 3, 4, 4, 'F');

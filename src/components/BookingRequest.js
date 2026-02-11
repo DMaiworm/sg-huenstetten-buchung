@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, Users, Plus, Shield, Repeat, Maximize } from 'lucide-react';
-import { RESOURCES, BOOKING_TYPES, ROLES, DAYS_FULL } from '../config/constants';
+import { BOOKING_TYPES, ROLES, DAYS_FULL } from '../config/constants';
 import { timeToMinutes, generateSeriesDates, checkBookingConflicts } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
-const BookingRequest = ({ slots, onSubmit, users, bookings = [] }) => {
+const BookingRequest = ({ slots, onSubmit, users, bookings = [], resources }) => {
+  const RESOURCES = resources;
   const [formData, setFormData] = useState({
-    resourceId: 'sportplatz-links', dayOfWeek: 1, startTime: '16:00', endTime: '18:00',
+    resourceId: RESOURCES.length > 0 ? RESOURCES[0].id : '', dayOfWeek: 1, startTime: '16:00', endTime: '18:00',
     startDate: '', endDate: '', title: '', description: '', userId: '', bookingType: 'training',
   });
 
@@ -34,7 +35,7 @@ const BookingRequest = ({ slots, onSubmit, users, bookings = [] }) => {
     const hasErrors = conflicts.some(c => c.conflicts.some(cf => cf.severity === 'error'));
     const hasWarnings = conflicts.some(c => c.conflicts.some(cf => cf.severity === 'warning'));
     return { conflicts, hasErrors, hasWarnings };
-  }, [formData, previewDates, bookings, slots]);
+  }, [formData, previewDates, bookings, slots, RESOURCES]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
