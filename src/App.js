@@ -110,26 +110,29 @@ export default function SportvereinBuchung() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar
-        currentView={currentView} setCurrentView={setCurrentView}
-        isAdmin={isAdmin} onExportPDF={() => setShowPDFExport(true)}
-        emailService={emailService}
-      />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          {currentView === 'calendar' && (
-            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} />
-          )}
-          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} /></>}
-          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} /></>}
-          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} /></>}
-          {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
-          {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
-          {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
-        </div>
-      </main>
+    <>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar
+          currentView={currentView} setCurrentView={setCurrentView}
+          isAdmin={isAdmin} onExportPDF={() => setShowPDFExport(true)}
+          emailService={emailService}
+        />
+        <main className="flex-1 overflow-auto">
+          <div className="p-6">
+            {currentView === 'calendar' && (
+              <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} />
+            )}
+            {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} /></>}
+            {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} /></>}
+            {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} /></>}
+            {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
+            {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
+            {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
+          </div>
+        </main>
+      </div>
+      {/* PDF-Dialog ausserhalb des Flex-Layouts, damit fixed korrekt funktioniert */}
       <PDFExportDialog isOpen={showPDFExport} onClose={() => setShowPDFExport(false)} bookings={bookings} users={users} />
-    </div>
+    </>
   );
 }
