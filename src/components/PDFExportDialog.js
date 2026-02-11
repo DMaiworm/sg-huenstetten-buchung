@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, X } from 'lucide-react';
 import { RESOURCES } from '../config/constants';
 import { Button } from './ui/Badge';
 
@@ -147,9 +147,18 @@ const PDFExportDialog = ({ isOpen, onClose, bookings, users }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md relative shadow-xl">
+        {/* X-Button oben rechts */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+          aria-label="Schlie\u00dfen"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2 pr-8">
           <FileDown className="w-6 h-6 text-blue-600" />
           Monatsplan als PDF exportieren
         </h2>
