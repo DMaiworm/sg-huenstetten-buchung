@@ -9,7 +9,7 @@ import Approvals from './components/admin/Approvals';
 import SlotManagement from './components/admin/SlotManagement';
 import UserManagement from './components/admin/UserManagement';
 import EmailLog from './components/admin/EmailLog';
-import PDFExportDialog from './components/PDFExportDialog';
+import PDFExportPage from './components/PDFExportPage';
 
 import { registerLocale } from 'react-datepicker';
 import de from 'date-fns/locale/de';
@@ -23,7 +23,6 @@ export default function SportvereinBuchung() {
   const [bookings, setBookings] = useState(DEMO_BOOKINGS);
   const [slots, setSlots] = useState(DEMO_SLOTS);
   const [users, setUsers] = useState(DEMO_USERS);
-  const [showPDFExport, setShowPDFExport] = useState(false);
   const [emailService] = useState(() => new EmailService());
 
   const handleApprove = async (id) => {
@@ -110,29 +109,26 @@ export default function SportvereinBuchung() {
   );
 
   return (
-    <>
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar
-          currentView={currentView} setCurrentView={setCurrentView}
-          isAdmin={isAdmin} onExportPDF={() => setShowPDFExport(true)}
-          emailService={emailService}
-        />
-        <main className="flex-1 overflow-auto">
-          <div className="p-6">
-            {currentView === 'calendar' && (
-              <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} />
-            )}
-            {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} /></>}
-            {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} /></>}
-            {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} /></>}
-            {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
-            {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
-            {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
-          </div>
-        </main>
-      </div>
-      {/* PDF-Dialog ausserhalb des Flex-Layouts, damit fixed korrekt funktioniert */}
-      <PDFExportDialog isOpen={showPDFExport} onClose={() => setShowPDFExport(false)} bookings={bookings} users={users} />
-    </>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar
+        currentView={currentView} setCurrentView={setCurrentView}
+        isAdmin={isAdmin} onExportPDF={() => setCurrentView('export')}
+        emailService={emailService}
+      />
+      <main className="flex-1 overflow-auto">
+        <div className="p-6">
+          {currentView === 'calendar' && (
+            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} />
+          )}
+          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} /></>}
+          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} /></>}
+          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} /></>}
+          {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
+          {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
+          {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
+          {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} />}
+        </div>
+      </main>
+    </div>
   );
 }
