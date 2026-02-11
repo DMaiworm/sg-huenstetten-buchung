@@ -7,6 +7,18 @@ import { formatDate, formatDateISO, getWeekDates, timeToMinutes } from '../utils
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
+// Runtime-safe unicode constants (immune to file encoding issues)
+const ENDASH = String.fromCharCode(8211);
+const STAR = String.fromCharCode(11088);
+const WARNING = String.fromCharCode(9888) + String.fromCharCode(65039);
+const UMLAUT_A = String.fromCharCode(228);
+const UMLAUT_U = String.fromCharCode(252);
+const UMLAUT_SS = String.fromCharCode(223);
+const CLIPBOARD = String.fromCharCode(55356, 56523);
+const STADIUM = String.fromCharCode(55356, 57311) + String.fromCharCode(65039);
+const HOUSE = String.fromCharCode(55356, 57312);
+const HANDSHAKE = String.fromCharCode(55358, 56605);
+const NOGO = String.fromCharCode(55357, 56619);
 
 const CalendarView = ({ bookings, slots, selectedResource, setSelectedResource, currentDate, setCurrentDate, users, adminCheckbox }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -59,10 +71,10 @@ const handleDatePickerSelect = (date) => {
   const isComposite = resource?.isComposite;
 
   const categories = [
-    { id: 'all', label: 'Alle Anlagen', icon: '\u{1f4cb}' },
-    { id: 'outdoor', label: 'Au\u00dfenanlagen', icon: '\u{1f3df}\ufe0f' },
-    { id: 'indoor', label: 'Innenr\u00e4ume', icon: '\u{1f3e0}' },
-    { id: 'shared', label: 'Geteilte Hallen', icon: '\u{1f91d}' },
+    { id: 'all', label: 'Alle Anlagen', icon: CLIPBOARD },
+    { id: 'outdoor', label: 'Au' + UMLAUT_SS + 'enanlagen', icon: STADIUM },
+    { id: 'indoor', label: 'Innenr' + UMLAUT_A + 'ume', icon: HOUSE },
+    { id: 'shared', label: 'Geteilte Hallen', icon: HANDSHAKE },
   ];
 
   const categoryResources = selectedCategory === 'all'
@@ -174,7 +186,7 @@ const navigateWeek = (direction) => {
         {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
-      {/* Ressourcen-Tabs - horizontal scrollbar, feste H\u00f6he */}
+      {/* Ressourcen-Tabs */}
       <div className="mb-3" style={{ height: '42px' }}>
         <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto" style={{ height: '40px', whiteSpace: 'nowrap', scrollbarWidth: 'thin' }}>
           {categoryResources.map(res => (
@@ -186,9 +198,9 @@ const navigateWeek = (direction) => {
               }`}
               style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
             >
-              {res.isComposite && <span>\u2b50</span>}
-              {res.type === 'limited' && <span>\u26a0\ufe0f</span>}
-              {res.name.replace('Gro\u00dfe ', '').replace('Kleine ', 'Kl. ')}
+              {res.isComposite && <span>{STAR}</span>}
+              {res.type === 'limited' && <span>{WARNING}</span>}
+              {res.name.replace('Gro' + UMLAUT_SS + 'e ', '').replace('Kleine ', 'Kl. ')}
               {getBookingCountForResource(res.id) > 0 && (
                 <span className="ml-2 min-w-10 h-10 px-2 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
                   {getBookingCountForResource(res.id)}
@@ -218,7 +230,7 @@ const navigateWeek = (direction) => {
           {isComposite && (
             <Badge variant="info" className="inline-flex items-center whitespace-nowrap">
               <Maximize className="w-3 h-3 inline mr-1" />
-              Beide H\u00e4lften
+              {'Beide H' + UMLAUT_A + 'lften'}
             </Badge>
           )}
         </div>
@@ -247,7 +259,7 @@ const navigateWeek = (direction) => {
                 
               </div>
 
-              <span className="mx-2">\u2013</span>
+              <span className="mx-2">{ENDASH}</span>
 
               <span className="select-none">{formatDate(weekDates[6])}</span>
             </div>
@@ -268,7 +280,7 @@ const navigateWeek = (direction) => {
 
       {/* Kalender-Grid */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1" style={{ minHeight: '400px' }}>
-        {/* Wochen-Header - fixiert */}
+        {/* Wochen-Header */}
         <div className="grid grid-cols-8 min-w-[800px] flex-shrink-0">
           <div className="bg-gray-50 border-b border-r border-gray-200 p-2"></div>
           {weekDates.map((date, i) => (
@@ -336,7 +348,7 @@ const navigateWeek = (direction) => {
                     );
                   })}
 
-                  {/* Booking-Eintr\u00e4ge */}
+                  {/* Booking-Entries */}
                   {dayBookings.map(booking => {
                     const bookingResource = RESOURCES.find(r => r.id === booking.resourceId);
                     const bookingType = BOOKING_TYPES.find(t => t.id === booking.bookingType);
@@ -387,18 +399,18 @@ const navigateWeek = (direction) => {
                       >
                         {isBlocking ? (
                           <>
-                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>{'\u{1f6ab}'} Blockiert</div>
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>{NOGO} Blockiert</div>
                             {heightPx > 25 && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.7 }}>{booking.title}</div>}
                           </>
                         ) : (
                           <>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: '13px' }}>{bookingType ? bookingType.icon : '\u{1f4cb}'}</span>
+                              <span style={{ fontSize: '13px' }}>{bookingType ? bookingType.icon : CLIPBOARD}</span>
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.9, fontWeight: 500 }}>{bookingType ? bookingType.label : ''}</span>
                             </div>
                             {heightPx > 28 && <div style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.title}</div>}
                             {heightPx > 42 && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>{userName}</div>}
-                            {heightPx > 56 && <div style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.startTime} \u2013 {booking.endTime}</div>}
+                            {heightPx > 56 && <div style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.startTime} {ENDASH} {booking.endTime}</div>}
                           </>
                         )}
                       </div>
@@ -423,8 +435,8 @@ const navigateWeek = (direction) => {
         {isLimited && (
           <>
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div><span>Verf\u00fcgbarer Slot</span></div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded"></div><span>Nicht verf\u00fcgbar</span></div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div><span>{'Verf' + UMLAUT_U + 'gbarer Slot'}</span></div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded"></div><span>{'Nicht verf' + UMLAUT_U + 'gbar'}</span></div>
           </>
         )}
       </div>
