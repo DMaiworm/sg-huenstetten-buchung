@@ -8,6 +8,7 @@ import { Button } from './ui/Badge';
 
 const UMLAUT_A = String.fromCharCode(228);
 const UMLAUT_U = String.fromCharCode(252);
+const UMLAUT_O = String.fromCharCode(246);
 const UMLAUT_SS = String.fromCharCode(223);
 
 const BookingRequest = ({ slots, onSubmit, users, bookings = [], resources, facilities, resourceGroups, clubs, departments, teams, trainerAssignments }) => {
