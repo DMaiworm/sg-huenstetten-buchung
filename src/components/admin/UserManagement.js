@@ -1,43 +1,75 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Mail, Phone, Building } from 'lucide-react';
-import { ROLES } from '../../config/constants';
+import { X, UserPlus, Mail, Phone, Database, WifiOff } from 'lucide-react';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Badge';
 
-const UserManagement = ({ users, setUsers }) => {
+const ROLES = [
+  { id: 'admin', label: 'Administrator', color: '#dc2626', description: 'Volle Rechte: Buchungen, Genehmigungen, Verwaltung' },
+  { id: 'trainer', label: 'Trainer', color: '#2563eb', description: 'Eigene Buchungen erstellen und verwalten' },
+  { id: 'extern', label: 'Extern', color: '#6b7280', description: 'Nur Anfragen stellen (müssen genehmigt werden)' },
+];
+
+const UserManagement = ({ users, setUsers, createUser, updateUser, deleteUser, isDemo, operators }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [filterRole, setFilterRole] = useState('all');
+  const [saving, setSaving] = useState(false);
   const [newUser, setNewUser] = useState({
-    firstName: '', lastName: '', club: 'SG Huenstetten', team: '', email: '', phone: '', role: 'trainer',
+    firstName: '', lastName: '', email: '', phone: '', role: 'trainer', operatorId: '',
   });
 
   const filteredUsers = filterRole === 'all' ? users : users.filter(u => u.role === filterRole);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+
     if (editingUser) {
-      setUsers(users.map(u => u.id === editingUser.id ? { ...newUser, id: editingUser.id } : u));
+      if (updateUser) {
+        await updateUser(editingUser.id, newUser);
+      } else {
+        setUsers(users.map(u => u.id === editingUser.id ? { ...newUser, id: editingUser.id } : u));
+      }
       setEditingUser(null);
     } else {
-      setUsers([...users, { ...newUser, id: Date.now() }]);
+      if (createUser) {
+        await createUser(newUser);
+      } else {
+        setUsers([...users, { ...newUser, id: Date.now() }]);
+      }
     }
-    setNewUser({ firstName: '', lastName: '', club: 'SG Huenstetten', team: '', email: '', phone: '', role: 'trainer' });
+
+    setSaving(false);
+    setNewUser({ firstName: '', lastName: '', email: '', phone: '', role: 'trainer', operatorId: '' });
     setShowForm(false);
   };
 
-  const handleEdit = (user) => { setNewUser(user); setEditingUser(user); setShowForm(true); };
+  const handleEdit = (user) => {
+    setNewUser({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone || '',
+      role: user.role,
+      operatorId: user.operatorId || '',
+    });
+    setEditingUser(user);
+    setShowForm(true);
+  };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Benutzer wirklich loeschen?')) {
-      setUsers(users.filter(u => u.id !== id));
+  const handleDelete = async (id) => {
+    if (window.confirm('Benutzer wirklich löschen?')) {
+      if (deleteUser) {
+        await deleteUser(id);
+      } else {
+        setUsers(users.filter(u => u.id !== id));
+      }
     }
   };
 
   const closeModal = () => {
     setShowForm(false);
     setEditingUser(null);
-    setNewUser({ firstName: '', lastName: '', club: 'SG Huenstetten', team: '', email: '', phone: '', role: 'trainer' });
+    setNewUser({ firstName: '', lastName: '', email: '', phone: '', role: 'trainer', operatorId: '' });
   };
 
   return (
@@ -46,10 +78,18 @@ const UserManagement = ({ users, setUsers }) => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Benutzerverwaltung</h2>
-            <p className="text-gray-500">{users.length} Benutzer registriert</p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-gray-500">{users.length} Benutzer registriert</p>
+              {isDemo !== undefined && (
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${isDemo ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                  {isDemo ? <WifiOff className="w-3 h-3" /> : <Database className="w-3 h-3" />}
+                  {isDemo ? 'Demo-Modus' : 'Supabase'}
+                </span>
+              )}
+            </div>
           </div>
-          <button 
-            onClick={() => { setShowForm(true); setEditingUser(null); setNewUser({ firstName: '', lastName: '', club: 'SG Huenstetten', team: '', email: '', phone: '', role: 'trainer' }); }}
+          <button
+            onClick={() => { setShowForm(true); setEditingUser(null); setNewUser({ firstName: '', lastName: '', email: '', phone: '', role: 'trainer', operatorId: '' }); }}
             className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors gap-2"
           >
             <UserPlus className="w-5 h-5" />
@@ -82,24 +122,17 @@ const UserManagement = ({ users, setUsers }) => {
         <div className="space-y-3">
           {filteredUsers.map(user => {
             const role = ROLES.find(r => r.id === user.role);
-            const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+            const initials = `${(user.firstName || '?')[0]}${(user.lastName || '?')[0]}`.toUpperCase();
+            const operatorName = operators?.find(o => o.id === user.operatorId)?.name;
             return (
               <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
-                    <div 
-                      className="w-20 h-20 rounded-full flex items-center justify-center text-white font-semibold text-2xl flex-shrink-0 overflow-hidden" 
-                      style={{ 
-                        backgroundColor: role?.color,
-                        minWidth: '5rem',
-                        maxWidth: '5rem'
-                      }}
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center text-white font-semibold text-2xl flex-shrink-0 overflow-hidden"
+                      style={{ backgroundColor: role?.color, minWidth: '5rem', maxWidth: '5rem' }}
                     >
-                      {user.photo ? (
-                        <img src={user.photo} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="font-mono" style={{ letterSpacing: '-0.05em' }}>{initials}</span>
-                      )}
+                      <span className="font-mono" style={{ letterSpacing: '-0.05em' }}>{initials}</span>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -109,10 +142,12 @@ const UserManagement = ({ users, setUsers }) => {
                         </Badge>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Building className="w-4 h-4" />
-                          <span>{user.club} {user.team && ` - ${user.team}`}</span>
-                        </p>
+                        {operatorName && (
+                          <p className="text-sm text-gray-600 flex items-center gap-2">
+                            <Database className="w-4 h-4" />
+                            <span>Betreiber: {operatorName}</span>
+                          </p>
+                        )}
                         <p className="text-sm text-gray-600 flex items-center gap-2">
                           <Mail className="w-4 h-4" />
                           <span>{user.email}</span>
@@ -127,13 +162,13 @@ const UserManagement = ({ users, setUsers }) => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={() => handleEdit(user)}
                       className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors"
                     >
                       Bearbeiten
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(user.id)}
                       className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"
                     >
@@ -148,33 +183,22 @@ const UserManagement = ({ users, setUsers }) => {
         </div>
       </div>
 
-            {/* Modal - außerhalb des Haupt-Divs */}
+      {/* Modal */}
       {showForm && (
-        <div 
+        <div
           style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem'
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '1rem'
           }}
           onClick={closeModal}
         >
-          <div 
+          <div
             style={{
-              backgroundColor: 'white',
-              borderRadius: '0.5rem',
+              backgroundColor: 'white', borderRadius: '0.5rem',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-              maxWidth: '42rem',
-              width: '100%',
-              maxHeight: '95vh',
-              overflowY: 'auto'
+              maxWidth: '42rem', width: '100%', maxHeight: '95vh', overflowY: 'auto'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -201,14 +225,6 @@ const UserManagement = ({ users, setUsers }) => {
                     <input type="text" value={newUser.lastName} onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Verein *</label>
-                    <input type="text" value={newUser.club} onChange={(e) => setNewUser({ ...newUser, club: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Mannschaft / Kurs</label>
-                    <input type="text" value={newUser.team} onChange={(e) => setNewUser({ ...newUser, team: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} />
-                  </div>
-                  <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>E-Mail *</label>
                     <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} required />
                   </div>
@@ -216,11 +232,13 @@ const UserManagement = ({ users, setUsers }) => {
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>Telefon</label>
                     <input type="tel" value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }} />
                   </div>
+
+                  {/* Rolle */}
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.375rem' }}>Rolle *</label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {ROLES.map(role => (
-                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer', padding: '0.5rem 0.75rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
+                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer', padding: '0.5rem 0.75rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', backgroundColor: newUser.role === role.id ? '#f0f9ff' : 'white' }}>
                           <input type="radio" name="role" value={role.id} checked={newUser.role === role.id} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} style={{ width: '1rem', height: '1rem' }} />
                           <span style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }} />
                           <div style={{ flex: 1 }}>
@@ -231,18 +249,42 @@ const UserManagement = ({ users, setUsers }) => {
                       ))}
                     </div>
                   </div>
+
+                  {/* Betreiber-Zuordnung (nur bei Admin) */}
+                  {newUser.role === 'admin' && operators && operators.length > 0 && (
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+                        Betreiber-Zuordnung *
+                      </label>
+                      <select
+                        value={newUser.operatorId}
+                        onChange={(e) => setNewUser({ ...newUser, operatorId: e.target.value })}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.875rem' }}
+                        required
+                      >
+                        <option value="">Betreiber wählen...</option>
+                        {operators.map(op => (
+                          <option key={op.id} value={op.id}>{op.name} ({op.type})</option>
+                        ))}
+                      </select>
+                      <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                        Admins müssen einem Betreiber zugeordnet sein.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Modal Footer */}
               <div style={{ display: 'flex', gap: '0.75rem', padding: '1.25rem 1.5rem', borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
-                <button 
+                <button
                   type="submit"
-                  style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.625rem 1rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '0.5rem', fontWeight: '500', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
+                  disabled={saving}
+                  style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.625rem 1rem', backgroundColor: saving ? '#93c5fd' : '#3b82f6', color: 'white', borderRadius: '0.5rem', fontWeight: '500', border: 'none', cursor: saving ? 'wait' : 'pointer', fontSize: '0.875rem' }}
                 >
-                  {editingUser ? 'Änderungen speichern' : 'Benutzer anlegen'}
+                  {saving ? 'Speichern...' : editingUser ? 'Änderungen speichern' : 'Benutzer anlegen'}
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={closeModal}
                   style={{ padding: '0.625rem 1.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', border: '1px solid #d1d5db', color: '#374151', borderRadius: '0.5rem', fontWeight: '500', cursor: 'pointer', fontSize: '0.875rem' }}
