@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, Layers, SplitSquareHorizontal, Clock, GripVertical } from 'lucide-react';
+import { Building2, MapPin, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, Layers, SplitSquareHorizontal, Clock, GripVertical, Settings } from 'lucide-react';
+import { DAYS_FULL } from '../../config/constants';
 import { Button } from '../ui/Badge';
+import { Badge } from '../ui/Badge';
 import { generateId } from '../../config/facilityConfig';
 
 const UMLAUT_A = String.fromCharCode(228);
@@ -19,6 +21,98 @@ const COLOR_PRESETS = [
   '#f97316', '#8b5cf6', '#a855f7', '#2563eb', '#0891b2',
   '#e11d48', '#6b7280', '#16a34a', '#dc2626', '#7c3aed',
 ];
+
+// ===================== Slot Panel (inline) =====================
+const SlotPanel = ({ resourceId, resourceName, resourceColor, slots, setSlots }) => {
+  const [adding, setAdding] = useState(false);
+  const [newSlot, setNewSlot] = useState({ dayOfWeek: 1, startTime: '17:00', endTime: '21:00', validFrom: '', validUntil: '' });
+
+  const resourceSlots = slots.filter(s => s.resourceId === resourceId);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    setSlots([...slots, { ...newSlot, resourceId, id: Date.now() }]);
+    setAdding(false);
+    setNewSlot({ dayOfWeek: 1, startTime: '17:00', endTime: '21:00', validFrom: '', validUntil: '' });
+  };
+
+  const handleDelete = (id) => setSlots(slots.filter(s => s.id !== id));
+
+  const inputStyle = { width: '100%', padding: '4px 8px', fontSize: '12px', border: '1px solid #d1d5db', borderRadius: '6px' };
+  const labelStyle = { display: 'block', fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '2px' };
+
+  return (
+    <div style={{ backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px', marginTop: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Clock style={{ width: '14px', height: '14px', color: '#d97706' }} />
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#92400e' }}>Zeitfenster (Slots)</span>
+          <span style={{ fontSize: '11px', color: '#b45309' }}>{resourceSlots.length} Slot{resourceSlots.length !== 1 ? 's' : ''}</span>
+        </div>
+        <button type="button" onClick={() => setAdding(!adding)}
+          style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', fontWeight: 600, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}>
+          <Plus style={{ width: '12px', height: '12px' }} /> Neuer Slot
+        </button>
+      </div>
+
+      {/* Existing slots */}
+      {resourceSlots.length === 0 && !adding && (
+        <div style={{ fontSize: '12px', color: '#b45309', fontStyle: 'italic' }}>Keine Slots angelegt. Ressource ist ohne Slots nicht buchbar.</div>
+      )}
+      {resourceSlots.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: adding ? '8px' : 0 }}>
+          {resourceSlots.map(slot => (
+            <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', fontSize: '12px' }}>
+              <Badge variant="info" style={{ fontSize: '11px' }}>{DAYS_FULL[slot.dayOfWeek]}</Badge>
+              <span style={{ fontWeight: 600 }}>{slot.startTime} - {slot.endTime}</span>
+              <span style={{ color: '#9ca3af', fontSize: '11px' }}>
+                {slot.validFrom && slot.validUntil ? (slot.validFrom + ' bis ' + slot.validUntil) : 'Unbegrenzt'}
+              </span>
+              <button type="button" onClick={() => handleDelete(slot.id)}
+                style={{ marginLeft: 'auto', padding: '2px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
+                <X style={{ width: '12px', height: '12px' }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add form */}
+      {adding && (
+        <form onSubmit={handleAdd} style={{ backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', padding: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+            <div>
+              <label style={labelStyle}>Wochentag</label>
+              <select value={newSlot.dayOfWeek} onChange={e => setNewSlot({ ...newSlot, dayOfWeek: Number(e.target.value) })} style={inputStyle}>
+                {DAYS_FULL.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Startzeit</label>
+              <input type="time" value={newSlot.startTime} onChange={e => setNewSlot({ ...newSlot, startTime: e.target.value })} style={inputStyle} required />
+            </div>
+            <div>
+              <label style={labelStyle}>Endzeit</label>
+              <input type="time" value={newSlot.endTime} onChange={e => setNewSlot({ ...newSlot, endTime: e.target.value })} style={inputStyle} required />
+            </div>
+            <div>
+              <label style={labelStyle}>G{UMLAUT_U}ltig ab</label>
+              <input type="date" value={newSlot.validFrom} onChange={e => setNewSlot({ ...newSlot, validFrom: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>G{UMLAUT_U}ltig bis</label>
+              <input type="date" value={newSlot.validUntil} onChange={e => setNewSlot({ ...newSlot, validUntil: e.target.value })} style={inputStyle} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button type="submit" style={{ padding: '4px 12px', fontSize: '12px', fontWeight: 600, backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Anlegen</button>
+            <button type="button" onClick={() => setAdding(false)} style={{ padding: '4px 12px', fontSize: '12px', fontWeight: 600, backgroundColor: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Abbrechen</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+};
 
 // ===================== Facility Card (display mode) =====================
 const FacilityCard = ({ facility, onEdit }) => (
@@ -105,8 +199,11 @@ const SubResourceRow = ({ sub, onUpdate, onDelete }) => (
 );
 
 // ===================== Resource Card =====================
-const ResourceCard = ({ resource, onUpdate, onDelete }) => {
+const ResourceCard = ({ resource, onUpdate, onDelete, showSlots, slots, setSlots }) => {
   const [expanded, setExpanded] = useState(false);
+  const [slotsOpen, setSlotsOpen] = useState(false);
+
+  const slotCount = slots ? slots.filter(s => s.resourceId === resource.id).length : 0;
 
   const handleSubAdd = () => {
     const idx = (resource.subResources || []).length + 1;
@@ -150,16 +247,27 @@ const ResourceCard = ({ resource, onUpdate, onDelete }) => {
             <input type="checkbox" checked={resource.splittable} onChange={e => handleToggleSplittable(e.target.checked)} className="w-3.5 h-3.5 text-blue-600 rounded" />
             Teilbar
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer" title="Nur in zugewiesenen Slots buchbar">
-            <Clock className="w-3.5 h-3.5" />
-            <input type="checkbox" checked={resource.bookingMode === 'slotOnly'}
-              onChange={e => onUpdate({ ...resource, bookingMode: e.target.checked ? 'slotOnly' : 'free' })} className="w-3.5 h-3.5 text-blue-600 rounded" />
-            Slot-Pflicht
-          </label>
+          {/* Slot gear icon - only show when group has sharedScheduling */}
+          {showSlots && (
+            <button onClick={() => setSlotsOpen(!slotsOpen)}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors ${slotsOpen ? 'bg-yellow-100 text-yellow-800' : 'text-gray-400 hover:text-yellow-700 hover:bg-yellow-50'}`}
+              title="Zeitfenster verwalten">
+              <Settings className={`w-3.5 h-3.5 ${slotsOpen ? 'text-yellow-700' : ''}`} />
+              {slotCount > 0 && <span className="font-semibold">{slotCount}</span>}
+            </button>
+          )}
         </div>
         <input type="color" value={resource.color} onChange={e => onUpdate({ ...resource, color: e.target.value })} className="w-7 h-7 rounded cursor-pointer border-0" />
         <button onClick={onDelete} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
       </div>
+
+      {/* Slot panel */}
+      {showSlots && slotsOpen && slots && setSlots && (
+        <div className="px-3 pb-3">
+          <SlotPanel resourceId={resource.id} resourceName={resource.name} resourceColor={resource.color} slots={slots} setSlots={setSlots} />
+        </div>
+      )}
+
       {expanded && (
         <div className="border-t border-gray-100 p-3 bg-gray-50/50 space-y-2">
           <div className="grid grid-cols-2 gap-3">
@@ -202,7 +310,7 @@ const ResourceCard = ({ resource, onUpdate, onDelete }) => {
 };
 
 // ===================== Resource Group Section =====================
-const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, onUpdateResource, onDeleteResource, onAddResource }) => {
+const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, onUpdateResource, onDeleteResource, onAddResource, slots, setSlots }) => {
   const [expanded, setExpanded] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const groupIcon = GROUP_ICONS.find(g => g.id === group.icon);
@@ -226,8 +334,9 @@ const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, 
         <select value={group.icon} onChange={e => onUpdateGroup({ ...group, icon: e.target.value })} className="text-xs border border-gray-200 rounded px-1.5 py-1">
           {GROUP_ICONS.map(gi => (<option key={gi.id} value={gi.id}>{gi.label}</option>))}
         </select>
-        <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
-          <input type="checkbox" checked={group.sharedScheduling} onChange={e => onUpdateGroup({ ...group, sharedScheduling: e.target.checked })} className="w-3.5 h-3.5 text-blue-600 rounded" />
+        <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer" title="Slot-basierte Buchung f{UMLAUT_U}r alle Ressourcen dieser Gruppe">
+          <input type="checkbox" checked={group.sharedScheduling} onChange={e => onUpdateGroup({ ...group, sharedScheduling: e.target.checked })} className="w-3.5 h-3.5 text-yellow-600 rounded" />
+          <Clock className="w-3.5 h-3.5" style={{ color: group.sharedScheduling ? '#d97706' : undefined }} />
           Slots
         </label>
         <button onClick={onDeleteGroup} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -235,7 +344,11 @@ const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, 
       {expanded && (
         <div className="ml-4">
           {groupResources.map(res => (
-            <ResourceCard key={res.id} resource={res} onUpdate={(updated) => onUpdateResource(res.id, updated)} onDelete={() => onDeleteResource(res.id)} />
+            <ResourceCard key={res.id} resource={res}
+              onUpdate={(updated) => onUpdateResource(res.id, updated)}
+              onDelete={() => onDeleteResource(res.id)}
+              showSlots={group.sharedScheduling}
+              slots={slots} setSlots={setSlots} />
           ))}
           <button onClick={() => onAddResource(group.id)}
             className="w-full py-1.5 border-2 border-dashed border-gray-200 rounded-lg text-xs text-gray-400 hover:text-blue-600 hover:border-blue-300 flex items-center justify-center gap-1 transition-colors">
@@ -248,7 +361,7 @@ const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, 
 };
 
 // ===================== Facility Section =====================
-const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDeleteFacility, onUpdateGroup, onDeleteGroup, onAddGroup, onUpdateResource, onDeleteResource, onAddResource }) => {
+const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDeleteFacility, onUpdateGroup, onDeleteGroup, onAddGroup, onUpdateResource, onDeleteResource, onAddResource, slots, setSlots }) => {
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const facilityGroups = groups.filter(g => g.facilityId === facility.id).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -256,7 +369,6 @@ const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDele
 
   return (
     <div className="mb-6 border border-gray-200 rounded-xl overflow-hidden">
-      {/* Facility Header */}
       <div className="bg-white p-4 border-b border-gray-100">
         <div className="flex items-center gap-2 mb-3">
           <button onClick={() => setExpanded(!expanded)} className="text-gray-400 hover:text-gray-600">
@@ -282,14 +394,13 @@ const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDele
           </div>
         )}
       </div>
-
-      {/* Groups & Resources */}
       {expanded && (
         <div className="bg-gray-50/50 p-4">
           {facilityGroups.map(group => (
             <ResourceGroupSection key={group.id} group={group} resources={resources}
               onUpdateGroup={onUpdateGroup} onDeleteGroup={() => onDeleteGroup(group.id)}
-              onUpdateResource={onUpdateResource} onDeleteResource={onDeleteResource} onAddResource={onAddResource} />
+              onUpdateResource={onUpdateResource} onDeleteResource={onDeleteResource} onAddResource={onAddResource}
+              slots={slots} setSlots={setSlots} />
           ))}
           <button onClick={() => onAddGroup(facility.id)}
             className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:text-blue-600 hover:border-blue-300 flex items-center justify-center gap-1 transition-colors mt-2">
@@ -302,10 +413,9 @@ const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDele
 };
 
 // ===================== Main Component =====================
-const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setResourceGroups, resources, setResources }) => {
+const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setResourceGroups, resources, setResources, slots, setSlots }) => {
   const [addingFacility, setAddingFacility] = useState(false);
 
-  // --- Facility CRUD ---
   const handleAddFacility = (form) => {
     setFacilities([...facilities, { ...form, id: generateId('fac'), sortOrder: facilities.length + 1 }]);
     setAddingFacility(false);
@@ -327,7 +437,6 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
     setFacilities(facilities.filter(f => f.id !== id));
   };
 
-  // --- Group CRUD ---
   const handleAddGroup = (facilityId) => {
     const facGroups = resourceGroups.filter(g => g.facilityId === facilityId);
     setResourceGroups([...resourceGroups, {
@@ -353,7 +462,6 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
     setResources(resources.filter(r => r.groupId !== groupId));
   };
 
-  // --- Resource CRUD ---
   const handleAddResource = (groupId) => {
     setResources([...resources, {
       id: generateId('res'),
@@ -371,12 +479,16 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
   };
 
   const handleDeleteResource = (id) => {
+    // Also clean up any slots for this resource
+    if (slots && setSlots) {
+      setSlots(slots.filter(s => s.resourceId !== id));
+    }
     setResources(resources.filter(r => r.id !== id));
   };
 
-  // Stats
   const totalResources = resources.length;
   const totalSubResources = resources.reduce((sum, r) => sum + (r.subResources || []).length, 0);
+  const totalSlots = slots ? slots.length : 0;
 
   return (
     <div>
@@ -393,6 +505,7 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
             {' ' + String.fromCharCode(183) + ' '}
             {totalResources} Ressource{totalResources !== 1 ? 'n' : ''}
             {totalSubResources > 0 && (' ' + String.fromCharCode(183) + ' ' + totalSubResources + ' Unter-Res.')}
+            {totalSlots > 0 && (' ' + String.fromCharCode(183) + ' ' + totalSlots + ' Slot' + (totalSlots !== 1 ? 's' : ''))}
           </p>
         </div>
         <Button variant="primary" size="sm" onClick={() => setAddingFacility(true)}>
@@ -400,7 +513,6 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
         </Button>
       </div>
 
-      {/* Add Facility Form */}
       {addingFacility && (
         <div className="mb-6">
           <FacilityEditor
@@ -413,7 +525,6 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
         </div>
       )}
 
-      {/* Facility List */}
       {facilities.length === 0 && !addingFacility ? (
         <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
           <Building2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -429,6 +540,7 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
             onUpdateFacility={handleUpdateFacility} onDeleteFacility={handleDeleteFacility}
             onUpdateGroup={handleUpdateGroup} onDeleteGroup={handleDeleteGroup} onAddGroup={handleAddGroup}
             onUpdateResource={handleUpdateResource} onDeleteResource={handleDeleteResource} onAddResource={handleAddResource}
+            slots={slots} setSlots={setSlots}
           />
         ))
       )}

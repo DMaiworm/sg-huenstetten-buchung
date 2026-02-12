@@ -8,7 +8,6 @@ import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
 import MyBookings from './components/MyBookings';
 import Approvals from './components/admin/Approvals';
-import SlotManagement from './components/admin/SlotManagement';
 import UserManagement from './components/admin/UserManagement';
 import EmailLog from './components/admin/EmailLog';
 import PDFExportPage from './components/PDFExportPage';
@@ -133,12 +132,11 @@ export default function SportvereinBuchung() {
             <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} {...facilityProps} {...orgProps} /></>}
           {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
             <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
-          {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
           {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
           {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
           {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
           {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
+            <FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} slots={slots} setSlots={setSlots} /></>}
           {currentView === 'organization' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
             <OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs} departments={departments} setDepartments={setDepartments} teams={teams} setTeams={setTeams} trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments} users={users} /></>}
         </div>

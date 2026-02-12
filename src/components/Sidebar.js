@@ -10,7 +10,6 @@ const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailServi
 
   const adminItems = [
     { id: 'approvals', label: 'Genehmigungen', icon: Check },
-    { id: 'slots', label: 'Slot-Verwaltung', icon: Settings },
     { id: 'users', label: 'Personen', icon: UserPlus },
     { id: 'organization', label: 'Organisation', icon: Building },
     { id: 'facility', label: 'Anlagen', icon: Building2 },
