@@ -72,52 +72,37 @@ export default function SportvereinBuchung() {
     const seriesId = `series-${Date.now()}`;
     const user = users.find(u => u.id === data.userId);
     const bookingStatus = user?.role === 'extern' ? 'pending' : 'approved';
-
     const newBookings = data.dates.map((date, i) => ({
-      id: Date.now() + i,
-      resourceId: data.resourceId, date,
+      id: Date.now() + i, resourceId: data.resourceId, date,
       startTime: data.startTime, endTime: data.endTime,
       title: data.title, description: data.description,
       bookingType: data.bookingType, userId: data.userId,
-      status: bookingStatus,
-      seriesId: data.dates.length > 1 ? seriesId : null,
+      status: bookingStatus, seriesId: data.dates.length > 1 ? seriesId : null,
     }));
-
     if (data.isComposite && data.includedResources) {
       data.includedResources.forEach(resId => {
         data.dates.forEach((date, i) => {
-          newBookings.push({
-            id: Date.now() + 1000 + i,
-            resourceId: resId, date,
+          newBookings.push({ id: Date.now() + 1000 + i, resourceId: resId, date,
             startTime: data.startTime, endTime: data.endTime,
-            title: data.title + ' (Ganzes Feld)',
-            bookingType: data.bookingType, userId: data.userId,
-            status: bookingStatus, seriesId, parentBooking: true,
-          });
+            title: data.title + ' (Ganzes Feld)', bookingType: data.bookingType,
+            userId: data.userId, status: bookingStatus, seriesId, parentBooking: true });
         });
       });
     }
-
     setBookings([...bookings, ...newBookings]);
-
     const resource = RESOURCES.find(r => r.id === data.resourceId);
     if (user && resource) {
       await emailService.send(EMAIL_TEMPLATES.bookingCreated(newBookings[0], user, resource));
       if (user.role === 'extern') {
         const admins = users.filter(u => u.role === 'admin');
-        for (const admin of admins) {
-          await emailService.send(EMAIL_TEMPLATES.adminNewBooking(newBookings[0], user, resource, admin.email));
-        }
+        for (const admin of admins) { await emailService.send(EMAIL_TEMPLATES.adminNewBooking(newBookings[0], user, resource, admin.email)); }
       }
     }
   };
 
   const handleDeleteBooking = (bookingId, deleteType, seriesId) => {
-    if (deleteType === 'series' && seriesId) {
-      setBookings(bookings.filter(b => b.seriesId !== seriesId));
-    } else {
-      setBookings(bookings.filter(b => b.id !== bookingId));
-    }
+    if (deleteType === 'series' && seriesId) { setBookings(bookings.filter(b => b.seriesId !== seriesId)); }
+    else { setBookings(bookings.filter(b => b.id !== bookingId)); }
   };
 
   const adminCheckbox = (
@@ -127,27 +112,36 @@ export default function SportvereinBuchung() {
     </label>
   );
 
+  // Org props bundle for components that need org data
+  const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar
-        currentView={currentView} setCurrentView={setCurrentView}
+      <Sidebar currentView={currentView} setCurrentView={setCurrentView}
         isAdmin={isAdmin} onExportPDF={() => setCurrentView('export')}
-        emailService={emailService} facilityName={club.name}
-      />
+        emailService={emailService} facilityName={club.name} />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
           {currentView === 'calendar' && (
-            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource} setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate} users={users} adminCheckbox={adminCheckbox} resources={RESOURCES} />
+            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource}
+              setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate}
+              users={users} adminCheckbox={adminCheckbox} resources={RESOURCES}
+              facilities={facilities} resourceGroups={resourceGroups} />
           )}
-          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} /></>}
-          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} /></>}
-          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
+          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
+            <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} {...orgProps} /></>}
+          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
+            <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} /></>}
+          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
+            <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
           {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
           {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
           {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
           {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
-          {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
-          {currentView === 'organization' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs} departments={departments} setDepartments={setDepartments} teams={teams} setTeams={setTeams} trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments} users={users} /></>}
+          {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
+            <FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} /></>}
+          {currentView === 'organization' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
+            <OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs} departments={departments} setDepartments={setDepartments} teams={teams} setTeams={setTeams} trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments} users={users} /></>}
         </div>
       </main>
     </div>

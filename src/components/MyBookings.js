@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, Users, X, List, Repeat } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, X, List, Repeat, Building, UserCheck, Star } from 'lucide-react';
 import { BOOKING_TYPES, ROLES } from '../config/constants';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
-const MyBookings = ({ bookings, isAdmin, onDelete, users, resources }) => {
+const UMLAUT_U = String.fromCharCode(252);
+
+const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, departments, teams, trainerAssignments }) => {
   const RESOURCES = resources;
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedResource, setSelectedResource] = useState('all');
@@ -15,6 +17,33 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources }) => {
     if (!user) return { name: 'Unbekannt', role: null };
     const role = ROLES.find(r => r.id === user.role);
     return { name: `${user.firstName} ${user.lastName}`, team: user.team, club: user.club, role };
+  };
+
+  // Resolve organization info for a booking's user via trainer assignments
+  const getOrgInfo = (userId) => {
+    if (!trainerAssignments || !teams || !departments || !clubs) return null;
+    const assignments = trainerAssignments.filter(ta => ta.userId === userId);
+    if (assignments.length === 0) return null;
+    // Return info for all teams this trainer is assigned to
+    return assignments.map(ta => {
+      const team = teams.find(t => t.id === ta.teamId);
+      if (!team) return null;
+      const dept = departments.find(d => d.id === team.departmentId);
+      const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+      return { team, dept, club, isPrimary: ta.isPrimary };
+    }).filter(Boolean);
+  };
+
+  // Get all trainers for a team
+  const getTeamTrainers = (teamId) => {
+    if (!trainerAssignments || !users) return [];
+    return trainerAssignments
+      .filter(ta => ta.teamId === teamId)
+      .map(ta => {
+        const user = users.find(u => u.id === ta.userId);
+        return user ? { ...user, isPrimary: ta.isPrimary } : null;
+      })
+      .filter(Boolean);
   };
 
   const categories = [
@@ -71,9 +100,7 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources }) => {
       {selectedCategory !== 'all' && categoryResources.length > 0 && (
         <div className="mb-4">
           <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
-            <button onClick={() => setSelectedResource('all')} className={`px-3 py-1.5 text-sm font-medium rounded transition-all ${selectedResource === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}>
-              Alle
-            </button>
+            <button onClick={() => setSelectedResource('all')} className={`px-3 py-1.5 text-sm font-medium rounded transition-all ${selectedResource === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}>Alle</button>
             {categoryResources.map(res => (
               <button key={res.id} onClick={() => setSelectedResource(res.id)}
                 className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 ${selectedResource === res.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -93,6 +120,11 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources }) => {
             const resource = RESOURCES.find(r => r.id === booking.resourceId);
             const isSeries = booking.dates && booking.dates.length > 1;
             const userInfo = getUserInfo(booking.userId);
+            const orgInfos = getOrgInfo(booking.userId);
+            // Pick the first org info for display (most relevant team)
+            const primaryOrg = orgInfos && orgInfos.length > 0 ? orgInfos[0] : null;
+            const teamTrainers = primaryOrg ? getTeamTrainers(primaryOrg.team.id) : [];
+
             return (
               <div key={idx} className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
@@ -112,40 +144,77 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources }) => {
                         ) : (
                           <p className="text-sm text-gray-600 flex items-center gap-2"><Calendar className="w-4 h-4" /><span>{booking.date}</span></p>
                         )}
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Users className="w-4 h-4" /><span>{userInfo.name}</span>
-                          {userInfo.role && (<span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} /><span className="text-xs">({userInfo.role.label})</span></span>)}
-                        </p>
+
+                        {/* Organization Info: Verein > Abteilung > Mannschaft */}
+                        {primaryOrg && (
+                          <div className="text-sm text-gray-600 flex items-center gap-2">
+                            <Building className="w-4 h-4 flex-shrink-0" />
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="inline-flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primaryOrg.club?.color }} />
+                                <span className="font-medium">{primaryOrg.club?.name}</span>
+                              </span>
+                              <span className="text-gray-300">{String.fromCharCode(8250)}</span>
+                              <span>{primaryOrg.dept?.icon} {primaryOrg.dept?.name}</span>
+                              <span className="text-gray-300">{String.fromCharCode(8250)}</span>
+                              <span className="inline-flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primaryOrg.team?.color }} />
+                                <span className="font-medium">{primaryOrg.team?.name}</span>
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Trainer list */}
+                        {teamTrainers.length > 0 ? (
+                          <div className="text-sm text-gray-600 flex items-start gap-2">
+                            <UserCheck className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                              {teamTrainers.map(t => (
+                                <span key={t.id} className="inline-flex items-center gap-1">
+                                  {t.isPrimary && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />}
+                                  <span>{t.firstName} {t.lastName}</span>
+                                  {!t.isPrimary && <span className="text-xs text-gray-400">(Co)</span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-600 flex items-center gap-2">
+                            <Users className="w-4 h-4" /><span>{userInfo.name}</span>
+                            {userInfo.role && (<span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} /><span className="text-xs">({userInfo.role.label})</span></span>)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-  {booking.status === 'approved' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-500 text-white">Genehmigt</span>)}
-  {booking.status === 'pending' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">Ausstehend</span>)}
-  {booking.status === 'rejected' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white">Abgelehnt</span>)}
-  {isAdmin && (
-    <div className="flex flex-col gap-1">
-      {deleteConfirm?.id === booking.id ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
-          <p className="text-red-700 font-medium mb-2">Wirklich loeschen?</p>
-          <div className="flex gap-1">
-            <Button variant="danger" size="sm" onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}>Ja</Button>
-            <Button variant="secondary" size="sm" onClick={() => setDeleteConfirm(null)}>Nein</Button>
-          </div>
-        </div>
-      ) : (
-        <>{isSeries ? (
-          <div className="flex gap-1">
-            <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5" title="Nur diesen Termin loeschen"><X className="w-4 h-4" /><span>1 Termin</span></button>
-            <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5" title="Ganze Serie loeschen"><X className="w-4 h-4" /><span>Serie</span></button>
-          </div>
-        ) : (
-          <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"><X className="w-4 h-4" /><span>Loeschen</span></button>
-        )}</>
-      )}
-    </div>
-  )}
-</div>
+                    {booking.status === 'approved' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-500 text-white">Genehmigt</span>)}
+                    {booking.status === 'pending' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">Ausstehend</span>)}
+                    {booking.status === 'rejected' && (<span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white">Abgelehnt</span>)}
+                    {isAdmin && (
+                      <div className="flex flex-col gap-1">
+                        {deleteConfirm?.id === booking.id ? (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
+                            <p className="text-red-700 font-medium mb-2">Wirklich loeschen?</p>
+                            <div className="flex gap-1">
+                              <Button variant="danger" size="sm" onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}>Ja</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setDeleteConfirm(null)}>Nein</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>{isSeries ? (
+                            <div className="flex gap-1">
+                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5" title="Nur diesen Termin loeschen"><X className="w-4 h-4" /><span>1 Termin</span></button>
+                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5" title="Ganze Serie loeschen"><X className="w-4 h-4" /><span>Serie</span></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-red-600 rounded-full text-sm font-medium hover:bg-gray-300 transition-colors gap-1.5"><X className="w-4 h-4" /><span>Loeschen</span></button>
+                          )}</>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
