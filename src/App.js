@@ -112,8 +112,8 @@ export default function SportvereinBuchung() {
     </label>
   );
 
-  // Org props bundle for components that need org data
   const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
+  const facilityProps = { facilities, resourceGroups };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -125,13 +125,12 @@ export default function SportvereinBuchung() {
           {currentView === 'calendar' && (
             <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource}
               setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate}
-              users={users} adminCheckbox={adminCheckbox} resources={RESOURCES}
-              facilities={facilities} resourceGroups={resourceGroups} />
+              users={users} adminCheckbox={adminCheckbox} resources={RESOURCES} {...facilityProps} />
           )}
           {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
             <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} {...orgProps} /></>}
           {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} /></>}
+            <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} {...facilityProps} {...orgProps} /></>}
           {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
             <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
           {currentView === 'slots' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><SlotManagement slots={slots} setSlots={setSlots} /></>}
