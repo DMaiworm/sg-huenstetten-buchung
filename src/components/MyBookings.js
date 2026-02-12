@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, MapPin, Users, X, List, Repeat, Building, UserCheck, Star } from 'lucide-react';
-import { BOOKING_TYPES, ROLES, DAYS_FULL } from '../config/constants';
+import { BOOKING_TYPES, ROLES } from '../config/constants';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
-const UMLAUT_U = String.fromCharCode(252);
 const ENDASH = String.fromCharCode(8211);
+const DAYS_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const DAYS_FULL_DE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, departments, teams, trainerAssignments }) => {
   const RESOURCES = resources;
@@ -13,7 +14,6 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
   const [selectedResource, setSelectedResource] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  // Resolve organization info for a booking's user via trainer assignments
   const getOrgInfo = (userId) => {
     if (!trainerAssignments || !teams || !departments || !clubs) return null;
     const assignments = trainerAssignments.filter(ta => ta.userId === userId);
@@ -27,7 +27,6 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
     }).filter(Boolean);
   };
 
-  // Get all trainers for a team
   const getTeamTrainers = (teamId) => {
     if (!trainerAssignments || !users) return [];
     return trainerAssignments
@@ -55,8 +54,8 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
 
   const getBookingCountForCategory = (catId) => {
     if (catId === 'all') return bookings.length;
-    const categoryResources = RESOURCES.filter(r => r.category === catId).map(r => r.id);
-    return bookings.filter(b => categoryResources.includes(b.resourceId)).length;
+    const cr = RESOURCES.filter(r => r.category === catId).map(r => r.id);
+    return bookings.filter(b => cr.includes(b.resourceId)).length;
   };
 
   const getBookingCountForResource = (resId) => bookings.filter(b => b.resourceId === resId).length;
@@ -65,10 +64,10 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
 
   const filteredBookings = useMemo(() => {
     if (selectedCategory === 'all') return bookings;
-    const categoryResourceIds = RESOURCES.filter(r => r.category === selectedCategory).map(r => r.id);
-    let filtered = bookings.filter(b => categoryResourceIds.includes(b.resourceId));
-    if (selectedResource !== 'all') filtered = filtered.filter(b => b.resourceId === selectedResource);
-    return filtered;
+    const ids = RESOURCES.filter(r => r.category === selectedCategory).map(r => r.id);
+    let f = bookings.filter(b => ids.includes(b.resourceId));
+    if (selectedResource !== 'all') f = f.filter(b => b.resourceId === selectedResource);
+    return f;
   }, [bookings, selectedCategory, selectedResource, RESOURCES]);
 
   const groupedBookings = useMemo(() => {
@@ -83,46 +82,42 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
 
   const handleCategoryChange = (catId) => { setSelectedCategory(catId); setSelectedResource('all'); };
 
-  // Get weekday name from a booking
-  const getWeekdayFromBooking = (booking) => {
-    if (booking.dates && booking.dates.length > 0) {
-      const d = new Date(booking.dates[0]);
-      return 'Jeden ' + DAYS_FULL[d.getDay()];
-    }
-    if (booking.date) {
-      const d = new Date(booking.date);
-      return DAYS_FULL[d.getDay()];
-    }
-    return '';
+  const getWeekday = (booking) => {
+    const isSeries = booking.dates && booking.dates.length > 1;
+    const dateStr = isSeries ? booking.dates[0] : booking.date;
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return isSeries ? ('Jeden ' + DAYS_FULL_DE[d.getDay()]) : DAYS_FULL_DE[d.getDay()];
   };
 
-  const getDateRange = (booking) => {
+  const getDateDisplay = (booking) => {
     const isSeries = booking.dates && booking.dates.length > 1;
     if (isSeries) {
-      const first = new Date(booking.dates[0]).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const last = new Date(booking.dates[booking.dates.length - 1]).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      return first + ' ' + ENDASH + ' ' + last;
+      const fmt = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return fmt(booking.dates[0]) + ENDASH + fmt(booking.dates[booking.dates.length - 1]);
     }
-    if (booking.date) {
-      return new Date(booking.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
+    if (booking.date) return new Date(booking.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     return '';
   };
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Meine Buchungen</h2>
+
+      {/* Category filter */}
       <div className="mb-4">
         <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
           {categories.map(cat => (
             <button key={cat.id} onClick={() => handleCategoryChange(cat.id)}
-              className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${selectedCategory === cat.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'}`}>
+              className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${selectedCategory === cat.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
               {cat.label}
               <span className={`px-2 py-0.5 text-xs rounded-full ${selectedCategory === cat.id ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}>{getBookingCountForCategory(cat.id)}</span>
             </button>
           ))}
         </div>
       </div>
+
+      {/* Resource filter */}
       {selectedCategory !== 'all' && categoryResources.length > 0 && (
         <div className="mb-4">
           <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
@@ -138,10 +133,12 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
           </div>
         </div>
       )}
+
+      {/* Booking list */}
       {groupedBookings.length === 0 ? (
         <div className="text-center py-12 text-gray-500"><List className="w-12 h-12 mx-auto mb-4 text-gray-300" /><p>Keine Buchungen</p></div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {groupedBookings.map((booking, idx) => {
             const resource = RESOURCES.find(r => r.id === booking.resourceId);
             const isSeries = booking.dates && booking.dates.length > 1;
@@ -152,128 +149,94 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
             const userInfo = getUserInfo(booking.userId);
 
             return (
-              <div key={idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="flex">
+              <div key={idx} style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'stretch' }}>
                   {/* Color bar */}
-                  <div className="w-1.5 flex-shrink-0" style={{ backgroundColor: resource?.color }} />
+                  <div style={{ width: '6px', flexShrink: 0, backgroundColor: resource?.color || '#ccc' }} />
 
-                  {/* Content Grid: 3 columns + action column */}
-                  <div className="flex-1 grid grid-cols-[1fr_auto_auto] md:grid-cols-[2fr_1.2fr_1.2fr] gap-x-4 gap-y-0 p-3 items-start">
+                  {/* 3 columns */}
+                  <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
 
-                    {/* Column 1: Title, Resource, Schedule */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-gray-900 truncate">"{booking.title}"</h3>
+                    {/* Col 1: Booking info */}
+                    <div style={{ flex: '2 1 0%', padding: '12px 16px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '15px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          "{booking.title}"
+                        </span>
                         {isSeries && (
-                          <span className="text-xs text-blue-600 font-medium flex items-center gap-0.5 flex-shrink-0">
-                            <Repeat className="w-3 h-3" />{booking.dates.length}x
+                          <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>
+                            {booking.dates.length}x
                           </span>
                         )}
                       </div>
-                      <div className="space-y-0.5 text-sm text-gray-600">
+                      <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.6' }}>
                         <div>{resource?.name}</div>
-                        <div>{getWeekdayFromBooking(booking)}</div>
-                        <div className="font-semibold text-gray-800">{booking.startTime} - {booking.endTime}</div>
-                        <div className="text-xs text-gray-400">{getDateRange(booking)}</div>
+                        <div>{getWeekday(booking)}</div>
+                        <div style={{ fontWeight: 700, color: '#1f2937' }}>{booking.startTime} - {booking.endTime}</div>
+                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{getDateDisplay(booking)}</div>
                       </div>
                     </div>
 
-                    {/* Column 2: Trainers */}
-                    <div className="min-w-0 border-l border-gray-100 pl-4 hidden md:block">
+                    {/* Col 2: Trainers */}
+                    <div style={{ flex: '1.2 1 0%', padding: '12px 16px', borderLeft: '1px solid #f3f4f6', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       {teamTrainers.length > 0 ? (
-                        <div className="space-y-1">
-                          {teamTrainers.map(t => (
-                            <div key={t.id} className="text-sm text-gray-700 flex items-center gap-1.5">
-                              <span>{t.firstName} {t.lastName}</span>
-                              {!t.isPrimary && <span className="text-xs text-gray-400">(Co)</span>}
-                            </div>
-                          ))}
-                        </div>
+                        teamTrainers.map(t => (
+                          <div key={t.id} style={{ fontSize: '13px', color: '#374151', lineHeight: '1.8' }}>
+                            {t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}
+                          </div>
+                        ))
                       ) : (
-                        <div className="text-sm text-gray-600">{userInfo.name}</div>
+                        <div style={{ fontSize: '13px', color: '#6b7280' }}>{userInfo.name}</div>
                       )}
                     </div>
 
-                    {/* Column 3: Organization + Booking Type */}
-                    <div className="min-w-0 border-l border-gray-100 pl-4 hidden md:block">
-                      {/* Booking type badge */}
-                      <div className="flex items-center gap-1.5 mb-2">
-                        {bookingType && (
-                          <span className="text-sm font-medium text-gray-700">
-                            {bookingType.icon} <strong>{bookingType.label}</strong>
-                          </span>
-                        )}
-                      </div>
-                      {/* Org hierarchy */}
+                    {/* Col 3: Org + Type */}
+                    <div style={{ flex: '1.2 1 0%', padding: '12px 16px', borderLeft: '1px solid #f3f4f6', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      {bookingType && (
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                          {bookingType.icon} {bookingType.label}
+                        </div>
+                      )}
                       {primaryOrg ? (
-                        <div className="space-y-0.5 text-sm">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primaryOrg.club?.color }} />
-                            <span className="font-semibold text-gray-800">{primaryOrg.club?.name}</span>
-                          </div>
-                          <div className="text-gray-600 pl-3.5">
-                            {primaryOrg.dept?.icon} {primaryOrg.dept?.name}
-                          </div>
-                          <div className="flex items-center gap-1.5 pl-3.5">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primaryOrg.team?.color }} />
-                            <span className="text-gray-700">{primaryOrg.team?.name}</span>
-                          </div>
+                        <div style={{ fontSize: '13px', lineHeight: '1.6' }}>
+                          <div style={{ fontWeight: 700, color: '#1f2937' }}>{primaryOrg.club?.name}</div>
+                          <div style={{ color: '#6b7280' }}>{primaryOrg.dept?.icon} {primaryOrg.dept?.name}</div>
+                          <div style={{ color: '#374151' }}>{primaryOrg.team?.name}</div>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-500">{userInfo.name}</div>
+                        <div style={{ fontSize: '13px', color: '#9ca3af' }}>{userInfo.name}</div>
                       )}
                     </div>
                   </div>
 
-                  {/* Action column */}
-                  <div className="flex flex-col items-end gap-2 p-3 pl-0 flex-shrink-0">
-                    {booking.status === 'approved' && (<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-500 text-white">Genehmigt</span>)}
-                    {booking.status === 'pending' && (<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400 text-gray-800">Ausstehend</span>)}
-                    {booking.status === 'rejected' && (<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500 text-white">Abgelehnt</span>)}
+                  {/* Col 4: Status + Actions */}
+                  <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0, borderLeft: '1px solid #f3f4f6' }}>
+                    {booking.status === 'approved' && (<span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600, backgroundColor: '#22c55e', color: '#fff' }}>Genehmigt</span>)}
+                    {booking.status === 'pending' && (<span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600, backgroundColor: '#facc15', color: '#1f2937' }}>Ausstehend</span>)}
+                    {booking.status === 'rejected' && (<span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600, backgroundColor: '#ef4444', color: '#fff' }}>Abgelehnt</span>)}
                     {isAdmin && (
-                      <div className="flex flex-col gap-1 mt-1">
+                      <>
                         {deleteConfirm?.id === booking.id ? (
-                          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
-                            <p className="text-red-700 font-medium mb-1">L{String.fromCharCode(246)}schen?</p>
-                            <div className="flex gap-1">
+                          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '8px', fontSize: '12px' }}>
+                            <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: '4px' }}>L{String.fromCharCode(246)}schen?</div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
                               <Button variant="danger" size="sm" onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}>Ja</Button>
                               <Button variant="secondary" size="sm" onClick={() => setDeleteConfirm(null)}>Nein</Button>
                             </div>
                           </div>
                         ) : (
-                          <>{isSeries ? (
-                            <div className="flex flex-col gap-1">
-                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-2 py-1 bg-gray-100 text-red-600 rounded text-xs font-medium hover:bg-gray-200 transition-colors gap-1" title="Nur diesen Termin loeschen"><X className="w-3 h-3" />1 Termin</button>
-                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} className="inline-flex items-center px-2 py-1 bg-gray-100 text-red-600 rounded text-xs font-medium hover:bg-gray-200 transition-colors gap-1" title="Ganze Serie loeschen"><X className="w-3 h-3" />Serie</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} className="inline-flex items-center px-2 py-1 bg-gray-100 text-red-600 rounded text-xs font-medium hover:bg-gray-200 transition-colors gap-1"><X className="w-3 h-3" />L{String.fromCharCode(246)}schen</button>
-                          )}</>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {isSeries ? (
+                              <>
+                                <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', backgroundColor: '#f3f4f6', color: '#dc2626', borderRadius: '4px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}><X style={{ width: '12px', height: '12px' }} />1 Termin</button>
+                                <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', backgroundColor: '#f3f4f6', color: '#dc2626', borderRadius: '4px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}><X style={{ width: '12px', height: '12px' }} />Serie</button>
+                              </>
+                            ) : (
+                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', backgroundColor: '#f3f4f6', color: '#dc2626', borderRadius: '4px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}><X style={{ width: '12px', height: '12px' }} />L{String.fromCharCode(246)}schen</button>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Mobile: Trainers + Org collapsed into one row */}
-                <div className="md:hidden border-t border-gray-100 px-3 py-2 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    {teamTrainers.length > 0 ? (
-                      teamTrainers.map(t => (
-                        <div key={t.id} className="text-gray-600">{t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}</div>
-                      ))
-                    ) : (
-                      <div className="text-gray-600">{userInfo.name}</div>
-                    )}
-                  </div>
-                  <div>
-                    {primaryOrg ? (
-                      <>
-                        <div className="font-medium text-gray-800">{primaryOrg.club?.name}</div>
-                        <div className="text-gray-500 text-xs">{primaryOrg.dept?.icon} {primaryOrg.dept?.name} {String.fromCharCode(8250)} {primaryOrg.team?.name}</div>
                       </>
-                    ) : (
-                      <div className="text-gray-500">{bookingType?.icon} {bookingType?.label}</div>
                     )}
                   </div>
                 </div>
