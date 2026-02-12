@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { DEMO_BOOKINGS, DEMO_SLOTS, DEMO_USERS } from './config/constants';
+import { DEMO_BOOKINGS, DEMO_SLOTS } from './config/constants';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
+import { useUsers, useOperators } from './hooks/useSupabase';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
@@ -25,8 +26,11 @@ export default function SportvereinBuchung() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState(DEMO_BOOKINGS);
   const [slots, setSlots] = useState(DEMO_SLOTS);
-  const [users, setUsers] = useState(DEMO_USERS);
   const [emailService] = useState(() => new EmailService());
+
+  // Supabase: Users & Operators aus DB laden (mit Fallback auf Demo-Daten)
+  const { users, setUsers, createUser, updateUser, deleteUser, isDemo: isUserDemo, loading: usersLoading } = useUsers();
+  const { operators } = useOperators();
 
   // Facility config state
   const [club] = useState(DEFAULT_CLUB);
@@ -114,6 +118,17 @@ export default function SportvereinBuchung() {
   const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
   const facilityProps = { facilities, resourceGroups };
 
+  if (usersLoading) {
+    return (
+      <div className="flex h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-500">Daten werden geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar currentView={currentView} setCurrentView={setCurrentView}
@@ -132,7 +147,8 @@ export default function SportvereinBuchung() {
             <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} {...facilityProps} {...orgProps} /></>}
           {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
             <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
-          {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><UserManagement users={users} setUsers={setUsers} /></>}
+          {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
+            <UserManagement users={users} setUsers={setUsers} createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} isDemo={isUserDemo} operators={operators} /></>}
           {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
           {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
           {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
