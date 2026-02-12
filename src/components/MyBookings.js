@@ -5,7 +5,6 @@ import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
 
 const ENDASH = String.fromCharCode(8211);
-const DAYS_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const DAYS_FULL_DE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, departments, teams, trainerAssignments }) => {
@@ -100,6 +99,24 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
     return '';
   };
 
+  // Icon row helper
+  const IconRow = ({ icon, children, bold, muted }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: muted ? '#9ca3af' : bold ? '#1f2937' : '#6b7280', fontWeight: bold ? 700 : 400 }}>
+      <span style={{ flexShrink: 0, width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>{icon}</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{children}</span>
+    </div>
+  );
+
+  // Pill button style (matching status badges)
+  const pillButton = (color, bgColor, hoverBg) => ({
+    display: 'inline-flex', alignItems: 'center', gap: '4px',
+    padding: '4px 12px', borderRadius: '9999px',
+    fontSize: '12px', fontWeight: 600,
+    backgroundColor: bgColor, color: color,
+    border: 'none', cursor: 'pointer',
+    transition: 'background-color 0.15s',
+  });
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Meine Buchungen</h2>
@@ -157,37 +174,42 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
                   {/* 3 columns */}
                   <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
 
-                    {/* Col 1: Booking info */}
+                    {/* Col 1: Booking info with icons */}
                     <div style={{ flex: '2 1 0%', padding: '12px 16px', minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <span style={{ fontWeight: 700, fontSize: '15px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           "{booking.title}"
                         </span>
                         {isSeries && (
-                          <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>
-                            {booking.dates.length}x
+                          <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            <Repeat style={{ width: '11px', height: '11px' }} />{booking.dates.length}x
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.6' }}>
-                        <div>{resource?.name}</div>
-                        <div>{getWeekday(booking)}</div>
-                        <div style={{ fontWeight: 700, color: '#1f2937' }}>{booking.startTime} - {booking.endTime}</div>
-                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{getDateDisplay(booking)}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <IconRow icon={<MapPin style={{ width: '14px', height: '14px' }} />}>{resource?.name}</IconRow>
+                        <IconRow icon={<Calendar style={{ width: '14px', height: '14px' }} />}>{getWeekday(booking)}</IconRow>
+                        <IconRow icon={<Clock style={{ width: '14px', height: '14px' }} />} bold>{booking.startTime} - {booking.endTime}</IconRow>
+                        <IconRow icon={<Calendar style={{ width: '14px', height: '14px' }} />} muted>{getDateDisplay(booking)}</IconRow>
                       </div>
                     </div>
 
-                    {/* Col 2: Trainers */}
-                    <div style={{ flex: '1.2 1 0%', padding: '12px 16px', borderLeft: '1px solid #f3f4f6', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      {teamTrainers.length > 0 ? (
-                        teamTrainers.map(t => (
-                          <div key={t.id} style={{ fontSize: '13px', color: '#374151', lineHeight: '1.8' }}>
-                            {t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}
-                          </div>
-                        ))
-                      ) : (
-                        <div style={{ fontSize: '13px', color: '#6b7280' }}>{userInfo.name}</div>
-                      )}
+                    {/* Col 2: Trainers with header */}
+                    <div style={{ flex: '1.2 1 0%', padding: '12px 16px', borderLeft: '1px solid #f3f4f6', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: '6px' }}>
+                        {'Trainer / ' + String.fromCharCode(220) + 'bungsleiter'}
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        {teamTrainers.length > 0 ? (
+                          teamTrainers.map(t => (
+                            <div key={t.id} style={{ fontSize: '13px', color: '#374151', lineHeight: '1.8' }}>
+                              {t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ fontSize: '13px', color: '#6b7280' }}>{userInfo.name}</div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Col 3: Org + Type */}
@@ -220,19 +242,25 @@ const MyBookings = ({ bookings, isAdmin, onDelete, users, resources, clubs, depa
                           <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '8px', fontSize: '12px' }}>
                             <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: '4px' }}>L{String.fromCharCode(246)}schen?</div>
                             <div style={{ display: 'flex', gap: '4px' }}>
-                              <Button variant="danger" size="sm" onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}>Ja</Button>
-                              <Button variant="secondary" size="sm" onClick={() => setDeleteConfirm(null)}>Nein</Button>
+                              <button onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }} style={{ ...pillButton('#fff', '#ef4444'), padding: '3px 10px' }}>Ja</button>
+                              <button onClick={() => setDeleteConfirm(null)} style={{ ...pillButton('#374151', '#e5e7eb'), padding: '3px 10px' }}>Nein</button>
                             </div>
                           </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {isSeries ? (
                               <>
-                                <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', backgroundColor: '#f3f4f6', color: '#dc2626', borderRadius: '4px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}><X style={{ width: '12px', height: '12px' }} />1 Termin</button>
-                                <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', backgroundColor: '#f3f4f6', color: '#dc2626', borderRadius: '4px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}><X style={{ width: '12px', height: '12px' }} />Serie</button>
+                                <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} style={pillButton('#fff', '#ef4444')}>
+                                  <X style={{ width: '12px', height: '12px' }} />1 Termin
+                                </button>
+                                <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })} style={pillButton('#fff', '#dc2626')}>
+                                  <X style={{ width: '12px', height: '12px' }} />Serie
+                                </button>
                               </>
                             ) : (
-                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', backgroundColor: '#f3f4f6', color: '#dc2626', borderRadius: '4px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}><X style={{ width: '12px', height: '12px' }} />L{String.fromCharCode(246)}schen</button>
+                              <button onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })} style={pillButton('#fff', '#ef4444')}>
+                                <X style={{ width: '12px', height: '12px' }} />L{String.fromCharCode(246)}schen
+                              </button>
                             )}
                           </div>
                         )}
