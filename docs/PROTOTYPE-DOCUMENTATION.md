@@ -37,24 +37,27 @@ Das System besteht aus **drei unabhängigen Verwaltungsbereichen**, die über Bu
 
 ### 2.1 Anlagenverwaltung (Facility Domain)
 
-#### 2.1.1 Club (Verein – Betreiber)
+#### 2.1.1 Operator (Betreiber)
 
-Oberste Ebene. Repräsentiert den Verein, der die Anlagen betreibt.
+Oberste Ebene. Repräsentiert die Organisation, die die Anlagen betreibt. Dies ist **nicht** dasselbe wie ein Verein in der Organisationsverwaltung – ein Betreiber kann auch eine öffentliche Einrichtung oder Kommune sein (z.B. "Gemeinde Hünstetten").
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
-| `name` | String | ✅ | Vereinsname (z.B. "SG Hünstetten") |
+| `id` | String | ✅ | Eindeutige ID |
+| `name` | String | ✅ | Betreibername (z.B. "SG Hünstetten" oder "Gemeinde Hünstetten") |
+| `type` | Enum | ✅ | Art des Betreibers: `verein` / `kommune` / `sonstige` |
 | `primaryColor` | String | ✅ | Primärfarbe für Branding (Hex) |
 
-> **Hinweis:** Im Prototyp existiert nur ein Betreiber-Verein. In der DB-Implementierung könnte dies Multi-Tenancy ermöglichen.
+> **Entscheidung:** Betreiber und Verein (Organisation) sind **getrennte Tabellen**. Begründung: Der Betreiber kann eine Kommune, ein Verein oder eine andere Einrichtung sein. Admins werden dem Betreiber zugeordnet, nicht einem Verein.
 
 #### 2.1.2 Facility (Anlage)
 
-Physischer Standort mit Adresse. Ein Verein betreibt eine oder mehrere Anlagen.
+Physischer Standort mit Adresse. Ein Betreiber verwaltet eine oder mehrere Anlagen.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
 | `id` | String | ✅ | Eindeutige ID (z.B. "facility-biogrund") |
+| `operatorId` | String | ✅ | FK → Operator |
 | `name` | String | ✅ | Anlagenname |
 | `street` | String | ❌ | Straße |
 | `houseNumber` | String | ❌ | Hausnummer |
@@ -148,7 +151,7 @@ Zeitfenster für slot-basierte Ressourcen. Nur Ressourcen in Gruppen mit `shared
 #### 2.1.6 Beziehungen (Anlagen)
 
 ```
-Club (Betreiber)
+Operator (Betreiber) ← NICHT identisch mit Club (Organisation)
  └── Facility[] (Anlagen)
       └── ResourceGroup[] (Gruppen)
            ├── sharedScheduling: true → Slot-Verwaltung per Zahnrad pro Ressource
@@ -172,7 +175,7 @@ Club (Betreiber)
 
 #### 2.2.1 Club (Verein – Organisation)
 
-Verein im organisatorischen Sinne. Kann der Heimatverein oder ein Gastverein sein.
+Verein im organisatorischen Sinne. Kann der Heimatverein oder ein Gastverein sein. **Getrennt vom Betreiber** (Operator), da Betreiber auch Kommunen oder andere Einrichtungen sein können.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -262,14 +265,14 @@ Konkrete Trainings- oder Wettkampfgruppe.
 
 #### 2.2.4 EventType (Terminart)
 
-Globale Aufzählung der möglichen Terminarten.
+Globale Aufzählung der möglichen Terminarten. Wird in der Datenbank gespeichert (nicht mehr hardcoded).
 
-| ID | Label | Icon | Farbe | Beschreibung |
-|----|-------|------|-------|-------------|
-| `training` | Training | 🏃 | #3b82f6 | Regelmäßiges Training |
-| `match` | Heimspiel | ⚽ | #dc2626 | Wettkampf oder Freundschaftsspiel |
-| `event` | Event/Wettkampf | 🎉 | #8b5cf6 | Turnier, Wettkampf, Sonderveranstaltung |
-| `other` | Sonstiges | 📋 | #6b7280 | Besprechung, Wartung, etc. |
+| ID | Label | Icon | Farbe | Beschreibung | allowOverlap |
+|----|-------|------|-------|-------------|--------------|
+| `training` | Training | 🏃 | #3b82f6 | Regelmäßiges Training | ❌ |
+| `match` | Heimspiel | ⚽ | #dc2626 | Wettkampf oder Freundschaftsspiel | ❌ |
+| `event` | Event/Wettkampf | 🎉 | #8b5cf6 | Turnier, Wettkampf, Sonderveranstaltung | ❌ |
+| `other` | Sonstiges | 📋 | #6b7280 | Besprechung, Wartung, etc. | ✅ |
 
 > **Geschäftsregel:** Eine Mannschaft hat eine Whitelist an erlaubten Terminarten. Die Buchungsanfrage filtert die verfügbaren Terminarten basierend auf der gewählten Mannschaft.
 
@@ -310,32 +313,33 @@ Club[] (Vereine)
 | `id` | Number | ✅ | Eindeutige ID |
 | `firstName` | String | ✅ | Vorname |
 | `lastName` | String | ✅ | Nachname |
-| `club` | String | ❌ | Vereinsname (Legacy, wird durch Org-Struktur ersetzt) |
-| `team` | String | ❌ | Mannschaftsname (Legacy) |
 | `email` | String | ✅ | E-Mail-Adresse |
 | `phone` | String | ❌ | Telefonnummer |
 | `role` | Enum | ✅ | Rolle: `admin` / `trainer` / `extern` |
+| `operatorId` | String | ❌ | FK → Operator (Pflicht für Admins) |
+
+> **Hinweis:** Die Legacy-Felder `club` und `team` entfallen. Die Zuordnung eines Users zu Vereinen/Mannschaften erfolgt ausschließlich über `TrainerAssignment`. Die Zuordnung von Admins zum Betreiber erfolgt über `operatorId`.
 
 #### 2.3.2 Rollen
 
 | Rolle | Label | Beschreibung | Genehmigungspflicht |
 |-------|-------|-------------|---------------------|
-| `admin` | Administrator | Volle Rechte: Buchungen, Genehmigungen, Verwaltung | ❌ Automatisch genehmigt |
+| `admin` | Administrator | Volle Rechte: Buchungen, Genehmigungen, Verwaltung. Muss einem Betreiber (Operator) zugeordnet sein. | ❌ Automatisch genehmigt |
 | `trainer` | Trainer | Eigene Buchungen erstellen und verwalten | ❌ Automatisch genehmigt |
 | `extern` | Extern | Nur Anfragen stellen | ✅ Muss genehmigt werden |
 
 **Demo-Daten:**
 
-| Person | Verein | Rolle | Trainer-Zuordnung |
-|--------|--------|-------|-------------------|
-| Max Müller | SG Hünstetten | trainer | A-Jugend (Haupt) |
-| Anna Schmidt | SG Hünstetten | trainer | Yoga Mixed (Haupt), Herren-Yoga (Haupt) |
-| Tom Weber | SG Hünstetten | trainer | 1. Mannschaft (Haupt) |
-| Lisa Braun | SG Hünstetten | trainer | F-Jugend (Haupt) |
-| Hans Meier | SG Hünstetten | trainer | Seniorensport (Haupt) |
-| Peter König | SG Hünstetten | admin | 1. Mannschaft (Co) |
-| Sandra Fischer | TV Idstein | extern | Handball Damen (Haupt) |
-| Michael Wagner | TSV Wallrabenstein | extern | Herren (Haupt) |
+| Person | Rolle | Zuordnung |
+|--------|-------|-----------|
+| Max Müller | trainer | A-Jugend (Haupt) |
+| Anna Schmidt | trainer | Yoga Mixed (Haupt), Herren-Yoga (Haupt) |
+| Tom Weber | trainer | 1. Mannschaft (Haupt) |
+| Lisa Braun | trainer | F-Jugend (Haupt) |
+| Hans Meier | trainer | Seniorensport (Haupt) |
+| Peter König | admin | Operator: SG Hünstetten + 1. Mannschaft (Co) |
+| Sandra Fischer | extern | Handball Damen (Haupt) |
+| Michael Wagner | extern | Herren TSV (Haupt) |
 
 ---
 
@@ -356,9 +360,11 @@ Einzelner Termin einer Ressource.
 | `description` | String | ❌ | Beschreibung |
 | `bookingType` | String | ✅ | FK → EventType.id |
 | `userId` | Number | ✅ | FK → User (Ersteller / Haupttrainer) |
-| `status` | Enum | ✅ | `pending` / `approved` / `rejected` |
+| `status` | Enum | ✅ | `pending` / `approved` / `rejected` / `expired` / `archived` |
 | `seriesId` | String | ❌ | Serien-ID (wenn Teil einer Terminserie) |
 | `parentBooking` | Boolean | ❌ | Automatisch erzeugte Teilfeld-Buchung |
+
+> **Status-Erweiterung:** Buchungen in der Vergangenheit werden automatisch als `expired` markiert. Manuell archivierte Buchungen erhalten den Status `archived`. Beide werden in Standard-Ansichten nicht angezeigt, bleiben aber in der Datenbank erhalten.
 
 #### 2.4.2 Buchungslogik
 
@@ -386,6 +392,13 @@ Neue Buchung erstellt
          └── Admin lehnt ab → status = 'rejected' (mit Begründung)
 ```
 
+**Lebenszyklus:**
+
+```
+pending/approved → [Datum in Vergangenheit] → expired
+any status       → [Admin archiviert]       → archived
+```
+
 #### 2.4.3 Konflikterkennung
 
 Bei Buchungsanfragen werden folgende Konflikte erkannt:
@@ -402,7 +415,7 @@ Bei Buchungsanfragen werden folgende Konflikte erkannt:
 
 ---
 
-## 3. Seiten & UI-Komponenten
+## 3. Seiten und UI-Komponenten
 
 ### 3.1 Navigation (Sidebar)
 
@@ -470,6 +483,7 @@ Bei Buchungsanfragen werden folgende Konflikte erkannt:
 - Spalte 3: Event-Typ mit Icon, Vereinsname mit Farbpunkt, Abteilung mit Icon, Mannschaft
 - Spalte 4: Status-Badge (Pill), Lösch-Buttons (einzeln / Serie) als rote Pills
 - Lösch-Bestätigung mit Ja/Nein Dialog
+- Zeigt nur aktive Buchungen (keine expired/archived)
 
 ### 3.4 Neue Anfrage (BookingRequest)
 
@@ -514,10 +528,11 @@ Bei Buchungsanfragen werden folgende Konflikte erkannt:
 **Zweck:** Benutzerkonten verwalten (CRUD)
 
 **Features:**
-- Benutzerliste mit Vor-/Nachname, E-Mail, Telefon, Verein, Mannschaft, Rolle
+- Benutzerliste mit Vor-/Nachname, E-Mail, Telefon, Rolle
 - Neuen Benutzer anlegen
 - Benutzer bearbeiten / löschen
 - Rollenauswahl: Administrator / Trainer / Extern
+- Admins: Zusätzliche Zuordnung zu einem Betreiber (Operator)
 - Farbcodierung nach Rolle
 
 ### 3.7 Organisation (OrganizationManagement)
@@ -627,16 +642,19 @@ Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das neu
 
 > **Für die DB-Implementierung:** Diese Konvertierungsfunktion wird nicht mehr benötigt. Das Datenmodell wird direkt auf dem neuen hierarchischen Modell aufbauen.
 
-### 4.2 constants.js (Alt-Daten)
+### 4.2 constants.js – Auflösung
 
-Die Datei `constants.js` enthält noch alte, hartcodierte Demo-Daten:
-- `RESOURCES` – ersetzt durch `facilityConfig.js`
-- `BOOKING_TYPES` – ersetzt durch `EVENT_TYPES` in `organizationConfig.js`
-- `ROLES` – wird beibehalten (Rollen-Definition)
-- `DEMO_USERS` – wird in DB migriert
-- `DEMO_BOOKINGS` – wird in DB migriert
-- `DEMO_SLOTS` – wird in DB migriert
-- `DAYS` / `DAYS_FULL` – Utility-Konstanten, bleiben
+Die Datei `constants.js` wird **komplett aufgelöst**. Alle Daten wandern in die Datenbank:
+
+| Bisheriger Inhalt | Ziel |
+|-------------------|------|
+| `RESOURCES` | Bereits ersetzt durch `facilityConfig.js` → DB-Tabelle `Resource` |
+| `BOOKING_TYPES` | Bereits ersetzt durch `EVENT_TYPES` → DB-Tabelle `EventType` |
+| `ROLES` | DB-Tabelle `Role` oder Enum im User-Modell |
+| `DEMO_USERS` | DB-Tabelle `User` (Seed-Daten) |
+| `DEMO_BOOKINGS` | DB-Tabelle `Booking` (Seed-Daten) |
+| `DEMO_SLOTS` | DB-Tabelle `Slot` (Seed-Daten) |
+| `DAYS` / `DAYS_FULL` | Einzige Ausnahme: Wochentag-Labels bleiben als Frontend-Konstante (reine Anzeigelogik, nicht DB-relevant) |
 
 ---
 
@@ -651,6 +669,7 @@ Die Datei `constants.js` enthält noch alte, hartcodierte Demo-Daten:
 5. Termine vom Typ `match` und `event` sind **typischerweise Einzeltermine**
 6. Der Titel wird **automatisch vorgeschlagen**: "{Mannschaft} {Terminart}"
 7. Buchungen von `extern`-Benutzern erfordern **Admin-Genehmigung**
+8. Vergangene Buchungen werden als `expired` markiert und nicht mehr in Standard-Ansichten angezeigt
 
 ### 5.2 Löschregeln
 
@@ -669,6 +688,13 @@ Die Datei `constants.js` enthält noch alte, hartcodierte Demo-Daten:
 4. Der **Heimatverein** hat volle Organisationsstruktur
 5. **Gastvereine** buchen nur bestimmte Anlagen (z.B. Mehrzweckhallen)
 
+### 5.4 Betreiber-Regeln
+
+1. Betreiber und Verein (Organisation) sind **getrennte Entitäten**
+2. Ein Betreiber kann ein Verein, eine Kommune oder eine sonstige Organisation sein
+3. Admins müssen einem **Betreiber** zugeordnet sein (nicht einem Verein)
+4. Ein Betreiber verwaltet eine oder mehrere **Anlagen**
+
 ---
 
 ## 6. Datei-Struktur (Prototyp)
@@ -679,7 +705,7 @@ src/
 ├── index.js                        # React Entry Point
 ├── index.css                       # Globale Styles + Tailwind
 ├── config/
-│   ├── constants.js                # Legacy-Konstanten, Demo-Daten, Rollen
+│   ├── constants.js                # [WIRD AUFGELÖST] Legacy-Konstanten → DB
 │   ├── facilityConfig.js           # Anlagen-Datenmodell + buildLegacyResources()
 │   └── organizationConfig.js       # Organisations-Datenmodell + EventTypes
 ├── components/
@@ -706,16 +732,39 @@ src/
 
 ---
 
-## 7. Offene Punkte / TODO für DB-Implementierung
+## 7. Entscheidungen für die DB-Implementierung
 
-### 7.1 Datenmodell-Entscheidungen
+### 7.1 Getroffene Entscheidungen
 
-- [ ] Soll `Club` (Betreiber) und `Club` (Organisation) dieselbe Tabelle sein?
-- [ ] Wie wird Multi-Tenancy umgesetzt? (Mehrere Betreiber-Vereine?)
-- [ ] Soll `constants.js` komplett aufgelöst werden?
-- [ ] Wie werden historische Buchungen archiviert?
+| Frage | Entscheidung | Begründung |
+|-------|-------------|------------|
+| Betreiber = Verein? | **Nein, getrennte Tabellen** (`Operator` + `Club`) | Betreiber kann auch Kommune oder öffentliche Einrichtung sein |
+| Multi-Tenancy | Betreiber ist eine **eigene Organisation** (Verein, Kommune, etc.); Admins werden dem Betreiber zugeordnet | Ermöglicht flexible Betreibermodelle |
+| constants.js | **Komplett auflösen** – alles in die DB | Nur Wochentag-Labels (`DAYS`/`DAYS_FULL`) bleiben als reine Frontend-Konstante |
+| Historische Buchungen | **Soft-Delete** via Status `expired`/`archived` – werden nicht gelöscht, nur ausgeblendet | Daten bleiben erhalten; spätere historische Ansicht möglich |
 
-### 7.2 Fehlende Features
+### 7.2 Fehlende Features (Roadmap)
 
-- [ ] Authentifizierung / Login-System
-- [ ] Echte E-Mail-Vers
+| Priorität | Feature | Beschreibung |
+|-----------|---------|-------------|
+| 🔴 Hoch | Authentifizierung | Login-System mit E-Mail/Passwort oder SSO |
+| 🔴 Hoch | Echte E-Mail-Versendung | Aktuell nur Mock – Anbindung an E-Mail-Service |
+| 🟡 Mittel | Buchungs-Bearbeitung | Aktuell nur Löschen möglich |
+| 🟡 Mittel | Tagesansicht Kalender | Detaillierte Tagesansicht zusätzlich zur Wochenansicht |
+| 🟡 Mittel | Mobile-Optimierung | Responsive Layouts für Smartphone-Nutzung |
+| 🟢 Niedrig | Benutzer-Selbstregistrierung | Neue Benutzer können sich selbst anmelden |
+| 🟢 Niedrig | Recurring Booking als Entität | Eigene Tabelle statt N Einzelbuchungen mit seriesId |
+| 🟢 Niedrig | Audit-Log | Änderungshistorie für alle Entitäten |
+| 🟢 Niedrig | iCal-Export | Buchungen als Kalender-Abonnement |
+| 🟢 Niedrig | Historische Ansicht | Archiv-Seite für vergangene Buchungen |
+
+### 7.3 Technische Schulden (Aufräumen bei Migration)
+
+| Datei/Komponente | Aktion |
+|-----------------|--------|
+| `SlotManagement.js` | Löschen (durch FacilityManagement ersetzt) |
+| `constants.js` | Auflösen – alle Daten in DB, nur `DAYS`/`DAYS_FULL` behalten |
+| `helpers.js` → `BOOKING_TYPES` Import | Umstellen auf `EVENT_TYPES` aus DB |
+| `User.club` / `User.team` | Entfernen – ersetzt durch `TrainerAssignment` |
+| `buildLegacyResources()` | Entfernen – DB liefert hierarchisches Modell direkt |
+| `facilityConfig.js` / `organizationConfig.js` | Entfernen – Seed-Daten werden einmalig in DB importiert |
