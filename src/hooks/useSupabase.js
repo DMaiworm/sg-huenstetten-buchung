@@ -3,7 +3,7 @@
  *
  * Each hook follows the pattern:
  *   - Loads data on mount via useEffect
- *   - Converts DB snake_case → legacy camelCase format
+ *   - Converts DB snake_case \u2192 legacy camelCase format
  *   - Falls back to demo data if DB is empty or unreachable
  *   - Provides CRUD callbacks that update both DB and local state
  *
@@ -14,7 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 // ============================================================
-// Conversion helpers: DB (snake_case) → Legacy (camelCase)
+// Conversion helpers: DB (snake_case) \u2192 Legacy (camelCase)
 // ============================================================
 
 function profileToLegacyUser(profile) {
@@ -206,8 +206,6 @@ export function useFacilities() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      // After migration 006: sub_resources are now also in the resources table
-      // (with parent_resource_id set). We no longer need to query sub_resources separately.
       const [facR, grpR, resR, slotR] = await Promise.all([
         supabase.from('facilities').select('*').order('sort_order'),
         supabase.from('resource_groups').select('*').order('sort_order'),
@@ -222,7 +220,6 @@ export function useFacilities() {
       if ((facR.data || []).length > 0) {
         setFacilitiesState(facR.data.map(dbFacilityToLegacy));
         setResourceGroupsState(grpR.data.map(dbResourceGroupToLegacy));
-        // Build config resources: parents with nested subResources
         setResourcesState(buildConfigResources(resR.data || []));
         setSlotsState(slotR.data.map(dbSlotToLegacy));
         setIsDemo(false);
@@ -335,6 +332,7 @@ export function useBookings() {
     }
   }, []);
 
+  /** Update status for a single booking. */
   const updateBookingStatus = useCallback(async (bookingId, status) => {
     try {
       const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select().single();
@@ -344,6 +342,31 @@ export function useBookings() {
       return { data: legacy, error: null };
     } catch (err) {
       console.error('Status-Update fehlgeschlagen:', err);
+      return { data: null, error: err.message };
+    }
+  }, []);
+
+  /**
+   * Update status for ALL bookings with a given seriesId.
+   * Used to cascade approve/reject to composite bookings (ganzes Feld)
+   * and their auto-generated parentBooking sub-resource blockers.
+   */
+  const updateSeriesStatus = useCallback(async (seriesId, status) => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({ status })
+        .eq('series_id', seriesId)
+        .select();
+      if (error) throw error;
+      const legacyArray = (data || []).map(dbBookingToLegacy);
+      const updatedIds = new Set(legacyArray.map(b => b.id));
+      setBookingsState(prev =>
+        prev.map(b => updatedIds.has(b.id) ? legacyArray.find(u => u.id === b.id) : b)
+      );
+      return { data: legacyArray, error: null };
+    } catch (err) {
+      console.error('Serien-Status-Update fehlgeschlagen:', err);
       return { data: null, error: err.message };
     }
   }, []);
@@ -376,7 +399,8 @@ export function useBookings() {
 
   return {
     bookings, setBookings, loading, isDemo,
-    createBooking, createBookings, updateBookingStatus,
+    createBooking, createBookings,
+    updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
     refreshBookings: fetchBookings,
   };
