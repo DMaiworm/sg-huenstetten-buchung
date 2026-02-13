@@ -1,6 +1,12 @@
-// Facility & Resource Configuration
-// Hierarchical multi-facility model:
-//   Verein -> Facility[] -> ResourceGroup[] -> Resource[] -> SubResource[]
+/**
+ * Facility & Resource Configuration
+ *
+ * Hierarchical multi-facility model:
+ *   Operator → Facility[] → ResourceGroup[] → Resource[] → SubResource[]
+ *
+ * The buildLegacyResources() converter flattens this hierarchy into a
+ * flat array that existing calendar/booking components can consume.
+ */
 
 const UMLAUT_A = String.fromCharCode(228);
 const UMLAUT_O = String.fromCharCode(246);
@@ -52,7 +58,7 @@ export const DEFAULT_RESOURCE_GROUPS = [
     sortOrder: 2,
     sharedScheduling: false,
   },
-  // --- DGH Görsroth ---
+  // --- DGH G\u00f6rsroth ---
   {
     id: 'group-shared',
     facilityId: 'facility-dgh',
@@ -64,7 +70,7 @@ export const DEFAULT_RESOURCE_GROUPS = [
 ];
 
 export const DEFAULT_RESOURCES = [
-  // --- Biogrund: Außenanlagen ---
+  // --- Biogrund: Au\u00dfenanlagen ---
   {
     id: 'sportplatz-ganz',
     groupId: 'group-outdoor',
@@ -86,7 +92,7 @@ export const DEFAULT_RESOURCES = [
     bookingMode: 'free',
     subResources: [],
   },
-  // --- Biogrund: Innenräume ---
+  // --- Biogrund: Innenr\u00e4ume ---
   {
     id: 'gymnastik',
     groupId: 'group-indoor',
@@ -135,35 +141,51 @@ export const DEFAULT_RESOURCES = [
   },
 ];
 
-// ---- Converter: new model -> legacy RESOURCES format ----
-// This allows existing components to work without changes
+/**
+ * Convert the hierarchical resource model into a flat "legacy" array.
+ *
+ * Each legacy resource carries:
+ *   - id, name, color, type ('regular' | 'limited'), category (group icon)
+ *   - groupId   (FK back to the ResourceGroup – used for filtering)
+ *   - isComposite / includes[]  (splittable parent)
+ *   - partOf                    (sub-resource pointing to parent)
+ *
+ * @param {Array} resourceGroups - All ResourceGroup objects
+ * @param {Array} resources      - All Resource objects (with nested subResources)
+ * @returns {Array} Flat array of legacy resource objects
+ */
 export function buildLegacyResources(resourceGroups, resources) {
   const legacy = [];
-  const groupCategoryMap = {};
+  const groupMap = {};
   resourceGroups.forEach(g => {
-    groupCategoryMap[g.id] = g.icon; // 'outdoor', 'indoor', 'shared'
+    groupMap[g.id] = g;
   });
 
   resources.forEach(res => {
-    const category = groupCategoryMap[res.groupId] || 'outdoor';
+    const group = groupMap[res.groupId];
+    const category = group?.icon || 'outdoor';
     const type = res.bookingMode === 'slotOnly' ? 'limited' : 'regular';
 
     if (res.splittable && res.subResources && res.subResources.length > 0) {
+      // Composite parent (e.g. "Sportplatz komplett")
       legacy.push({
         id: res.id,
         name: res.name,
         type,
         category,
+        groupId: res.groupId,
         color: res.color,
         isComposite: true,
         includes: res.subResources.map(sr => sr.id),
       });
+      // Sub-resources (e.g. "Sportplatz links / rechts")
       res.subResources.forEach(sr => {
         legacy.push({
           id: sr.id,
           name: sr.name,
           type,
           category,
+          groupId: res.groupId,
           color: sr.color,
           partOf: res.id,
         });
@@ -174,6 +196,7 @@ export function buildLegacyResources(resourceGroups, resources) {
         name: res.name,
         type,
         category,
+        groupId: res.groupId,
         color: res.color,
       });
     }
@@ -182,7 +205,7 @@ export function buildLegacyResources(resourceGroups, resources) {
   return legacy;
 }
 
-// ---- ID Generator ----
+/** Generate a unique ID with a human-readable prefix. */
 export function generateId(prefix) {
   return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
 }
