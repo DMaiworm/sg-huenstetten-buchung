@@ -3,7 +3,7 @@ import { DEMO_BOOKINGS, DEMO_SLOTS } from './config/constants';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
-import { useUsers, useOperators, useFacilities } from './hooks/useSupabase';
+import { useUsers, useOperators, useFacilities, useOrganization } from './hooks/useSupabase';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
@@ -40,6 +40,15 @@ export default function SportvereinBuchung() {
     loading: facilitiesLoading, isDemo: isFacilityDemo,
   } = useFacilities();
 
+  // Supabase: Organization (Clubs, Departments, Teams, TrainerAssignments)
+  const {
+    clubs: dbClubs, setClubs: setDbClubs,
+    departments: dbDepartments, setDepartments: setDbDepartments,
+    teams: dbTeams, setTeams: setDbTeams,
+    trainerAssignments: dbTrainerAssignments, setTrainerAssignments: setDbTrainerAssignments,
+    loading: orgLoading, isDemo: isOrgDemo,
+  } = useOrganization();
+
   // Fallback auf hardcoded Daten wenn DB leer
   const facilities = isFacilityDemo ? DEFAULT_FACILITIES : dbFacilities;
   const resourceGroups = isFacilityDemo ? DEFAULT_RESOURCE_GROUPS : dbResourceGroups;
@@ -51,13 +60,18 @@ export default function SportvereinBuchung() {
   const setConfigResources = isFacilityDemo ? () => {} : setDbResources;
   const setSlots = isFacilityDemo ? () => {} : setDbSlots;
 
-  const [club] = useState(DEFAULT_CLUB);
+  // Organization: Fallback auf hardcoded Daten wenn DB leer
+  const orgClubs = isOrgDemo ? DEFAULT_CLUBS : dbClubs;
+  const departments = isOrgDemo ? DEFAULT_DEPARTMENTS : dbDepartments;
+  const teams = isOrgDemo ? DEFAULT_TEAMS : dbTeams;
+  const trainerAssignments = isOrgDemo ? DEFAULT_TRAINER_ASSIGNMENTS : dbTrainerAssignments;
 
-  // Organization config state
-  const [orgClubs, setOrgClubs] = useState(DEFAULT_CLUBS);
-  const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
-  const [teams, setTeams] = useState(DEFAULT_TEAMS);
-  const [trainerAssignments, setTrainerAssignments] = useState(DEFAULT_TRAINER_ASSIGNMENTS);
+  const setOrgClubs = isOrgDemo ? () => {} : setDbClubs;
+  const setDepartments = isOrgDemo ? () => {} : setDbDepartments;
+  const setTeams = isOrgDemo ? () => {} : setDbTeams;
+  const setTrainerAssignments = isOrgDemo ? () => {} : setDbTrainerAssignments;
+
+  const [club] = useState(DEFAULT_CLUB);
 
   // Build legacy RESOURCES from config
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
@@ -136,7 +150,7 @@ export default function SportvereinBuchung() {
   const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
   const facilityProps = { facilities, resourceGroups };
 
-  if (usersLoading || facilitiesLoading) {
+  if (usersLoading || facilitiesLoading || orgLoading) {
     return (
       <div className="flex h-screen bg-gray-50 items-center justify-center">
         <div className="text-center">
