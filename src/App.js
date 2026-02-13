@@ -209,7 +209,7 @@ export default function SportvereinBuchung() {
               users={users} adminCheckbox={adminCheckbox} resources={RESOURCES} {...facilityProps} />
           )}
           {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} {...orgProps} /></>}
+            <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} /></>}
           {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
             <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} {...facilityProps} {...orgProps} /></>}
           {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
