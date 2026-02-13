@@ -1,18 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Fallback: Wenn Supabase nicht erreichbar, Demo-Daten nutzen
-const DEMO_USERS_FALLBACK = [
-  { id: 'demo-1', first_name: 'Max', last_name: 'Müller', email: 'max.mueller@sg-huenstetten.de', phone: '0171-1234567', role: 'trainer', operator_id: null },
-  { id: 'demo-2', first_name: 'Anna', last_name: 'Schmidt', email: 'anna.schmidt@sg-huenstetten.de', phone: '0172-2345678', role: 'trainer', operator_id: null },
-  { id: 'demo-3', first_name: 'Tom', last_name: 'Weber', email: 'tom.weber@sg-huenstetten.de', phone: '0173-3456789', role: 'trainer', operator_id: null },
-  { id: 'demo-4', first_name: 'Lisa', last_name: 'Braun', email: 'lisa.braun@sg-huenstetten.de', phone: '0174-4567890', role: 'trainer', operator_id: null },
-  { id: 'demo-5', first_name: 'Hans', last_name: 'Meier', email: 'hans.meier@sg-huenstetten.de', phone: '0175-5678901', role: 'trainer', operator_id: null },
-  { id: 'demo-6', first_name: 'Peter', last_name: 'König', email: 'peter.koenig@sg-huenstetten.de', phone: '0176-6789012', role: 'admin', operator_id: 'a0000000-0000-0000-0000-000000000001' },
-  { id: 'demo-7', first_name: 'Sandra', last_name: 'Fischer', email: 'sandra.fischer@tv-idstein.de', phone: '0177-7890123', role: 'extern', operator_id: null },
-  { id: 'demo-8', first_name: 'Michael', last_name: 'Wagner', email: 'm.wagner@tsv-wallrabenstein.de', phone: '0178-8901234', role: 'extern', operator_id: null },
-];
-
 /**
  * Konvertiert ein Supabase-Profil in das Legacy-User-Format
  * damit bestehende Komponenten weiterhin funktionieren
@@ -46,6 +34,18 @@ function legacyUserToProfile(user) {
   };
 }
 
+// Fallback Demo-Daten (nur wenn Supabase komplett nicht erreichbar)
+const DEMO_USERS_FALLBACK = [
+  { id: 'demo-1', first_name: 'Max', last_name: 'Müller', email: 'max.mueller@sg-huenstetten.de', phone: '0171-1234567', role: 'trainer', operator_id: null },
+  { id: 'demo-2', first_name: 'Anna', last_name: 'Schmidt', email: 'anna.schmidt@sg-huenstetten.de', phone: '0172-2345678', role: 'trainer', operator_id: null },
+  { id: 'demo-3', first_name: 'Tom', last_name: 'Weber', email: 'tom.weber@sg-huenstetten.de', phone: '0173-3456789', role: 'trainer', operator_id: null },
+  { id: 'demo-4', first_name: 'Lisa', last_name: 'Braun', email: 'lisa.braun@sg-huenstetten.de', phone: '0174-4567890', role: 'trainer', operator_id: null },
+  { id: 'demo-5', first_name: 'Hans', last_name: 'Meier', email: 'hans.meier@sg-huenstetten.de', phone: '0175-5678901', role: 'trainer', operator_id: null },
+  { id: 'demo-6', first_name: 'Peter', last_name: 'König', email: 'peter.koenig@sg-huenstetten.de', phone: '0176-6789012', role: 'admin', operator_id: 'a0000000-0000-0000-0000-000000000001' },
+  { id: 'demo-7', first_name: 'Sandra', last_name: 'Fischer', email: 'sandra.fischer@tv-idstein.de', phone: '0177-7890123', role: 'extern', operator_id: null },
+  { id: 'demo-8', first_name: 'Michael', last_name: 'Wagner', email: 'm.wagner@tsv-wallrabenstein.de', phone: '0178-8901234', role: 'extern', operator_id: null },
+];
+
 export function useUsers() {
   const [users, setUsersState] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ export function useUsers() {
         setUsersState(data.map(profileToLegacyUser));
         setIsDemo(false);
       } else {
-        // Keine Daten in DB → Fallback auf Demo-Daten
+        // DB erreichbar aber leer → Demo-Fallback
         setUsersState(DEMO_USERS_FALLBACK.map(profileToLegacyUser));
         setIsDemo(true);
       }
@@ -85,7 +85,7 @@ export function useUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // User erstellen
+  // User erstellen (Prototyp: direkt in profiles-Tabelle, ohne Auth)
   const createUser = useCallback(async (userData) => {
     if (isDemo) {
       const newUser = { ...userData, id: 'demo-' + Date.now() };
@@ -95,37 +95,21 @@ export function useUsers() {
 
     try {
       const profile = legacyUserToProfile(userData);
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        email_confirm: true,
-        user_metadata: {
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          role: userData.role,
-        },
-      });
+      const { data, error: insertError } = await supabase
+        .from('profiles')
+        .insert(profile)
+        .select()
+        .single();
 
-      if (authError) {
-        // Fallback: Direkt in profiles einfügen (für Prototyp ohne vollen Auth-Flow)
-        const { data, error: insertError } = await supabase
-          .from('profiles')
-          .insert({ ...profile, id: crypto.randomUUID() })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        const legacyUser = profileToLegacyUser(data);
-        setUsersState(prev => [...prev, legacyUser]);
-        return { data: legacyUser, error: null };
-      }
-
-      await fetchUsers();
-      return { data: authData, error: null };
+      if (insertError) throw insertError;
+      const legacyUser = profileToLegacyUser(data);
+      setUsersState(prev => [...prev, legacyUser]);
+      return { data: legacyUser, error: null };
     } catch (err) {
       console.error('Fehler beim Erstellen:', err);
       return { data: null, error: err.message };
     }
-  }, [isDemo, fetchUsers]);
+  }, [isDemo]);
 
   // User aktualisieren
   const updateUser = useCallback(async (userId, userData) => {
