@@ -3,7 +3,7 @@ import { DEMO_BOOKINGS, DEMO_SLOTS } from './config/constants';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
-import { useUsers, useOperators } from './hooks/useSupabase';
+import { useUsers, useOperators, useFacilities } from './hooks/useSupabase';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
@@ -22,21 +22,36 @@ registerLocale('de', de);
 export default function SportvereinBuchung() {
   const [currentView, setCurrentView] = useState('calendar');
   const [isAdmin, setIsAdmin] = useState(true);
-  const [selectedResource, setSelectedResource] = useState('sportplatz-links');
+  const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState(DEMO_BOOKINGS);
-  const [slots, setSlots] = useState(DEMO_SLOTS);
   const [emailService] = useState(() => new EmailService());
 
-  // Supabase: Users & Operators aus DB laden (mit Fallback auf Demo-Daten)
+  // Supabase: Users & Operators
   const { users, setUsers, createUser, updateUser, deleteUser, isDemo: isUserDemo, loading: usersLoading } = useUsers();
   const { operators } = useOperators();
 
-  // Facility config state
+  // Supabase: Facilities, ResourceGroups, Resources, Slots
+  const {
+    facilities: dbFacilities, setFacilities: setDbFacilities,
+    resourceGroups: dbResourceGroups, setResourceGroups: setDbResourceGroups,
+    resources: dbResources, setResources: setDbResources,
+    slots: dbSlots, setSlots: setDbSlots,
+    loading: facilitiesLoading, isDemo: isFacilityDemo,
+  } = useFacilities();
+
+  // Fallback auf hardcoded Daten wenn DB leer
+  const facilities = isFacilityDemo ? DEFAULT_FACILITIES : dbFacilities;
+  const resourceGroups = isFacilityDemo ? DEFAULT_RESOURCE_GROUPS : dbResourceGroups;
+  const configResources = isFacilityDemo ? DEFAULT_RESOURCES : dbResources;
+  const slots = isFacilityDemo ? DEMO_SLOTS : dbSlots;
+
+  const setFacilities = isFacilityDemo ? () => {} : setDbFacilities;
+  const setResourceGroups = isFacilityDemo ? () => {} : setDbResourceGroups;
+  const setConfigResources = isFacilityDemo ? () => {} : setDbResources;
+  const setSlots = isFacilityDemo ? () => {} : setDbSlots;
+
   const [club] = useState(DEFAULT_CLUB);
-  const [facilities, setFacilities] = useState(DEFAULT_FACILITIES);
-  const [resourceGroups, setResourceGroups] = useState(DEFAULT_RESOURCE_GROUPS);
-  const [configResources, setConfigResources] = useState(DEFAULT_RESOURCES);
 
   // Organization config state
   const [orgClubs, setOrgClubs] = useState(DEFAULT_CLUBS);
@@ -46,6 +61,9 @@ export default function SportvereinBuchung() {
 
   // Build legacy RESOURCES from config
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
+
+  // Setze selectedResource auf erste verfügbare SubResource/Resource
+  const effectiveSelectedResource = selectedResource || (RESOURCES.length > 0 ? RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id : null);
 
   const handleApprove = async (id) => {
     const booking = bookings.find(b => b.id === id);
@@ -118,7 +136,7 @@ export default function SportvereinBuchung() {
   const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
   const facilityProps = { facilities, resourceGroups };
 
-  if (usersLoading) {
+  if (usersLoading || facilitiesLoading) {
     return (
       <div className="flex h-screen bg-gray-50 items-center justify-center">
         <div className="text-center">
@@ -137,7 +155,7 @@ export default function SportvereinBuchung() {
       <main className="flex-1 overflow-auto">
         <div className="p-6">
           {currentView === 'calendar' && (
-            <CalendarView bookings={bookings} slots={slots} selectedResource={selectedResource}
+            <CalendarView bookings={bookings} slots={slots} selectedResource={effectiveSelectedResource}
               setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate}
               users={users} adminCheckbox={adminCheckbox} resources={RESOURCES} {...facilityProps} />
           )}
