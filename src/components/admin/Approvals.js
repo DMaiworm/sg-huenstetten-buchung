@@ -1,13 +1,30 @@
+/**
+ * Approvals – Admin view for pending booking requests.
+ *
+ * Shows all bookings with status 'pending' that are NOT parentBookings
+ * (auto-generated blocking entries for composite resources like “ganzes Feld”).
+ * When the admin approves/rejects, the callback in App.js handles
+ * cascading the status to all related bookings in the same series.
+ *
+ * Props:
+ *   bookings   - All bookings
+ *   onApprove  - Callback(bookingId)
+ *   onReject   - Callback(bookingId, reason)
+ *   users      - User objects
+ *   resources  - Legacy resource array
+ */
+
 import React, { useState } from 'react';
 import { Calendar, MapPin, Users, Check, X, Clock } from 'lucide-react';
 import { BOOKING_TYPES, ROLES } from '../../config/constants';
 import { Badge } from '../ui/Badge';
 
 const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
-  const RESOURCES = resources;
-  const pendingBookings = bookings.filter(b => b.status === 'pending');
+  // Filter: only show genuine pending requests (exclude auto-generated parentBooking entries)
+  const pendingBookings = bookings.filter(b => b.status === 'pending' && !b.parentBooking);
   const [rejectDialog, setRejectDialog] = useState(null);
 
+  /** Resolve userId \u2192 display name + role info. */
   const getUserInfo = (userId) => {
     const user = users.find(u => u.id === userId);
     if (!user) return { name: 'Unbekannt', role: null };
@@ -15,8 +32,17 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
     return { name: `${user.firstName} ${user.lastName}`, team: user.team, club: user.club, role };
   };
 
+  /** Count how many related bookings (same seriesId) exist for a booking. */
+  const getRelatedCount = (booking) => {
+    if (!booking.seriesId) return 0;
+    return bookings.filter(b => b.seriesId === booking.seriesId && b.id !== booking.id).length;
+  };
+
   const handleReject = (bookingId) => {
-    if (rejectDialog && rejectDialog.reason) { onReject(bookingId, rejectDialog.reason); setRejectDialog(null); }
+    if (rejectDialog && rejectDialog.reason !== undefined) {
+      onReject(bookingId, rejectDialog.reason);
+      setRejectDialog(null);
+    }
   };
 
   return (
@@ -36,9 +62,11 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
       ) : (
         <div className="space-y-4">
           {pendingBookings.map(booking => {
-            const resource = RESOURCES.find(r => r.id === booking.resourceId);
+            const resource = resources.find(r => r.id === booking.resourceId);
             const userInfo = getUserInfo(booking.userId);
             const showingRejectDialog = rejectDialog?.bookingId === booking.id;
+            const relatedCount = getRelatedCount(booking);
+
             return (
               <div key={booking.id} className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
@@ -49,7 +77,8 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
                         <h3 className="font-semibold text-gray-800">{booking.title}</h3>
                         {booking.bookingType && (
                           <Badge variant="default" className="text-xs">
-                            {BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon} {BOOKING_TYPES.find(t => t.id === booking.bookingType)?.label}
+                            {BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon}{' '}
+                            {BOOKING_TYPES.find(t => t.id === booking.bookingType)?.label}
                           </Badge>
                         )}
                         {resource?.type === 'limited' && <Badge variant="warning">Limitiert</Badge>}
@@ -57,16 +86,35 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
                         {booking.seriesId && <Badge variant="default">Serie</Badge>}
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-600 flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{resource?.name}</span></p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2"><Clock className="w-4 h-4" /><span>{booking.startTime} - {booking.endTime}</span></p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2"><Calendar className="w-4 h-4" /><span>{booking.date}</span></p>
                         <p className="text-sm text-gray-600 flex items-center gap-2">
-                          <Users className="w-4 h-4" /><span>Angefragt von: {userInfo.name}</span>
-                          {userInfo.role && (<span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} /><span className="text-xs">({userInfo.role.label})</span></span>)}
-                          {userInfo.team && <span className="text-xs">{String.fromCharCode(8226)} {userInfo.team}</span>}
+                          <MapPin className="w-4 h-4" /><span>{resource?.name}</span>
+                        </p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Clock className="w-4 h-4" /><span>{booking.startTime} - {booking.endTime}</span>
+                        </p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Calendar className="w-4 h-4" /><span>{booking.date}</span>
+                        </p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          <span>Angefragt von: {userInfo.name}</span>
+                          {userInfo.role && (
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: userInfo.role.color }} />
+                              <span className="text-xs">({userInfo.role.label})</span>
+                            </span>
+                          )}
                         </p>
                       </div>
 
+                      {/* Info: related bookings that will be affected */}
+                      {relatedCount > 0 && (
+                        <div style={{ marginTop: '8px', padding: '6px 10px', backgroundColor: '#eff6ff', borderRadius: '6px', fontSize: '12px', color: '#1e40af' }}>
+                          \u2139\ufe0f Genehmigung/Ablehnung gilt auch f\u00fcr {relatedCount} verkn\u00fcpfte Buchung{relatedCount !== 1 ? 'en' : ''} (Serie/Teilfl\u00e4chen).
+                        </div>
+                      )}
+
+                      {/* Reject dialog */}
                       {showingRejectDialog && (
                         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <label className="block text-sm font-medium text-red-800 mb-2">
@@ -94,6 +142,7 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
                     </div>
                   </div>
 
+                  {/* Action buttons */}
                   {!showingRejectDialog && (
                     <div className="flex gap-2 ml-4">
                       <button onClick={() => onApprove(booking.id)}
