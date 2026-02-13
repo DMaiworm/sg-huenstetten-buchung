@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, Layers, SplitSquareHorizontal, Clock, GripVertical, Settings } from 'lucide-react';
+import { Building2, MapPin, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, SplitSquareHorizontal, Clock, GripVertical, Settings } from 'lucide-react';
 import { DAYS_FULL } from '../../config/constants';
 import { Button } from '../ui/Badge';
 import { Badge } from '../ui/Badge';

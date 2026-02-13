@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Calendar, MapPin, Users, Check, X, Clock } from 'lucide-react';
 import { BOOKING_TYPES, ROLES } from '../../config/constants';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Badge';
 
 const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
   const RESOURCES = resources;

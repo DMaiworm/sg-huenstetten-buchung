@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { Building, Users, UserCheck, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, Shield, Star } from 'lucide-react';
+import { Building, UserCheck, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { Button, Badge } from '../ui/Badge';
 import { generateOrgId, EVENT_TYPES } from '../../config/organizationConfig';
 
-const UMLAUT_A = String.fromCharCode(228);
 const UMLAUT_O = String.fromCharCode(246);
 const UMLAUT_U = String.fromCharCode(252);
-const UMLAUT_SS = String.fromCharCode(223);
-const ENDASH = String.fromCharCode(8211);
 
 const COLOR_PRESETS = [
   '#1e40af', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd',
@@ -215,7 +212,7 @@ const ClubSection = ({ club, departments, teams, users, trainerAssignments,
                 <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                   className="col-span-2 px-2 py-1.5 text-sm font-bold border border-blue-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="Vereinsname" />
                 <input type="text" value={form.shortName || ''} onChange={e => setForm({ ...form, shortName: e.target.value })}
-                  className="px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500" placeholder="K' + UMLAUT_U + 'rzel" />
+                  className="px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500" placeholder={'K' + UMLAUT_U + 'rzel'} />
               </div>
               <div className="flex items-center gap-2">
                 <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0" />

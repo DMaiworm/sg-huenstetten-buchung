@@ -2,7 +2,6 @@
 // Hierarchy: Verein -> Abteilung -> Gruppe/Mannschaft -> Trainer-Zuordnung[]
 
 const UMLAUT_A = String.fromCharCode(228);
-const UMLAUT_O = String.fromCharCode(246);
 const UMLAUT_U = String.fromCharCode(252);
 const UMLAUT_SS = String.fromCharCode(223);
 
