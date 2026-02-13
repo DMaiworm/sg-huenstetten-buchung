@@ -1,8 +1,20 @@
+/**
+ * Supabase hooks for data loading and CRUD operations.
+ *
+ * Each hook follows the pattern:
+ *   - Loads data on mount via useEffect
+ *   - Converts DB snake_case → legacy camelCase format
+ *   - Falls back to demo data if DB is empty or unreachable
+ *   - Provides CRUD callbacks that update both DB and local state
+ *
+ * Hooks: useUsers, useOperators, useFacilities, useOrganization, useBookings
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 // ============================================================
-// Konvertierungs-Hilfsfunktionen
+// Conversion helpers: DB (snake_case) → Legacy (camelCase)
 // ============================================================
 
 function profileToLegacyUser(profile) {
@@ -23,18 +35,48 @@ function legacyUserToProfile(user) {
 function dbFacilityToLegacy(f) {
   return { id: f.id, name: f.name, street: f.street || '', houseNumber: f.house_number || '', zip: f.zip || '', city: f.city || '', sortOrder: f.sort_order };
 }
+
 function dbResourceGroupToLegacy(g) {
   return { id: g.id, facilityId: g.facility_id, name: g.name, icon: g.icon, sortOrder: g.sort_order, sharedScheduling: g.shared_scheduling };
 }
-function dbResourceToLegacy(r, subResources) {
+
+/**
+ * Convert DB resources into the config format expected by buildLegacyResources.
+ *
+ * After migration 006, sub-resources are rows in `resources` with
+ * parent_resource_id set. We reconstruct the nested structure:
+ *   { id, groupId, name, color, splittable, bookingMode, subResources: [...] }
+ *
+ * @param {Array} allDbResources - All rows from resources table
+ * @returns {Array} Config-format resources (parents with nested subResources)
+ */
+function buildConfigResources(allDbResources) {
+  const parents = allDbResources.filter(r => !r.parent_resource_id);
+  const children = allDbResources.filter(r => r.parent_resource_id);
+
+  return parents.map(r => ({
+    id: r.id,
+    groupId: r.group_id,
+    name: r.name,
+    color: r.color,
+    splittable: r.splittable,
+    bookingMode: r.booking_mode,
+    subResources: children
+      .filter(c => c.parent_resource_id === r.id)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(c => ({ id: c.id, name: c.name, color: c.color })),
+  }));
+}
+
+function dbSlotToLegacy(s) {
   return {
-    id: r.id, groupId: r.group_id, name: r.name, color: r.color, splittable: r.splittable, bookingMode: r.booking_mode,
-    subResources: (subResources || []).filter(sr => sr.resource_id === r.id).sort((a, b) => a.sort_order - b.sort_order).map(sr => ({ id: sr.id, name: sr.name, color: sr.color })),
+    id: s.id, resourceId: s.resource_id, dayOfWeek: s.day_of_week,
+    startTime: s.start_time?.substring(0, 5) || s.start_time,
+    endTime: s.end_time?.substring(0, 5) || s.end_time,
+    validFrom: s.valid_from, validUntil: s.valid_until,
   };
 }
-function dbSlotToLegacy(s) {
-  return { id: s.id, resourceId: s.resource_id, dayOfWeek: s.day_of_week, startTime: s.start_time?.substring(0, 5) || s.start_time, endTime: s.end_time?.substring(0, 5) || s.end_time, validFrom: s.valid_from, validUntil: s.valid_until };
-}
+
 function dbClubToLegacy(c) {
   return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club };
 }
@@ -73,12 +115,12 @@ function legacyBookingToDb(b) {
 
 // Fallback Demo-Daten
 const DEMO_USERS_FALLBACK = [
-  { id: 'demo-1', first_name: 'Max', last_name: 'Müller', email: 'max.mueller@sg-huenstetten.de', phone: '0171-1234567', role: 'trainer', operator_id: null },
+  { id: 'demo-1', first_name: 'Max', last_name: 'M\u00fcller', email: 'max.mueller@sg-huenstetten.de', phone: '0171-1234567', role: 'trainer', operator_id: null },
   { id: 'demo-2', first_name: 'Anna', last_name: 'Schmidt', email: 'anna.schmidt@sg-huenstetten.de', phone: '0172-2345678', role: 'trainer', operator_id: null },
   { id: 'demo-3', first_name: 'Tom', last_name: 'Weber', email: 'tom.weber@sg-huenstetten.de', phone: '0173-3456789', role: 'trainer', operator_id: null },
   { id: 'demo-4', first_name: 'Lisa', last_name: 'Braun', email: 'lisa.braun@sg-huenstetten.de', phone: '0174-4567890', role: 'trainer', operator_id: null },
   { id: 'demo-5', first_name: 'Hans', last_name: 'Meier', email: 'hans.meier@sg-huenstetten.de', phone: '0175-5678901', role: 'trainer', operator_id: null },
-  { id: 'demo-6', first_name: 'Peter', last_name: 'König', email: 'peter.koenig@sg-huenstetten.de', phone: '0176-6789012', role: 'admin', operator_id: 'a0000000-0000-0000-0000-000000000001' },
+  { id: 'demo-6', first_name: 'Peter', last_name: 'K\u00f6nig', email: 'peter.koenig@sg-huenstetten.de', phone: '0176-6789012', role: 'admin', operator_id: 'a0000000-0000-0000-0000-000000000001' },
   { id: 'demo-7', first_name: 'Sandra', last_name: 'Fischer', email: 'sandra.fischer@tv-idstein.de', phone: '0177-7890123', role: 'extern', operator_id: null },
   { id: 'demo-8', first_name: 'Michael', last_name: 'Wagner', email: 'm.wagner@tsv-wallrabenstein.de', phone: '0178-8901234', role: 'extern', operator_id: null },
 ];
@@ -143,7 +185,7 @@ export function useOperators() {
     try {
       const { data, error } = await supabase.from('operators').select('*').order('name');
       if (error) throw error; setOperators(data || []);
-    } catch (err) { setOperators([{ id: 'a0000000-0000-0000-0000-000000000001', name: 'SG Hünstetten', type: 'verein', primary_color: '#2563eb' }]); }
+    } catch (err) { setOperators([{ id: 'a0000000-0000-0000-0000-000000000001', name: 'SG H\u00fcnstetten', type: 'verein', primary_color: '#2563eb' }]); }
     setLoading(false);
   }, []);
   useEffect(() => { fetchOperators(); }, [fetchOperators]);
@@ -164,19 +206,24 @@ export function useFacilities() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [facR, grpR, resR, subR, slotR] = await Promise.all([
+      // After migration 006: sub_resources are now also in the resources table
+      // (with parent_resource_id set). We no longer need to query sub_resources separately.
+      const [facR, grpR, resR, slotR] = await Promise.all([
         supabase.from('facilities').select('*').order('sort_order'),
         supabase.from('resource_groups').select('*').order('sort_order'),
         supabase.from('resources').select('*').order('sort_order'),
-        supabase.from('sub_resources').select('*').order('sort_order'),
         supabase.from('slots').select('*').order('day_of_week'),
       ]);
-      if (facR.error) throw facR.error; if (grpR.error) throw grpR.error;
-      if (resR.error) throw resR.error; if (subR.error) throw subR.error; if (slotR.error) throw slotR.error;
+      if (facR.error) throw facR.error;
+      if (grpR.error) throw grpR.error;
+      if (resR.error) throw resR.error;
+      if (slotR.error) throw slotR.error;
+
       if ((facR.data || []).length > 0) {
         setFacilitiesState(facR.data.map(dbFacilityToLegacy));
         setResourceGroupsState(grpR.data.map(dbResourceGroupToLegacy));
-        setResourcesState(resR.data.map(r => dbResourceToLegacy(r, subR.data)));
+        // Build config resources: parents with nested subResources
+        setResourcesState(buildConfigResources(resR.data || []));
         setSlotsState(slotR.data.map(dbSlotToLegacy));
         setIsDemo(false);
       } else { setIsDemo(true); }
@@ -248,14 +295,8 @@ export function useBookings() {
     try {
       const { data, error } = await supabase.from('bookings').select('*').order('date', { ascending: true });
       if (error) throw error;
-      if (data && data.length > 0) {
-        setBookingsState(data.map(dbBookingToLegacy));
-        setIsDemo(false);
-      } else {
-        // DB erreichbar aber leer → leere Liste (keine Demo-Bookings mehr nötig)
-        setBookingsState([]);
-        setIsDemo(false);
-      }
+      setBookingsState((data || []).map(dbBookingToLegacy));
+      setIsDemo(false);
     } catch (err) {
       console.warn('Bookings nicht geladen:', err.message);
       setBookingsState([]);
@@ -266,7 +307,6 @@ export function useBookings() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
-  // Buchung erstellen (einzeln oder mehrere für Serien)
   const createBooking = useCallback(async (bookingData) => {
     try {
       const dbData = legacyBookingToDb(bookingData);
@@ -281,7 +321,6 @@ export function useBookings() {
     }
   }, []);
 
-  // Mehrere Buchungen auf einmal (Serien)
   const createBookings = useCallback(async (bookingsArray) => {
     try {
       const dbArray = bookingsArray.map(legacyBookingToDb);
@@ -296,7 +335,6 @@ export function useBookings() {
     }
   }, []);
 
-  // Buchung Status aktualisieren (approve/reject)
   const updateBookingStatus = useCallback(async (bookingId, status) => {
     try {
       const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select().single();
@@ -310,7 +348,6 @@ export function useBookings() {
     }
   }, []);
 
-  // Einzelne Buchung löschen
   const deleteBooking = useCallback(async (bookingId) => {
     try {
       const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
@@ -318,12 +355,11 @@ export function useBookings() {
       setBookingsState(prev => prev.filter(b => b.id !== bookingId));
       return { error: null };
     } catch (err) {
-      console.error('Löschen fehlgeschlagen:', err);
+      console.error('L\u00f6schen fehlgeschlagen:', err);
       return { error: err.message };
     }
   }, []);
 
-  // Serie löschen
   const deleteBookingSeries = useCallback(async (seriesId) => {
     try {
       const { error } = await supabase.from('bookings').delete().eq('series_id', seriesId);
@@ -331,12 +367,11 @@ export function useBookings() {
       setBookingsState(prev => prev.filter(b => b.seriesId !== seriesId));
       return { error: null };
     } catch (err) {
-      console.error('Serie löschen fehlgeschlagen:', err);
+      console.error('Serie l\u00f6schen fehlgeschlagen:', err);
       return { error: err.message };
     }
   }, []);
 
-  // Setter für Abwärtskompatibilität
   const setBookings = useCallback((v) => { typeof v === 'function' ? setBookingsState(v) : setBookingsState(v); }, []);
 
   return {
