@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { DEMO_BOOKINGS, DEMO_SLOTS } from './config/constants';
+import { DEMO_SLOTS } from './config/constants';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
-import { useUsers, useOperators, useFacilities, useOrganization } from './hooks/useSupabase';
+import { useUsers, useOperators, useFacilities, useOrganization, useBookings } from './hooks/useSupabase';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
@@ -24,7 +24,6 @@ export default function SportvereinBuchung() {
   const [isAdmin, setIsAdmin] = useState(true);
   const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [bookings, setBookings] = useState(DEMO_BOOKINGS);
   const [emailService] = useState(() => new EmailService());
 
   // Supabase: Users & Operators
@@ -40,7 +39,7 @@ export default function SportvereinBuchung() {
     loading: facilitiesLoading, isDemo: isFacilityDemo,
   } = useFacilities();
 
-  // Supabase: Organization (Clubs, Departments, Teams, TrainerAssignments)
+  // Supabase: Organization
   const {
     clubs: dbClubs, setClubs: setDbClubs,
     departments: dbDepartments, setDepartments: setDbDepartments,
@@ -49,23 +48,28 @@ export default function SportvereinBuchung() {
     loading: orgLoading, isDemo: isOrgDemo,
   } = useOrganization();
 
-  // Fallback auf hardcoded Daten wenn DB leer
+  // Supabase: Bookings
+  const {
+    bookings, setBookings, createBookings, updateBookingStatus,
+    deleteBooking, deleteBookingSeries,
+    loading: bookingsLoading,
+  } = useBookings();
+
+  // Facility Fallbacks
   const facilities = isFacilityDemo ? DEFAULT_FACILITIES : dbFacilities;
   const resourceGroups = isFacilityDemo ? DEFAULT_RESOURCE_GROUPS : dbResourceGroups;
   const configResources = isFacilityDemo ? DEFAULT_RESOURCES : dbResources;
   const slots = isFacilityDemo ? DEMO_SLOTS : dbSlots;
-
   const setFacilities = isFacilityDemo ? () => {} : setDbFacilities;
   const setResourceGroups = isFacilityDemo ? () => {} : setDbResourceGroups;
   const setConfigResources = isFacilityDemo ? () => {} : setDbResources;
   const setSlots = isFacilityDemo ? () => {} : setDbSlots;
 
-  // Organization: Fallback auf hardcoded Daten wenn DB leer
+  // Organization Fallbacks
   const orgClubs = isOrgDemo ? DEFAULT_CLUBS : dbClubs;
   const departments = isOrgDemo ? DEFAULT_DEPARTMENTS : dbDepartments;
   const teams = isOrgDemo ? DEFAULT_TEAMS : dbTeams;
   const trainerAssignments = isOrgDemo ? DEFAULT_TRAINER_ASSIGNMENTS : dbTrainerAssignments;
-
   const setOrgClubs = isOrgDemo ? () => {} : setDbClubs;
   const setDepartments = isOrgDemo ? () => {} : setDbDepartments;
   const setTeams = isOrgDemo ? () => {} : setDbTeams;
@@ -75,14 +79,12 @@ export default function SportvereinBuchung() {
 
   // Build legacy RESOURCES from config
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
-
-  // Setze selectedResource auf erste verfügbare SubResource/Resource
   const effectiveSelectedResource = selectedResource || (RESOURCES.length > 0 ? RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id : null);
 
   const handleApprove = async (id) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    setBookings(bookings.map(b => b.id === id ? { ...b, status: 'approved' } : b));
+    await updateBookingStatus(id, 'approved');
     const user = users.find(u => u.id === booking.userId);
     const resource = RESOURCES.find(r => r.id === booking.resourceId);
     const approver = users.find(u => u.role === 'admin');
@@ -94,7 +96,7 @@ export default function SportvereinBuchung() {
   const handleReject = async (id, reason = '') => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    setBookings(bookings.map(b => b.id === id ? { ...b, status: 'rejected' } : b));
+    await updateBookingStatus(id, 'rejected');
     const user = users.find(u => u.id === booking.userId);
     const resource = RESOURCES.find(r => r.id === booking.resourceId);
     const approver = users.find(u => u.role === 'admin');
@@ -104,40 +106,54 @@ export default function SportvereinBuchung() {
   };
 
   const handleNewBooking = async (data) => {
-    const seriesId = `series-${Date.now()}`;
+    const seriesId = data.dates.length > 1 ? `series-${Date.now()}` : null;
     const user = users.find(u => u.id === data.userId);
     const bookingStatus = user?.role === 'extern' ? 'pending' : 'approved';
-    const newBookings = data.dates.map((date, i) => ({
-      id: Date.now() + i, resourceId: data.resourceId, date,
+
+    const newBookings = data.dates.map((date) => ({
+      resourceId: data.resourceId, date,
       startTime: data.startTime, endTime: data.endTime,
       title: data.title, description: data.description,
       bookingType: data.bookingType, userId: data.userId,
-      status: bookingStatus, seriesId: data.dates.length > 1 ? seriesId : null,
+      status: bookingStatus, seriesId,
     }));
+
+    // Composite-Buchungen (ganzes Feld)
     if (data.isComposite && data.includedResources) {
       data.includedResources.forEach(resId => {
-        data.dates.forEach((date, i) => {
-          newBookings.push({ id: Date.now() + 1000 + i, resourceId: resId, date,
+        data.dates.forEach((date) => {
+          newBookings.push({
+            resourceId: resId, date,
             startTime: data.startTime, endTime: data.endTime,
             title: data.title + ' (Ganzes Feld)', bookingType: data.bookingType,
-            userId: data.userId, status: bookingStatus, seriesId, parentBooking: true });
+            userId: data.userId, status: bookingStatus, seriesId,
+            parentBooking: true,
+          });
         });
       });
     }
-    setBookings([...bookings, ...newBookings]);
+
+    const result = await createBookings(newBookings);
+
+    // E-Mail-Benachrichtigungen
     const resource = RESOURCES.find(r => r.id === data.resourceId);
-    if (user && resource) {
-      await emailService.send(EMAIL_TEMPLATES.bookingCreated(newBookings[0], user, resource));
+    if (user && resource && result.data && result.data.length > 0) {
+      await emailService.send(EMAIL_TEMPLATES.bookingCreated(result.data[0], user, resource));
       if (user.role === 'extern') {
         const admins = users.filter(u => u.role === 'admin');
-        for (const admin of admins) { await emailService.send(EMAIL_TEMPLATES.adminNewBooking(newBookings[0], user, resource, admin.email)); }
+        for (const admin of admins) {
+          await emailService.send(EMAIL_TEMPLATES.adminNewBooking(result.data[0], user, resource, admin.email));
+        }
       }
     }
   };
 
-  const handleDeleteBooking = (bookingId, deleteType, seriesId) => {
-    if (deleteType === 'series' && seriesId) { setBookings(bookings.filter(b => b.seriesId !== seriesId)); }
-    else { setBookings(bookings.filter(b => b.id !== bookingId)); }
+  const handleDeleteBooking = async (bookingId, deleteType, seriesId) => {
+    if (deleteType === 'series' && seriesId) {
+      await deleteBookingSeries(seriesId);
+    } else {
+      await deleteBooking(bookingId);
+    }
   };
 
   const adminCheckbox = (
@@ -150,7 +166,7 @@ export default function SportvereinBuchung() {
   const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
   const facilityProps = { facilities, resourceGroups };
 
-  if (usersLoading || facilitiesLoading || orgLoading) {
+  if (usersLoading || facilitiesLoading || orgLoading || bookingsLoading) {
     return (
       <div className="flex h-screen bg-gray-50 items-center justify-center">
         <div className="text-center">
