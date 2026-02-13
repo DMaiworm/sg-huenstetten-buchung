@@ -50,7 +50,7 @@ export default function SportvereinBuchung() {
 
   // Supabase: Bookings
   const {
-    bookings, setBookings, createBookings, updateBookingStatus,
+    bookings, setBookings, createBookings, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
     loading: bookingsLoading,
   } = useBookings();
@@ -81,11 +81,28 @@ export default function SportvereinBuchung() {
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
   const effectiveSelectedResource = selectedResource || (RESOURCES.length > 0 ? RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id : null);
 
+  /**
+   * Approve a booking and all related bookings (same seriesId).
+   * For composite bookings (ganzes Feld), this cascades to the
+   * auto-generated parentBooking entries for sub-resources.
+   */
   const handleApprove = async (id) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    const result = await updateBookingStatus(id, 'approved');
-    if (result.error) { window.alert('Fehler beim Genehmigen: ' + result.error); return; }
+
+    let result;
+    if (booking.seriesId) {
+      // Cascade: update ALL bookings with the same seriesId
+      result = await updateSeriesStatus(booking.seriesId, 'approved');
+    } else {
+      result = await updateBookingStatus(id, 'approved');
+    }
+
+    if (result.error) {
+      window.alert('Fehler beim Genehmigen: ' + result.error);
+      return;
+    }
+
     const user = users.find(u => u.id === booking.userId);
     const resource = RESOURCES.find(r => r.id === booking.resourceId);
     const approver = users.find(u => u.role === 'admin');
@@ -94,11 +111,25 @@ export default function SportvereinBuchung() {
     }
   };
 
+  /**
+   * Reject a booking and all related bookings (same seriesId).
+   */
   const handleReject = async (id, reason = '') => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    const result = await updateBookingStatus(id, 'rejected');
-    if (result.error) { window.alert('Fehler beim Ablehnen: ' + result.error); return; }
+
+    let result;
+    if (booking.seriesId) {
+      result = await updateSeriesStatus(booking.seriesId, 'rejected');
+    } else {
+      result = await updateBookingStatus(id, 'rejected');
+    }
+
+    if (result.error) {
+      window.alert('Fehler beim Ablehnen: ' + result.error);
+      return;
+    }
+
     const user = users.find(u => u.id === booking.userId);
     const resource = RESOURCES.find(r => r.id === booking.resourceId);
     const approver = users.find(u => u.role === 'admin');
@@ -108,13 +139,14 @@ export default function SportvereinBuchung() {
   };
 
   const handleNewBooking = async (data) => {
-    // Validierung: userId muss gesetzt sein
     if (!data.userId) {
       window.alert('Fehler: Kein Benutzer/Trainer zugeordnet. Bitte Mannschaft mit Trainer ausw\u00e4hlen.');
       return;
     }
 
-    const seriesId = data.dates.length > 1 ? `series-${Date.now()}` : null;
+    // All bookings in a composite or multi-date request share one seriesId
+    const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
+    const seriesId = needsSeriesId ? `series-${Date.now()}` : null;
     const user = users.find(u => u.id === data.userId);
     const bookingStatus = user?.role === 'extern' ? 'pending' : 'approved';
 
@@ -126,7 +158,7 @@ export default function SportvereinBuchung() {
       status: bookingStatus, seriesId,
     }));
 
-    // Composite-Buchungen (ganzes Feld)
+    // Composite-Buchungen (ganzes Feld): block sub-resources too
     if (data.isComposite && data.includedResources) {
       data.includedResources.forEach(resId => {
         data.dates.forEach((date) => {
@@ -152,7 +184,6 @@ export default function SportvereinBuchung() {
 
     console.log('handleNewBooking: Erfolgreich,', result.data?.length, 'Buchungen erstellt');
 
-    // E-Mail-Benachrichtigungen
     const resource = RESOURCES.find(r => r.id === data.resourceId);
     if (user && resource && result.data && result.data.length > 0) {
       await emailService.send(EMAIL_TEMPLATES.bookingCreated(result.data[0], user, resource));
