@@ -84,7 +84,8 @@ export default function SportvereinBuchung() {
   const handleApprove = async (id) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    await updateBookingStatus(id, 'approved');
+    const result = await updateBookingStatus(id, 'approved');
+    if (result.error) { window.alert('Fehler beim Genehmigen: ' + result.error); return; }
     const user = users.find(u => u.id === booking.userId);
     const resource = RESOURCES.find(r => r.id === booking.resourceId);
     const approver = users.find(u => u.role === 'admin');
@@ -96,7 +97,8 @@ export default function SportvereinBuchung() {
   const handleReject = async (id, reason = '') => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    await updateBookingStatus(id, 'rejected');
+    const result = await updateBookingStatus(id, 'rejected');
+    if (result.error) { window.alert('Fehler beim Ablehnen: ' + result.error); return; }
     const user = users.find(u => u.id === booking.userId);
     const resource = RESOURCES.find(r => r.id === booking.resourceId);
     const approver = users.find(u => u.role === 'admin');
@@ -106,6 +108,12 @@ export default function SportvereinBuchung() {
   };
 
   const handleNewBooking = async (data) => {
+    // Validierung: userId muss gesetzt sein
+    if (!data.userId) {
+      window.alert('Fehler: Kein Benutzer/Trainer zugeordnet. Bitte Mannschaft mit Trainer ausw\u00e4hlen.');
+      return;
+    }
+
     const seriesId = data.dates.length > 1 ? `series-${Date.now()}` : null;
     const user = users.find(u => u.id === data.userId);
     const bookingStatus = user?.role === 'extern' ? 'pending' : 'approved';
@@ -133,7 +141,16 @@ export default function SportvereinBuchung() {
       });
     }
 
+    console.log('handleNewBooking: Sende', newBookings.length, 'Buchungen an DB', JSON.stringify(newBookings[0]));
     const result = await createBookings(newBookings);
+
+    if (result.error) {
+      window.alert('Fehler beim Speichern der Buchung: ' + result.error);
+      console.error('createBookings error:', result.error);
+      return;
+    }
+
+    console.log('handleNewBooking: Erfolgreich,', result.data?.length, 'Buchungen erstellt');
 
     // E-Mail-Benachrichtigungen
     const resource = RESOURCES.find(r => r.id === data.resourceId);
@@ -150,9 +167,11 @@ export default function SportvereinBuchung() {
 
   const handleDeleteBooking = async (bookingId, deleteType, seriesId) => {
     if (deleteType === 'series' && seriesId) {
-      await deleteBookingSeries(seriesId);
+      const result = await deleteBookingSeries(seriesId);
+      if (result.error) window.alert('Fehler beim L\u00f6schen der Serie: ' + result.error);
     } else {
-      await deleteBooking(bookingId);
+      const result = await deleteBooking(bookingId);
+      if (result.error) window.alert('Fehler beim L\u00f6schen: ' + result.error);
     }
   };
 
