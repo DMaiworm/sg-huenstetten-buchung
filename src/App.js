@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { DEMO_SLOTS } from './config/constants';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
@@ -18,6 +17,15 @@ import OrganizationManagement from './components/admin/OrganizationManagement';
 import { registerLocale } from 'react-datepicker';
 import de from 'date-fns/locale/de';
 registerLocale('de', de);
+
+/** Demo slot data – used as fallback when Supabase is unavailable. */
+const DEMO_SLOTS = [
+  { id: 1, resourceId: 'halle-gross', dayOfWeek: 1, startTime: '17:00', endTime: '21:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
+  { id: 2, resourceId: 'halle-gross', dayOfWeek: 3, startTime: '18:00', endTime: '22:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
+  { id: 3, resourceId: 'halle-gross', dayOfWeek: 6, startTime: '09:00', endTime: '14:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
+  { id: 4, resourceId: 'halle-klein', dayOfWeek: 2, startTime: '16:00', endTime: '20:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
+  { id: 5, resourceId: 'halle-klein', dayOfWeek: 4, startTime: '17:00', endTime: '21:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
+];
 
 export default function SportvereinBuchung() {
   const [currentView, setCurrentView] = useState('calendar');
@@ -78,6 +86,9 @@ export default function SportvereinBuchung() {
   const [club] = useState(DEFAULT_CLUB);
 
   // Build legacy RESOURCES from config
+  // buildLegacyResources() flattens the hierarchical model into the format
+  // that CalendarView, BookingRequest, MyBookings, helpers.checkBookingConflicts etc. expect:
+  //   { id, name, type, category, groupId, color, isComposite, includes[], partOf }
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
   const effectiveSelectedResource = selectedResource || (RESOURCES.length > 0 ? RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id : null);
 
