@@ -1,15 +1,15 @@
 /**
  * Shared utility / helper functions.
  *
- * Pure functions only – no React, no side-effects.
+ * Pure functions only \u2013 no React, no side-effects.
  * Used across CalendarView, BookingRequest, conflict checks, etc.
  */
 
-import { BOOKING_TYPES } from '../config/constants';
+import { EVENT_TYPES } from '../config/organizationConfig';
 
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 //  Date formatting
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 /** Format a Date as "dd.MM.yyyy" (German locale). */
 export const formatDate = (date) => {
@@ -24,9 +24,9 @@ export const formatDateISO = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 //  Week helpers
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 /**
  * Return the Monday (start of ISO week) for any given date.
@@ -37,7 +37,7 @@ export const formatDateISO = (date) => {
  */
 export const getWeekStart = (date) => {
   const d = new Date(date);
-  const day = d.getDay() || 7;          // Sunday=0 → treat as 7
+  const day = d.getDay() || 7;          // Sunday=0 \u2192 treat as 7
   d.setDate(d.getDate() - day + 1);     // back to Monday
   d.setHours(0, 0, 0, 0);
   return d;
@@ -47,7 +47,7 @@ export const getWeekStart = (date) => {
 export const getMondayForDate = getWeekStart;
 
 /**
- * Return an array of 7 Dates (Mon–Sun) for the week containing `date`.
+ * Return an array of 7 Dates (Mon\u2013Sun) for the week containing `date`.
  *
  * @param {Date} date - Any date within the target week
  * @returns {Date[]} Array of length 7
@@ -61,9 +61,9 @@ export const getWeekDates = (date) => {
   });
 };
 
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 //  Time helpers
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 /** Convert "HH:MM" to total minutes since midnight. */
 export const timeToMinutes = (time) => {
@@ -71,14 +71,14 @@ export const timeToMinutes = (time) => {
   return h * 60 + m;
 };
 
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 //  Series / recurrence
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 /**
  * Generate all ISO date strings for a recurring weekly event.
  *
- * @param {number} dayOfWeek  - JS day (0=Sun, 1=Mon, …)
+ * @param {number} dayOfWeek  - JS day (0=Sun, 1=Mon, \u2026)
  * @param {string} startDate  - ISO start date (inclusive)
  * @param {string} endDate    - ISO end date (inclusive)
  * @returns {string[]} Array of "YYYY-MM-DD" strings
@@ -97,9 +97,9 @@ export const generateSeriesDates = (dayOfWeek, startDate, endDate) => {
   return dates;
 };
 
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 //  Conflict detection
-// ──────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 /** Check whether two time ranges overlap. */
 export const hasTimeOverlap = (start1, end1, start2, end2) => {
@@ -114,13 +114,13 @@ export const hasTimeOverlap = (start1, end1, start2, end2) => {
  * Checks:
  *   1. Slot availability (for 'limited' / slotOnly resources)
  *   2. Direct time overlaps on the same resource
- *   3. Composite conflicts (parent ↔ sub-resource blocking)
+ *   3. Composite conflicts (parent \u2194 sub-resource blocking)
  *
  * @param {string}   resourceId  - Target resource ID
  * @param {string[]} dates       - Array of ISO date strings
  * @param {string}   startTime   - "HH:MM"
  * @param {string}   endTime     - "HH:MM"
- * @param {string}   bookingType - One of BOOKING_TYPES[].id
+ * @param {string}   bookingType - One of EVENT_TYPES[].id
  * @param {Array}    bookings    - All existing bookings
  * @param {Array}    slots       - All slot definitions
  * @param {Array}    resources   - All (legacy) resources
@@ -131,7 +131,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
   const resource = resources.find(r => r.id === resourceId);
   const isLimited = resource?.type === 'limited';
   const isComposite = resource?.isComposite;
-  const requestedType = BOOKING_TYPES.find(t => t.id === bookingType);
+  const requestedType = EVENT_TYPES.find(t => t.id === bookingType);
 
   dates.forEach(date => {
     const dateConflicts = [];
@@ -166,7 +166,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
     // 2) Time overlap checks against existing bookings
     const relevantBookings = bookings.filter(b => b.date === date && b.status !== 'rejected');
     relevantBookings.forEach(booking => {
-      const existingType = BOOKING_TYPES.find(t => t.id === booking.bookingType);
+      const existingType = EVENT_TYPES.find(t => t.id === booking.bookingType);
       if (!hasTimeOverlap(startTime, endTime, booking.startTime, booking.endTime)) return;
 
       // 2a) Same resource
@@ -174,7 +174,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
         const severity = (!requestedType?.allowOverlap || !existingType?.allowOverlap) ? 'error' : 'warning';
         dateConflicts.push({
           type: 'time_overlap',
-          message: `${existingType?.icon || '\ud83d\udccb'} ${existingType?.label || 'Buchung'}: "${booking.title}"`,
+          message: `${existingType?.icon || '\uD83D\uDCCB'} ${existingType?.label || 'Buchung'}: "${booking.title}"`,
           severity,
           booking,
           existingType,
@@ -188,7 +188,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
         const severity = (!requestedType?.allowOverlap || !existingType?.allowOverlap) ? 'error' : 'warning';
         dateConflicts.push({
           type: 'composite_blocked',
-          message: `Teilfeld belegt: ${existingType?.icon || '\ud83d\udccb'} "${booking.title}"`,
+          message: `Teilfeld belegt: ${existingType?.icon || '\uD83D\uDCCB'} "${booking.title}"`,
           severity,
           booking,
           existingType,
@@ -199,7 +199,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
         const severity = (!requestedType?.allowOverlap || !existingType?.allowOverlap) ? 'error' : 'warning';
         dateConflicts.push({
           type: 'parent_blocked',
-          message: `Ganzes Feld gebucht: ${existingType?.icon || '\ud83d\udccb'} "${booking.title}"`,
+          message: `Ganzes Feld gebucht: ${existingType?.icon || '\uD83D\uDCCB'} "${booking.title}"`,
           severity,
           booking,
           existingType,
