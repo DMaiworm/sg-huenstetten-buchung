@@ -28,7 +28,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, MapPin, X, List, Repeat } from 'lucide-react';
-import { BOOKING_TYPES, DAYS_FULL } from '../config/constants';
+import { DAYS_FULL } from '../config/constants';
+import { EVENT_TYPES } from '../config/organizationConfig';
 
 // ──────────────────────────────────────────────
 //  Display constants
@@ -298,7 +299,7 @@ const MyBookings = ({
           {groupedBookings.map((booking, idx) => {
             const resource      = resources.find(r => r.id === booking.resourceId);
             const isSeries      = booking.dates && booking.dates.length > 1;
-            const bookingType   = BOOKING_TYPES.find(t => t.id === booking.bookingType);
+            const bookingType   = EVENT_TYPES.find(t => t.id === booking.bookingType);
             const orgInfos      = getOrgInfo(booking.userId);
             const primaryOrg    = orgInfos && orgInfos.length > 0 ? orgInfos[0] : null;
             const teamTrainers  = primaryOrg ? getTeamTrainers(primaryOrg.team.id) : [];
