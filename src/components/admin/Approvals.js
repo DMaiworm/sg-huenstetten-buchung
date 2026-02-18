@@ -2,7 +2,7 @@
  * Approvals – Admin view for pending booking requests.
  *
  * Shows all bookings with status 'pending' that are NOT parentBookings
- * (auto-generated blocking entries for composite resources like “ganzes Feld”).
+ * (auto-generated blocking entries for composite resources like "ganzes Feld").
  * When the admin approves/rejects, the callback in App.js handles
  * cascading the status to all related bookings in the same series.
  *
@@ -16,7 +16,8 @@
 
 import React, { useState } from 'react';
 import { Calendar, MapPin, Users, Check, X, Clock } from 'lucide-react';
-import { BOOKING_TYPES, ROLES } from '../../config/constants';
+import { ROLES } from '../../config/constants';
+import { EVENT_TYPES } from '../../config/organizationConfig';
 import { Badge } from '../ui/Badge';
 
 const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
@@ -75,12 +76,14 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources }) => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="font-semibold text-gray-800">{booking.title}</h3>
-                        {booking.bookingType && (
-                          <Badge variant="default" className="text-xs">
-                            {BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon}{' '}
-                            {BOOKING_TYPES.find(t => t.id === booking.bookingType)?.label}
-                          </Badge>
-                        )}
+                        {booking.bookingType && (() => {
+                          const et = EVENT_TYPES.find(t => t.id === booking.bookingType);
+                          return et ? (
+                            <Badge variant="default" className="text-xs">
+                              {et.icon}{' '}{et.label}
+                            </Badge>
+                          ) : null;
+                        })()}
                         {resource?.type === 'limited' && <Badge variant="warning">Limitiert</Badge>}
                         {resource?.isComposite && <Badge variant="info">Ganzes Feld</Badge>}
                         {booking.seriesId && <Badge variant="default">Serie</Badge>}
