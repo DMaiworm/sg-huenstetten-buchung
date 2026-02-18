@@ -3,6 +3,7 @@ import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESO
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
 import { useUsers, useOperators, useFacilities, useOrganization, useBookings } from './hooks/useSupabase';
+import { useAuth } from './contexts/AuthContext';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
@@ -13,6 +14,7 @@ import EmailLog from './components/admin/EmailLog';
 import PDFExportPage from './components/PDFExportPage';
 import FacilityManagement from './components/admin/FacilityManagement';
 import OrganizationManagement from './components/admin/OrganizationManagement';
+import LoginPage from './components/LoginPage';
 
 import { registerLocale } from 'react-datepicker';
 import de from 'date-fns/locale/de';
@@ -28,8 +30,8 @@ const DEMO_SLOTS = [
 ];
 
 export default function SportvereinBuchung() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [currentView, setCurrentView] = useState('calendar');
-  const [isAdmin, setIsAdmin] = useState(true);
   const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [emailService] = useState(() => new EmailService());
@@ -85,12 +87,24 @@ export default function SportvereinBuchung() {
 
   const [club] = useState(DEFAULT_CLUB);
 
-  // Build legacy RESOURCES from config
-  // buildLegacyResources() flattens the hierarchical model into the format
-  // that CalendarView, BookingRequest, MyBookings, helpers.checkBookingConflicts etc. expect:
-  //   { id, name, type, category, groupId, color, isComposite, includes[], partOf }
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
   const effectiveSelectedResource = selectedResource || (RESOURCES.length > 0 ? RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id : null);
+
+  // Auth-Check: Login anzeigen wenn nicht eingeloggt
+  if (authLoading) {
+    return (
+      <div className="flex h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-500">Wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   /**
    * Approve a booking and all related bookings (same seriesId).
@@ -103,7 +117,6 @@ export default function SportvereinBuchung() {
 
     let result;
     if (booking.seriesId) {
-      // Cascade: update ALL bookings with the same seriesId
       result = await updateSeriesStatus(booking.seriesId, 'approved');
     } else {
       result = await updateBookingStatus(id, 'approved');
@@ -151,15 +164,14 @@ export default function SportvereinBuchung() {
 
   const handleNewBooking = async (data) => {
     if (!data.userId) {
-      window.alert('Fehler: Kein Benutzer/Trainer zugeordnet. Bitte Mannschaft mit Trainer ausw\u00e4hlen.');
+      window.alert('Fehler: Kein Benutzer/Trainer zugeordnet. Bitte Mannschaft mit Trainer auswählen.');
       return;
     }
 
-    // All bookings in a composite or multi-date request share one seriesId
     const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
     const seriesId = needsSeriesId ? `series-${Date.now()}` : null;
-    const user = users.find(u => u.id === data.userId);
-    const bookingStatus = user?.role === 'extern' ? 'pending' : 'approved';
+    const bookingUser = users.find(u => u.id === data.userId);
+    const bookingStatus = bookingUser?.role === 'extern' ? 'pending' : 'approved';
 
     const newBookings = data.dates.map((date) => ({
       resourceId: data.resourceId, date,
@@ -169,7 +181,6 @@ export default function SportvereinBuchung() {
       status: bookingStatus, seriesId,
     }));
 
-    // Composite-Buchungen (ganzes Feld): block sub-resources too
     if (data.isComposite && data.includedResources) {
       data.includedResources.forEach(resId => {
         data.dates.forEach((date) => {
@@ -196,12 +207,12 @@ export default function SportvereinBuchung() {
     console.log('handleNewBooking: Erfolgreich,', result.data?.length, 'Buchungen erstellt');
 
     const resource = RESOURCES.find(r => r.id === data.resourceId);
-    if (user && resource && result.data && result.data.length > 0) {
-      await emailService.send(EMAIL_TEMPLATES.bookingCreated(result.data[0], user, resource));
-      if (user.role === 'extern') {
+    if (bookingUser && resource && result.data && result.data.length > 0) {
+      await emailService.send(EMAIL_TEMPLATES.bookingCreated(result.data[0], bookingUser, resource));
+      if (bookingUser.role === 'extern') {
         const admins = users.filter(u => u.role === 'admin');
         for (const admin of admins) {
-          await emailService.send(EMAIL_TEMPLATES.adminNewBooking(result.data[0], user, resource, admin.email));
+          await emailService.send(EMAIL_TEMPLATES.adminNewBooking(result.data[0], bookingUser, resource, admin.email));
         }
       }
     }
@@ -210,19 +221,12 @@ export default function SportvereinBuchung() {
   const handleDeleteBooking = async (bookingId, deleteType, seriesId) => {
     if (deleteType === 'series' && seriesId) {
       const result = await deleteBookingSeries(seriesId);
-      if (result.error) window.alert('Fehler beim L\u00f6schen der Serie: ' + result.error);
+      if (result.error) window.alert('Fehler beim Löschen der Serie: ' + result.error);
     } else {
       const result = await deleteBooking(bookingId);
-      if (result.error) window.alert('Fehler beim L\u00f6schen: ' + result.error);
+      if (result.error) window.alert('Fehler beim Löschen: ' + result.error);
     }
   };
-
-  const adminCheckbox = (
-    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-      <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
-      Admin-Modus (Demo)
-    </label>
-  );
 
   const orgProps = { clubs: orgClubs, departments, teams, trainerAssignments };
   const facilityProps = { facilities, resourceGroups };
@@ -248,22 +252,16 @@ export default function SportvereinBuchung() {
           {currentView === 'calendar' && (
             <CalendarView bookings={bookings} slots={slots} selectedResource={effectiveSelectedResource}
               setSelectedResource={setSelectedResource} currentDate={currentDate} setCurrentDate={setCurrentDate}
-              users={users} adminCheckbox={adminCheckbox} resources={RESOURCES} {...facilityProps} />
+              users={users} resources={RESOURCES} {...facilityProps} />
           )}
-          {currentView === 'bookings' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} /></>}
-          {currentView === 'request' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} {...facilityProps} {...orgProps} /></>}
-          {currentView === 'approvals' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} /></>}
-          {currentView === 'users' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <UserManagement users={users} setUsers={setUsers} createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} isDemo={isUserDemo} operators={operators} /></>}
-          {currentView === 'emails' && <><div className="flex justify-end mb-4">{adminCheckbox}</div><EmailLog emailService={emailService} /></>}
+          {currentView === 'bookings' && <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking} users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />}
+          {currentView === 'request' && <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking} users={users} resources={RESOURCES} {...facilityProps} {...orgProps} />}
+          {currentView === 'approvals' && <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject} users={users} resources={RESOURCES} />}
+          {currentView === 'users' && <UserManagement users={users} setUsers={setUsers} createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} isDemo={isUserDemo} operators={operators} />}
+          {currentView === 'emails' && <EmailLog emailService={emailService} />}
           {currentView === 'export' && <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />}
-          {currentView === 'facility' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} slots={slots} setSlots={setSlots} /></>}
-          {currentView === 'organization' && <><div className="flex justify-end mb-4">{adminCheckbox}</div>
-            <OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs} departments={departments} setDepartments={setDepartments} teams={teams} setTeams={setTeams} trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments} users={users} /></>}
+          {currentView === 'facility' && <FacilityManagement facilities={facilities} setFacilities={setFacilities} resourceGroups={resourceGroups} setResourceGroups={setResourceGroups} resources={configResources} setResources={setConfigResources} slots={slots} setSlots={setSlots} />}
+          {currentView === 'organization' && <OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs} departments={departments} setDepartments={setDbDepartments} teams={teams} setTeams={setTeams} trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments} users={users} />}
         </div>
       </main>
     </div>
