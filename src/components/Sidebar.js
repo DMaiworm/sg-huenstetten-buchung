@@ -1,75 +1,72 @@
 import React from 'react';
-import { Calendar, Check, Plus, Mail, FileDown, Building2, Building, List, UserPlus } from 'lucide-react';
+import { Calendar, ClipboardList, Settings, Building2, Users, FileText, Shield } from 'lucide-react';
 import UserMenu from './UserMenu';
 
-/**
- * Sidebar – Hauptnavigation der App.
- * Zeigt Admin-Bereich nur wenn isAdmin === true (kommt aus echtem Auth-Profil).
- */
-const Sidebar = ({ currentView, setCurrentView, isAdmin, onExportPDF, emailService, facilityName }) => {
-  const navItems = [
-    { id: 'calendar', label: 'Kalender', icon: Calendar },
-    { id: 'bookings', label: 'Meine Buchungen', icon: List },
-    { id: 'request', label: 'Neue Anfrage', icon: Plus },
-  ];
-
-  const adminItems = [
-    { id: 'approvals', label: 'Genehmigungen', icon: Check },
-    { id: 'users', label: 'Personen', icon: UserPlus },
-    { id: 'organization', label: 'Organisation', icon: Building },
-    { id: 'facility', label: 'Anlagen', icon: Building2 },
-    { id: 'emails', label: 'E-Mail-Log', icon: Mail, badge: emailService?.getSentEmails().length || 0 },
-  ];
+const Sidebar = ({ currentView, setCurrentView, pendingCount, isAdmin, canApprove }) => {
+  const navItem = (view, icon, label, badge) => {
+    const active = currentView === view;
+    return (
+      <button
+        key={view}
+        onClick={() => setCurrentView(view)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+          active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        }`}
+      >
+        <span className={active ? 'text-blue-600' : 'text-gray-400'}>{icon}</span>
+        <span className="flex-1 text-left">{label}</span>
+        {badge > 0 && (
+          <span className="min-w-5 h-5 px-1 flex items-center justify-center bg-yellow-400 text-gray-800 text-xs font-bold rounded-full">
+            {badge}
+          </span>
+        )}
+      </button>
+    );
+  };
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-800">
-          {facilityName || 'SG Hünstetten'}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Ressourcen-Buchung</p>
+    <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+      {/* Logo */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">SG</span>
+          </div>
+          <div>
+            <p className="font-bold text-gray-900 text-sm leading-tight">SG Hünstetten</p>
+            <p className="text-xs text-gray-400">Buchungssystem</p>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-1">
-          {navItems.map(item => (
-            <button key={item.id} onClick={() => setCurrentView(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${currentView === item.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
-              <item.icon className="w-5 h-5 flex-shrink-0" />{item.label}
-            </button>
-          ))}
-        </div>
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Allgemein</p>
+        {navItem('calendar',       <Calendar className="w-5 h-5" />,     'Kalender')}
+        {navItem('my-bookings',    <ClipboardList className="w-5 h-5" />, 'Meine Buchungen')}
+        {navItem('booking-request',<FileText className="w-5 h-5" />,      'Neue Anfrage')}
 
-        <div className="mt-6 mb-2 px-3 text-xs font-semibold text-gray-400 uppercase">Export</div>
-        <button onClick={onExportPDF}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${currentView === 'export' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-green-50 hover:text-green-700'}`}>
-          <FileDown className="w-5 h-5 flex-shrink-0" />Monatsplan PDF
-        </button>
+        {/* Genehmigungen: für Admin und Genehmiger */}
+        {canApprove && (
+          <>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Genehmigungen</p>
+            {navItem('approvals', <Shield className="w-5 h-5" />, 'Genehmigungen', pendingCount)}
+          </>
+        )}
 
+        {/* Administration: nur für Admin */}
         {isAdmin && (
           <>
-            <div className="mt-6 mb-2 px-3 text-xs font-semibold text-gray-400 uppercase">Administration</div>
-            <div className="space-y-1">
-              {adminItems.map(item => (
-                <button key={item.id} onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${currentView === item.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <item.icon className="w-5 h-5 flex-shrink-0" />{item.label}
-                  </div>
-                  {item.badge > 0 && (
-                    <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">{item.badge}</span>
-                  )}
-                </button>
-              ))}
-            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Administration</p>
+            {navItem('users',        <Users className="w-5 h-5" />,    'Benutzerverwaltung')}
+            {navItem('facilities',   <Building2 className="w-5 h-5" />, 'Anlagenverwaltung')}
+            {navItem('organization', <Settings className="w-5 h-5" />,  'Organisation')}
           </>
         )}
       </nav>
 
-      {/* User-Bereich (echtes Auth-Profil mit Logout) */}
-      <div className="p-4 border-t border-gray-200">
+      {/* User Menu */}
+      <div className="p-3 border-t border-gray-100">
         <UserMenu />
       </div>
     </div>
