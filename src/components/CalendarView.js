@@ -25,7 +25,8 @@ import React, { useState, useMemo } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ChevronLeft, ChevronRight, Shield, Maximize, Building2 } from 'lucide-react';
-import { BOOKING_TYPES, DAYS } from '../config/constants';
+import { DAYS } from '../config/constants';
+import { EVENT_TYPES } from '../config/organizationConfig';
 import { formatDate, formatDateISO, getWeekDates, getWeekStart, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Badge';
@@ -424,7 +425,7 @@ const CalendarView = ({
                   {/* Booking blocks */}
                   {dayBookings.map(booking => {
                     const bookingResource = resources.find(r => r.id === booking.resourceId);
-                    const bookingType     = BOOKING_TYPES.find(t => t.id === booking.bookingType);
+                    const bookingType     = EVENT_TYPES.find(t => t.id === booking.bookingType);
                     const isBlocking      = booking.isBlocking;
 
                     const startMinutes = timeToMinutes(booking.startTime);
@@ -511,7 +512,7 @@ const CalendarView = ({
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded" /><span>Ausstehend</span></div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-300 border border-gray-400 border-dashed rounded" /><span>Blockiert</span></div>
         <div className="w-px h-6 bg-gray-300 mx-2" />
-        {BOOKING_TYPES.map(type => (
+        {EVENT_TYPES.map(type => (
           <div key={type.id} className="flex items-center gap-2"><span>{type.icon}</span><span>{type.label}</span></div>
         ))}
         {isLimited && (
