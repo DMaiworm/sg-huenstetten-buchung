@@ -25,16 +25,21 @@ export function AuthProvider({ children }) {
       setProfile(null);
       return;
     }
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
-    if (error) {
-      console.error('Fehler beim Laden des Profils:', error.message);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+      if (error) {
+        console.error('Fehler beim Laden des Profils:', error.message);
+        setProfile(null);
+      } else {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error('Unerwarteter Fehler beim Profil-Laden:', err);
       setProfile(null);
-    } else {
-      setProfile(data);
     }
   };
 
@@ -70,6 +75,8 @@ export function AuthProvider({ children }) {
   /** Meldet den aktuellen User ab. */
   const signOut = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
   };
 
   const value = {
