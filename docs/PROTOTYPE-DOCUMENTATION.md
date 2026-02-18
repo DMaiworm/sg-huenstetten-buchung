@@ -1,6 +1,6 @@
 # SG Hünstetten – Ressourcen-Buchungssystem
 
-## Prototyp-Dokumentation (Stand: 13.02.2026)
+## Prototyp-Dokumentation (Stand: 18.02.2026)
 
 > **Zweck dieses Dokuments:** Vollständige Beschreibung des Prototyps als "Source of Truth" für die anschließende Datenbankmodellierung und Backend-Implementierung. Alle Entitäten, Beziehungen, Geschäftsregeln und UI-Seiten sind hier dokumentiert.
 
@@ -39,7 +39,7 @@ Das System besteht aus **drei unabhängigen Verwaltungsbereichen**, die über Bu
 
 ### 2.1 Datenbankschema (Supabase/PostgreSQL)
 
-Die Datenbank wurde über 6 Migrationen aufgebaut:
+Die Datenbank wurde über 7 Migrationen aufgebaut:
 
 | Migration | Datei | Inhalt |
 |-----------|-------|--------|
@@ -49,6 +49,7 @@ Die Datenbank wurde über 6 Migrationen aufgebaut:
 | 004 | `004_organization.sql` | Clubs, Departments, Teams, TrainerAssignments + Seed-Daten |
 | 005 | `005_bookings.sql` | Bookings-Tabelle mit ENUMs + Konflikterkennung-Funktion + Seed-Daten |
 | 006 | `006_fix_sub_resources_as_bookable.sql` | Sub-Resources als reguläre Resources mit `parent_resource_id` (FK-Fix) |
+| 007 | `007_drop_deprecated_sub_resources.sql` | Drop der veralteten `sub_resources`-Tabelle (Daten in `resources` seit Mig. 006) |
 
 **Vollständiges ER-Diagramm:**
 
@@ -88,7 +89,7 @@ Nach Migration 006 sind Sub-Resources (z.B. "Sportplatz - links") auch Zeilen in
 - Alle Resources ohne `parent_resource_id` = Top-Level (Parents)
 - Alle Resources mit `parent_resource_id` = Children (→ `subResources[]` des Parents)
 
-Dies ersetzt die alte `sub_resources`-Tabellen-Query.
+Die alte `sub_resources`-Tabelle wurde in Migration 007 entfernt.
 
 ---
 
@@ -149,7 +150,7 @@ Logische Gruppierung von Ressourcen innerhalb einer Anlage.
 
 #### 2.3.4 Resource (Ressource)
 
-Einzelne buchbare Einheit. **Nach Migration 006** enthält die `resources`-Tabelle sowohl Top-Level-Ressourcen als auch Sub-Resources (ehem. `sub_resources`-Tabelle).
+Einzelne buchbare Einheit. Die `resources`-Tabelle enthält sowohl Top-Level-Ressourcen als auch Sub-Resources (seit Migration 006; alte `sub_resources`-Tabelle wurde in Migration 007 entfernt).
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -276,16 +277,18 @@ Sportliche Abteilung innerhalb eines Vereins.
 | `sortOrder` | Number | ✅ | Sortierreihenfolge |
 | `eventTypes` | Array<String> | ✅ | Erlaubte Terminarten (IDs aus EVENT_TYPES) |
 
-#### 2.4.4 EventType (Terminart)
+#### 2.4.4 EventType (Terminart) – Single Source of Truth
 
-Globale Aufzählung der möglichen Terminarten. Definiert in `organizationConfig.js` → perspektivisch DB-Tabelle.
+Globale Aufzählung der möglichen Terminarten. Definiert als `EVENT_TYPES` in `organizationConfig.js` (Single Source of Truth). Der alte Alias `BOOKING_TYPES` aus `constants.js` wurde entfernt; `organizationConfig.js` exportiert `BOOKING_TYPES` nur noch als deprecated Re-Export für Abwärtskompatibilität. Perspektivisch DB-Tabelle.
 
-| ID | Label | Icon | Farbe | Beschreibung |
-|----|-------|------|-------|-------------|
-| `training` | Training | 🏃 | #3b82f6 | Regelmäßiges Training |
-| `match` | Heimspiel | ⚽ | #dc2626 | Wettkampf oder Freundschaftsspiel |
-| `event` | Event/Wettkampf | 🎉 | #8b5cf6 | Turnier, Wettkampf, Sonderveranstaltung |
-| `other` | Sonstiges | 📋 | #6b7280 | Besprechung, Wartung, etc. |
+| ID | Label | Icon | Farbe | allowOverlap | Beschreibung |
+|----|-------|------|-------|-------------|-------------|
+| `training` | Training | 🏃 | #3b82f6 | ❌ | Regelmäßiges Training |
+| `match` | Heimspiel | ⚽ | #dc2626 | ❌ | Wettkampf oder Freundschaftsspiel |
+| `event` | Event/Wettkampf | 🎉 | #8b5cf6 | ❌ | Turnier, Wettkampf, Sonderveranstaltung |
+| `other` | Sonstiges | 📋 | #6b7280 | ✅ | Besprechung, Wartung, etc. |
+
+> **`allowOverlap`:** Steuert die Konflikterkennung in `helpers.js → checkBookingConflicts()`. Wenn beide sich überlappende Buchungen `allowOverlap: true` haben, wird der Konflikt als Warnung statt als Fehler gemeldet. Nur `other` erlaubt Überlappungen.
 
 #### 2.4.5 TrainerAssignment (Trainer-Zuordnung)
 
@@ -379,7 +382,7 @@ Neue Buchung erstellt
 
 | Konflikttyp | Schweregrad | Beschreibung |
 |-------------|------------|-------------|
-| `time_overlap` | error/warning | Zeitüberschneidung mit bestehender Buchung auf derselben Ressource |
+| `time_overlap` | error/warning | Zeitüberschneidung mit bestehender Buchung auf derselben Ressource. Schweregrad hängt von `allowOverlap` beider EVENT_TYPES ab. |
 | `composite_blocked` | error/warning | Teilfeld belegt → Ganzes Feld nicht buchbar |
 | `parent_blocked` | error/warning | Ganzes Feld gebucht → Teilfeld nicht buchbar |
 | `no_slot` | error | Kein verfügbarer Slot an diesem Tag (nur slot-basiert) |
@@ -495,17 +498,21 @@ Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das hie
 - `resource.bookingMode === 'free'` → `type: 'regular'`
 - `resource.splittable + subResources` → `isComposite: true` + `includes[]` + separate Einträge mit `partOf`
 
-### 4.2 constants.js – Auflösung (teilweise erledigt)
+> **Status:** Kann noch nicht entfernt werden. 6 Komponenten (CalendarView, BookingRequest, MyBookings, Approvals, PDFExportPage) und `helpers.checkBookingConflicts()` nutzen das flache Format mit `type`, `isComposite`, `includes[]`, `partOf`. Perspektivisch: Komponenten auf hierarchisches Format umstellen.
 
-| Bisheriger Inhalt | Status | Ziel |
-|-------------------|--------|------|
-| `RESOURCES` | ✅ Erledigt | DB `resources` via `useFacilities()` |
-| `BOOKING_TYPES` | 🟡 Noch aktiv in Approvals/constants | `EVENT_TYPES` aus organizationConfig |
-| `ROLES` | 🟡 Frontend-Konstante | Bleibt vorerst |
-| `DEMO_USERS` | ✅ Erledigt | DB `profiles` via `useUsers()` |
-| `DEMO_BOOKINGS` | ✅ Erledigt | DB `bookings` via `useBookings()` |
-| `DEMO_SLOTS` | ✅ Erledigt | DB `slots` via `useFacilities()` |
-| `DAYS` / `DAYS_FULL` | ✅ Bleibt | Reine Frontend-Anzeigelogik |
+### 4.2 constants.js – Auflösung (abgeschlossen)
+
+`constants.js` wurde von ~160 Zeilen / 8 Exports auf ~20 Zeilen / 3 Exports reduziert:
+
+| Bisheriger Inhalt | Status | Verbleib |
+|-------------------|--------|----------|
+| `RESOURCES` | ✅ Entfernt | DB `resources` via `useFacilities()` |
+| `BOOKING_TYPES` | ✅ Entfernt | → `EVENT_TYPES` in `organizationConfig.js` (Single Source of Truth) |
+| `ROLES` | ✅ Bleibt | Frontend-Konstante in `constants.js` |
+| `DEMO_USERS` | ✅ Entfernt | DB `profiles` via `useUsers()` |
+| `DEMO_BOOKINGS` | ✅ Entfernt | DB `bookings` via `useBookings()` |
+| `DEMO_SLOTS` | ✅ Entfernt | Inline-Fallback in `App.js` |
+| `DAYS` / `DAYS_FULL` | ✅ Bleibt | Reine Frontend-Anzeigelogik in `constants.js` |
 
 ---
 
@@ -522,6 +529,7 @@ Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das hie
 7. Buchungen von `extern`-Benutzern erfordern **Admin-Genehmigung**
 8. Genehmigung/Ablehnung **cascaded** auf alle Bookings mit derselber `seriesId`
 9. `parentBooking`-Einträge erscheinen **nicht** in der Genehmigungsansicht
+10. Überlappungskonflikte sind nur **Warnungen** (statt Fehler) wenn beide Terminarten `allowOverlap: true` haben
 
 ### 5.2 Löschregeln
 
@@ -558,29 +566,29 @@ src/
 ├── hooks/
 │   └── useSupabase.js              # Alle Supabase-Hooks (useUsers, useFacilities, useOrganization, useBookings)
 ├── config/
-│   ├── constants.js                # [WIRD AUFGELÖST] Legacy-Konstanten → nur noch DAYS, ROLES, BOOKING_TYPES
+│   ├── constants.js                # Nur noch ROLES, DAYS, DAYS_FULL (alles andere entfernt/migriert)
 │   ├── facilityConfig.js           # Demo-Fallback Daten + buildLegacyResources()
-│   └── organizationConfig.js       # Demo-Fallback Daten + EventTypes
+│   └── organizationConfig.js       # EVENT_TYPES (Single Source of Truth) + Demo-Fallback Daten
 ├── components/
 │   ├── Sidebar.js                  # Navigation
-│   ├── CalendarView.js             # ✅ Refactored: groupId-FK Filterung, JSDoc
-│   ├── BookingRequest.js           # ✅ Refactored: groupId-FK, userId-Validierung, JSDoc
-│   ├── MyBookings.js               # ✅ Refactored: dynamische Group-Tabs, JSDoc
+│   ├── CalendarView.js             # ✅ Refactored: groupId-FK, EVENT_TYPES, JSDoc
+│   ├── BookingRequest.js           # ✅ Refactored: groupId-FK, EVENT_TYPES, userId-Validierung, JSDoc
+│   ├── MyBookings.js               # ✅ Refactored: dynamische Group-Tabs, EVENT_TYPES, JSDoc
 │   ├── PDFExportPage.js            # PDF-Export
 │   ├── PDFExportDialog.js          # PDF-Export-Dialog
 │   ├── ui/
 │   │   └── Badge.js                # Badge + Button Komponenten
 │   └── admin/
-│       ├── Approvals.js            # ✅ Refactored: parentBooking-Filter, Cascade-Info, JSDoc
+│       ├── Approvals.js            # ✅ Refactored: parentBooking-Filter, EVENT_TYPES, Cascade-Info, JSDoc
 │       ├── UserManagement.js       # Personen-Verwaltung
 │       ├── OrganizationManagement.js # ✅ Refactored: Unused vars entfernt
 │       ├── FacilityManagement.js   # ✅ Refactored: Unused vars entfernt
-│       ├── SlotManagement.js       # [DEPRECATED] Alte Slot-Seite (nicht mehr verlinkt)
+│       ├── SlotManagement.js       # ✅ Gelöscht (Deprecation-Kommentar verbleibt, durch FacilityManagement ersetzt)
 │       └── EmailLog.js             # E-Mail-Protokoll
 ├── services/
 │   └── emailService.js             # E-Mail-Service (Mock)
 └── utils/
-    └── helpers.js                  # Hilfsfunktionen (Datum, Konflikte, etc.)
+    └── helpers.js                  # ✅ Refactored: EVENT_TYPES, Hilfsfunktionen (Datum, Konflikte, etc.)
 
 supabase/
 └── migrations/
@@ -589,7 +597,8 @@ supabase/
     ├── 003_facilities_and_resources.sql
     ├── 004_organization.sql
     ├── 005_bookings.sql
-    └── 006_fix_sub_resources_as_bookable.sql
+    ├── 006_fix_sub_resources_as_bookable.sql
+    └── 007_drop_deprecated_sub_resources.sql
 ```
 
 ---
@@ -603,9 +612,11 @@ supabase/
 | Betreiber = Verein? | **Nein, getrennte Tabellen** | Betreiber kann auch Kommune sein |
 | Multi-Tenancy | Betreiber ist eigene Organisation; Admins dem Betreiber zugeordnet | Flexible Betreibermodelle |
 | Sub-Resources | **In `resources` mit `parent_resource_id`** (Migration 006) | Sub-Resources müssen als FK-Ziel für Bookings gültig sein |
+| sub_resources-Tabelle | **Gedroppt** (Migration 007) | Daten wurden in Migration 006 nach `resources` kopiert |
 | Composite Approve/Reject | **Cascade via `seriesId`** | Ganzes Feld + Teilflächen als Einheit behandeln |
 | Resource-Filterung | **`groupId`-FK statt `category`-String** | Konsistent, bruchsicher, DB-nativ |
-| constants.js | Auflösen – Daten in DB | Nur Wochentag-Labels + Rollen bleiben |
+| Event-/Buchungstypen | **`EVENT_TYPES` in `organizationConfig.js`** (Single Source of Truth) | Alte Duplikate `BOOKING_TYPES` in constants.js entfernt |
+| constants.js | **Aufgelöst** – nur ROLES, DAYS, DAYS_FULL verblieben | Alle Daten in DB oder organizationConfig migriert |
 | Historische Buchungen | Soft-Delete via Status | Daten bleiben erhalten |
 
 ### 7.2 Fehlende Features (Roadmap)
@@ -625,16 +636,18 @@ supabase/
 
 | Datei/Komponente | Status | Aktion |
 |-----------------|--------|--------|
-| `SlotManagement.js` | ⬜ TODO | Löschen (durch FacilityManagement ersetzt) |
-| `constants.js` → `BOOKING_TYPES` | ⬜ TODO | Durch `EVENT_TYPES` aus organizationConfig ersetzen |
-| `helpers.js` → `BOOKING_TYPES` Import | ⬜ TODO | Umstellen auf `EVENT_TYPES` |
-| `buildLegacyResources()` | 🟡 Aktiv | Perspektivisch entfernen – DB liefert hierarchisches Modell |
+| `SlotManagement.js` | ✅ Erledigt | Gelöscht (durch FacilityManagement ersetzt) |
+| `constants.js` → `BOOKING_TYPES` | ✅ Erledigt | Durch `EVENT_TYPES` aus organizationConfig ersetzt |
+| `constants.js` → `RESOURCES`, `DEMO_*` | ✅ Erledigt | Entfernt (Daten in DB / Hooks) |
+| `helpers.js` → `BOOKING_TYPES` Import | ✅ Erledigt | Umgestellt auf `EVENT_TYPES` |
+| `sub_resources`-Tabelle | ✅ Erledigt | Gedroppt (Migration 007) |
+| `buildLegacyResources()` | 🟡 Bleibt vorerst | 6 Komponenten + checkBookingConflicts nutzen das flache Format. Entfernung erfordert Refactoring aller Consumer. |
 | `facilityConfig.js` Demo-Daten | 🟡 Fallback | Seed-Daten in DB, Config bleibt als Fallback |
 | `organizationConfig.js` Demo-Daten | 🟡 Fallback | Seed-Daten in DB, Config bleibt als Fallback |
-| `sub_resources`-Tabelle | 🟡 Deprecated | Daten wurden nach `resources` kopiert (Mig. 006), Tabelle kann entfernt werden |
-| CalendarView | ✅ Refactored | groupId-FK, JSDoc, consolidated helpers |
-| MyBookings | ✅ Refactored | Dynamic group tabs, groupId-FK, JSDoc |
-| BookingRequest | ✅ Refactored | groupId-FK, userId validation, JSDoc |
-| Approvals | ✅ Refactored | parentBooking filter, cascade info, JSDoc |
+| CalendarView | ✅ Refactored | groupId-FK, EVENT_TYPES, JSDoc |
+| MyBookings | ✅ Refactored | Dynamic group tabs, groupId-FK, EVENT_TYPES, JSDoc |
+| BookingRequest | ✅ Refactored | groupId-FK, EVENT_TYPES, userId validation, JSDoc |
+| Approvals | ✅ Refactored | parentBooking filter, EVENT_TYPES, cascade info, JSDoc |
+| helpers.js | ✅ Refactored | EVENT_TYPES, JSDoc |
 | FacilityManagement | ✅ Cleaned | Unused vars removed |
 | OrganizationManagement | ✅ Cleaned | Unused vars removed |
