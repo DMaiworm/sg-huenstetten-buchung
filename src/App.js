@@ -89,7 +89,7 @@ function AppLayout() {
                 users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
             } />
             <Route path="/export" element={
-              <PDFExportPage bookings={bookings} users={users} onBack={() => {}} resources={RESOURCES} />
+              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} />
             } />
 
             {/* Buchen */}

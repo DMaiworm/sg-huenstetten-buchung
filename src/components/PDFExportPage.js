@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { FileDown, ArrowLeft } from 'lucide-react';
-import { Button } from './ui/Badge';
+import { FileDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from './ui/Button';
 
-const PDFExportPage = ({ bookings, users, onBack, resources }) => {
+const PDFExportPage = ({ bookings, users, resources }) => {
+  const navigate = useNavigate();
   const RESOURCES = resources;
   const [selectedCategory, setSelectedCategory] = useState('outdoor');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -10,12 +12,12 @@ const PDFExportPage = ({ bookings, users, onBack, resources }) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const categories = [
-    { id: 'outdoor', label: 'Aussenanlagen', resources: RESOURCES.filter(r => r.category === 'outdoor' && !r.isComposite) },
-    { id: 'indoor', label: 'Innenraeume', resources: RESOURCES.filter(r => r.category === 'indoor') },
+    { id: 'outdoor', label: 'Außenanlagen', resources: RESOURCES.filter(r => r.category === 'outdoor' && !r.isComposite) },
+    { id: 'indoor', label: 'Innenräume', resources: RESOURCES.filter(r => r.category === 'indoor') },
     { id: 'shared', label: 'Geteilte Hallen', resources: RESOURCES.filter(r => r.category === 'shared') },
   ];
 
-  const months = ['Januar', 'Februar', 'Maerz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
   const years = [2025, 2026, 2027];
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -50,7 +52,7 @@ const PDFExportPage = ({ bookings, users, onBack, resources }) => {
 
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('SG Huenstetten - ' + category.label, margin, 15);
+      doc.text('SG Hünstetten - ' + category.label, margin, 15);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
       doc.text(months[selectedMonth] + ' ' + selectedYear, margin, 22);
@@ -59,7 +61,7 @@ const PDFExportPage = ({ bookings, users, onBack, resources }) => {
       const dayWidth = (pageWidth - 2 * margin) / 7;
       const numWeeks = Math.ceil((firstDay + daysInMonth) / 7);
       const weekHeight = (pageHeight - gridTop - margin) / numWeeks;
-      const resourceColWidth = dayWidth / catResources.length;
+      const resourceColWidth = catResources.length > 0 ? dayWidth / catResources.length : dayWidth;
 
       const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
       doc.setFontSize(9);
@@ -151,9 +153,6 @@ const PDFExportPage = ({ bookings, users, onBack, resources }) => {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={onBack} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
           <FileDown className="w-6 h-6 text-blue-600" />
           Monatsplan als PDF exportieren
@@ -173,6 +172,9 @@ const PDFExportPage = ({ bookings, users, onBack, resources }) => {
             {categories.find(c => c.id === selectedCategory)?.resources.map(res => (
               <span key={res.id} className="px-2 py-1 text-xs text-white rounded" style={{ backgroundColor: res.color }}>{res.name}</span>
             ))}
+            {categories.find(c => c.id === selectedCategory)?.resources.length === 0 && (
+              <span className="text-sm text-gray-400">Keine Anlagen in dieser Kategorie</span>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
