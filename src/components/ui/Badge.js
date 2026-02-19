@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Badge bleibt hier
 export const Badge = ({ children, variant = 'default', className = '' }) => {
   const variants = {
     default: 'bg-gray-100 text-gray-800',
@@ -16,6 +15,6 @@ export const Badge = ({ children, variant = 'default', className = '' }) => {
   );
 };
 
-// Re-Export Button für Abwärtskompatibilität
-// (bisher wurde Button aus Badge.js importiert)
+// Legacy Re-Export: einige Dateien importieren Button aus Badge.js
+// TODO: Nach vollständiger Migration auf '../ui/Button' diesen Re-Export entfernen
 export { Button } from './Button';

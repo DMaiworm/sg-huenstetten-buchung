@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail } from 'lucide-react';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Badge';
+import { Button } from '../ui/Button';
 
 const EmailLog = ({ emailService }) => {
   const [selectedEmail, setSelectedEmail] = useState(null);
@@ -33,7 +33,7 @@ const EmailLog = ({ emailService }) => {
           <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
           <p className="text-gray-500">Noch keine E-Mails versendet</p>
           <p className="text-sm text-gray-400 mt-2">
-            E-Mails werden hier zur Vorschau angezeigt (Prototyp-Modus)
+            E-Mails werden hier protokolliert, sobald das System welche verschickt.
           </p>
         </div>
       ) : (
@@ -92,18 +92,6 @@ const EmailLog = ({ emailService }) => {
           </div>
         </div>
       )}
-
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <div className="text-blue-600 text-2xl">i</div>
-          <div className="flex-1">
-            <h4 className="font-semibold text-blue-800 mb-1">Prototyp-Modus</h4>
-            <p className="text-sm text-blue-700">
-              Dies ist eine Vorschau der E-Mails, die im echten System versendet würden.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

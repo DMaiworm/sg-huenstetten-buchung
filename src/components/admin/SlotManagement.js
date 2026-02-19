@@ -1,4 +1,4 @@
-// This file has been removed. Slot management is now handled
-// inline within FacilityManagement.js (per-resource slot panel).
-//
-// Deleted: 13.02.2026 (technical debt cleanup)
+// DEPRECATED: Slot-Verwaltung ist jetzt in facilities/SlotPanel.js integriert.
+// Diese Datei existiert nur noch als Kompatibilitäts-Stub.
+// Kann in einem zukünftigen Release gelöscht werden.
+export default () => null;
