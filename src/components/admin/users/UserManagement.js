@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserPlus } from 'lucide-react';
+import { useConfirm } from '../../../hooks/useConfirm';
 import { trainerStatus, STATUS_CONFIG, emptyUser } from './userConstants';
 import UserCard from './UserCard';
 import UserFormModal from './UserFormModal';
@@ -17,6 +18,7 @@ const UserManagement = ({
   const [inviting, setInviting] = useState(null);
   const [expandedUser, setExpandedUser] = useState(null);
   const [newUser, setNewUser] = useState(emptyUser);
+  const [confirm, confirmDialog] = useConfirm();
 
   const trainerUsers = users.filter(u => u.istTrainer);
   const andereUsers = users.filter(u => !u.istTrainer);
@@ -39,16 +41,23 @@ const UserManagement = ({
   const handleEdit = (user) => { setNewUser({ ...user }); setEditingUser(user); setShowForm(true); };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Benutzer wirklich löschen?')) { if (deleteUser) await deleteUser(id); }
+    const user = users.find(u => u.id === id);
+    const name = user ? `${user.firstName} ${user.lastName}` : 'Benutzer';
+    if (await confirm({ title: 'Benutzer löschen?', message: `"${name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`, confirmLabel: 'Löschen', variant: 'danger' })) {
+      if (deleteUser) await deleteUser(id);
+    }
   };
 
   const handleInvite = async (user) => {
-    if (!window.confirm(`Einladungs-E-Mail an ${user.email} senden?`)) return;
+    if (!await confirm({ title: 'Einladung senden?', message: `Einladungs-E-Mail an ${user.email} senden?`, confirmLabel: 'Einladung senden', variant: 'info' })) return;
     setInviting(user.id);
     const { error } = await inviteUser(user.id);
     setInviting(null);
-    if (error) window.alert('Fehler beim Einladen: ' + error);
-    else window.alert(`Einladung an ${user.email} gesendet!`);
+    if (error) {
+      await confirm({ title: 'Fehler', message: `Fehler beim Einladen: ${error}`, confirmLabel: 'OK', variant: 'danger' });
+    } else {
+      await confirm({ title: 'Einladung gesendet', message: `Einladung an ${user.email} wurde erfolgreich versendet.`, confirmLabel: 'OK', variant: 'info' });
+    }
   };
 
   const closeModal = () => { setShowForm(false); setEditingUser(null); setNewUser(emptyUser); };
@@ -149,6 +158,8 @@ const UserManagement = ({
           onSubmit={handleSubmit} onClose={closeModal}
         />
       )}
+
+      {confirmDialog}
     </>
   );
 };

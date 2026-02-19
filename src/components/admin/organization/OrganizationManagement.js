@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Building, Plus, Save, X } from 'lucide-react';
+import { useConfirm } from '../../../hooks/useConfirm';
 import { Button } from '../../ui/Button';
 import PageHeader from '../../ui/PageHeader';
 import EmptyState from '../../ui/EmptyState';
@@ -15,6 +16,7 @@ const OrganizationManagement = ({
 }) => {
   const [addingClub, setAddingClub] = useState(false);
   const [newClubForm, setNewClubForm] = useState({ name: '', shortName: '', color: '#6b7280', isHomeClub: false });
+  const [confirm, confirmDialog] = useConfirm();
 
   const handleAddClub = async () => {
     if (createClub) await createClub(newClubForm);
@@ -24,17 +26,23 @@ const OrganizationManagement = ({
 
   const handleUpdateClub = async (updated) => { if (updateClub) await updateClub(updated); };
   const handleDeleteClub = async (id) => {
-    if (!window.confirm('Verein wirklich löschen?')) return;
+    if (!await confirm({ title: 'Verein löschen?', message: 'Der Verein und alle zugehörigen Abteilungen und Mannschaften werden gelöscht.', confirmLabel: 'Löschen', variant: 'danger' })) return;
     if (deleteClub) await deleteClub(id);
   };
 
   const handleAddDept = async (clubId) => { if (createDepartment) await createDepartment({ clubId, name: 'Neue Abteilung', icon: '⚽', sortOrder: 0 }); };
   const handleUpdateDept = async (updated) => { if (updateDepartment) await updateDepartment(updated); };
-  const handleDeleteDept = async (id) => { if (!window.confirm('Abteilung löschen?')) return; if (deleteDepartment) await deleteDepartment(id); };
+  const handleDeleteDept = async (id) => {
+    if (!await confirm({ title: 'Abteilung löschen?', message: 'Alle Mannschaften dieser Abteilung werden ebenfalls gelöscht.', confirmLabel: 'Löschen', variant: 'danger' })) return;
+    if (deleteDepartment) await deleteDepartment(id);
+  };
 
   const handleAddTeam = async (departmentId) => { if (createTeam) await createTeam({ departmentId, name: 'Neue Mannschaft', shortName: '', color: '#3b82f6', sortOrder: 0, eventTypes: ['training'] }); };
   const handleUpdateTeam = async (updated) => { if (updateTeam) await updateTeam(updated); };
-  const handleDeleteTeam = async (id) => { if (!window.confirm('Mannschaft löschen?')) return; if (deleteTeam) await deleteTeam(id); };
+  const handleDeleteTeam = async (id) => {
+    if (!await confirm({ title: 'Mannschaft löschen?', message: 'Die Mannschaft und alle Trainer-Zuordnungen werden gelöscht.', confirmLabel: 'Löschen', variant: 'danger' })) return;
+    if (deleteTeam) await deleteTeam(id);
+  };
 
   const handleAddTrainer = async (teamId, userId) => {
     const isPrimary = !trainerAssignments.some(ta => ta.teamId === teamId);
@@ -88,6 +96,8 @@ const OrganizationManagement = ({
             onAddTrainer={handleAddTrainer} onUpdateAssignment={handleUpdateAssignment} onRemoveTrainer={handleRemoveTrainer} />
         ))
       )}
+
+      {confirmDialog}
     </div>
   );
 };

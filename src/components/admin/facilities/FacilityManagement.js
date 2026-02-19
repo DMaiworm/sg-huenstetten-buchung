@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, Plus } from 'lucide-react';
 import { COLOR_PRESETS } from '../../../config/constants';
 import { generateId } from '../../../config/facilityConfig';
+import { useConfirm } from '../../../hooks/useConfirm';
 import { Button } from '../../ui/Button';
 import PageHeader from '../../ui/PageHeader';
 import EmptyState from '../../ui/EmptyState';
@@ -10,6 +11,7 @@ import FacilitySection from './FacilitySection';
 
 const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setResourceGroups, resources, setResources, slots, setSlots }) => {
   const [addingFacility, setAddingFacility] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const handleAddFacility = (form) => {
     setFacilities([...facilities, { ...form, id: generateId('fac'), sortOrder: facilities.length + 1 }]);
@@ -18,11 +20,16 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
 
   const handleUpdateFacility = (updated) => setFacilities(facilities.map(f => f.id === updated.id ? updated : f));
 
-  const handleDeleteFacility = (id) => {
+  const handleDeleteFacility = async (id) => {
     const facGroups = resourceGroups.filter(g => g.facilityId === id);
     const facResCount = resources.filter(r => facGroups.some(g => g.id === r.groupId)).length;
     if (facGroups.length > 0 || facResCount > 0) {
-      if (!window.confirm(`Diese Anlage enthält ${facGroups.length} Gruppe(n) und ${facResCount} Ressource(n). Alles löschen?`)) return;
+      const ok = await confirm({
+        title: 'Anlage löschen?',
+        message: `Diese Anlage enthält ${facGroups.length} Gruppe(n) und ${facResCount} Ressource(n). Alles löschen?`,
+        confirmLabel: 'Alles löschen', variant: 'danger',
+      });
+      if (!ok) return;
     }
     const groupIds = facGroups.map(g => g.id);
     setResources(resources.filter(r => !groupIds.includes(r.groupId)));
@@ -37,9 +44,16 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
     }]);
   };
   const handleUpdateGroup = (updated) => setResourceGroups(resourceGroups.map(g => g.id === updated.id ? updated : g));
-  const handleDeleteGroup = (groupId) => {
+  const handleDeleteGroup = async (groupId) => {
     const groupRes = resources.filter(r => r.groupId === groupId);
-    if (groupRes.length > 0 && !window.confirm(`Diese Gruppe enthält ${groupRes.length} Ressource(n). Alle löschen?`)) return;
+    if (groupRes.length > 0) {
+      const ok = await confirm({
+        title: 'Gruppe löschen?',
+        message: `Diese Gruppe enthält ${groupRes.length} Ressource(n). Alle löschen?`,
+        confirmLabel: 'Alle löschen', variant: 'danger',
+      });
+      if (!ok) return;
+    }
     setResourceGroups(resourceGroups.filter(g => g.id !== groupId));
     setResources(resources.filter(r => r.groupId !== groupId));
   };
@@ -95,6 +109,8 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
             slots={slots} setSlots={setSlots} />
         ))
       )}
+
+      {confirmDialog}
     </div>
   );
 };
