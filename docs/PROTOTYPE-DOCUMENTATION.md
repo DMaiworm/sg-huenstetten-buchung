@@ -694,7 +694,6 @@ src/
 │   ├── BookingRequest.js               #   Buchungsformular
 │   ├── MyBookings.js                   #   Meine Buchungen
 │   ├── PDFExportPage.js                #   PDF-Export
-│   ├── PDFExportDialog.js              #   PDF-Export-Dialog (Legacy)
 │   ├── Sidebar.js                      #   Navigation mit Rollen-abhängigen Links
 │   ├── LoginPage.js                    #   Login-Formular
 │   └── UserMenu.js                     #   Benutzer-Menü (Name, Rollen, Logout)
@@ -737,10 +736,6 @@ Die Funktion in `FacilityContext` konvertiert das hierarchische Ressourcenmodell
 
 > **Status:** Wird noch von CalendarView, BookingRequest, MyBookings, Approvals, PDFExportPage und `helpers.checkBookingConflicts()` genutzt. Perspektivisch auf hierarchisches Format umstellen.
 
-### 7.2 Badge.js Button-Reexport
-
-`Badge.js` re-exportiert `Button` aus `./Button.js` für Abwärtskompatibilität. Neue Imports sollten direkt `from './ui/Button'` verwenden.
-
 ---
 
 ## 8. Entscheidungen und Roadmap
@@ -779,6 +774,3 @@ Die Funktion in `FacilityContext` konvertiert das hierarchische Ressourcenmodell
 |------|--------|--------|
 | `buildLegacyResources()` | 🟡 Bleibt vorerst | 5 Komponenten + checkBookingConflicts nutzen das flache Format |
 | `emailService.js` | 🟡 Mock | Muss durch echten E-Mail-Service ersetzt werden |
-| `PDFExportDialog.js` | 🟡 Legacy | Ältere Version, PDFExportPage ist der aktive Export |
-| `BookingRequest.js` | 🟡 Groß | 24KB, nutzt noch `window.alert()` statt Toast/InfoBanner |
-| Badge.js Button-Reexport | 🟢 Gering | Entfernen wenn alle Imports auf `./ui/Button` umgestellt |

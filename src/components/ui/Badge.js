@@ -14,7 +14,3 @@ export const Badge = ({ children, variant = 'default', className = '' }) => {
     </span>
   );
 };
-
-// Legacy Re-Export: einige Dateien importieren Button aus Badge.js
-// TODO: Nach vollständiger Migration auf '../ui/Button' diesen Re-Export entfernen
-export { Button } from './Button';
