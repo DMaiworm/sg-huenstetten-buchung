@@ -13,18 +13,32 @@ import { supabase } from '../lib/supabase';
 
 function profileToLegacyUser(profile) {
   return {
-    id: profile.id, firstName: profile.first_name, lastName: profile.last_name,
-    email: profile.email, phone: profile.phone || '', role: profile.role,
-    operatorId: profile.operator_id, club: '', team: '',
-    isPassive: profile.is_passive || false,
+    id:               profile.id,
+    firstName:        profile.first_name,
+    lastName:         profile.last_name,
+    email:            profile.email,
+    phone:            profile.phone || '',
+    operatorId:       profile.operator_id,
+    isPassive:        profile.is_passive        || false,
+    istTrainer:       profile.ist_trainer       || false,
+    kannBuchen:       profile.kann_buchen       || false,
+    kannGenehmigen:   profile.kann_genehmigen   || false,
+    kannAdministrieren: profile.kann_administrieren || false,
   };
 }
 
 function legacyUserToProfile(user) {
   return {
-    first_name: user.firstName, last_name: user.lastName, email: user.email,
-    phone: user.phone || null, role: user.role, operator_id: user.operatorId || null,
-    is_passive: user.isPassive || false,
+    first_name:          user.firstName,
+    last_name:           user.lastName,
+    email:               user.email,
+    phone:               user.phone || null,
+    operator_id:         user.operatorId || null,
+    is_passive:          user.isPassive          || false,
+    ist_trainer:         user.istTrainer         || false,
+    kann_buchen:         user.kannBuchen         || false,
+    kann_genehmigen:     user.kannGenehmigen     || false,
+    kann_administrieren: user.kannAdministrieren || false,
   };
 }
 
@@ -58,9 +72,9 @@ function dbSlotToLegacy(s) {
   };
 }
 
-function dbClubToLegacy(c)  { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
-function dbDepartmentToLegacy(d) { return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
-function dbTeamToLegacy(t)  { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
+function dbClubToLegacy(c)      { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
+function dbDepartmentToLegacy(d){ return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
+function dbTeamToLegacy(t)      { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
 function dbTrainerAssignmentToLegacy(ta) { return { id: ta.id, userId: ta.user_id, teamId: ta.team_id, isPrimary: ta.is_primary }; }
 
 function dbBookingToLegacy(b) {
@@ -100,8 +114,8 @@ export function useUsers() {
     try {
       const { data, error: e } = await supabase.from('profiles').select('*').order('last_name');
       if (e) throw e;
-      if (data && data.length > 0) { setUsersState(data.map(profileToLegacyUser)); setIsDemo(false); }
-      else { setUsersState([]); setIsDemo(false); }
+      setUsersState((data || []).map(profileToLegacyUser));
+      setIsDemo(false);
     } catch (err) { setUsersState([]); setIsDemo(true); setError(err.message); }
     setLoading(false);
   }, []);
@@ -359,13 +373,13 @@ export function useGenehmigerResources() {
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const getResourcesForUser = useCallback((userId) => {
-    return assignments.filter(a => a.user_id === userId).map(a => a.resource_id);
-  }, [assignments]);
+  const getResourcesForUser = useCallback((userId) =>
+    assignments.filter(a => a.user_id === userId).map(a => a.resource_id)
+  , [assignments]);
 
-  const getUsersForResource = useCallback((resourceId) => {
-    return assignments.filter(a => a.resource_id === resourceId).map(a => a.user_id);
-  }, [assignments]);
+  const getUsersForResource = useCallback((resourceId) =>
+    assignments.filter(a => a.resource_id === resourceId).map(a => a.user_id)
+  , [assignments]);
 
   const addAssignment = useCallback(async (userId, resourceId) => {
     try {

@@ -2,13 +2,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 /**
- * AuthContext – stellt Auth-Status, Profil und Berechtigungen bereit.
+ * AuthContext – stellt Auth-Status und granulare Berechtigungen bereit.
  *
- * - user:        Supabase Auth User
- * - profile:     Datensatz aus public.profiles
- * - isAdmin:     role === 'admin'
- * - isGenehmiger: role === 'genehmiger' || role === 'admin'
- * - canApprove:  true wenn Admin oder Genehmiger
+ * Permissions (direkt aus profiles-Flags):
+ *   istTrainer        – erscheint als Trainer bei Mannschaften
+ *   kannBuchen        – darf Buchungsanfragen stellen
+ *   kannGenehmigen    – darf Anfragen genehmigen + eigene Buchungen auto-approved
+ *   kannAdministrieren – Zugang zu Verwaltungsbereichen
  */
 const AuthContext = createContext(null);
 
@@ -56,9 +56,13 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     profile,
-    isAdmin:      profile?.role === 'admin',
-    isGenehmiger: profile?.role === 'genehmiger' || profile?.role === 'admin',
-    canApprove:   profile?.role === 'admin' || profile?.role === 'genehmiger',
+    // Granulare Permission-Flags
+    istTrainer:         profile?.ist_trainer         ?? false,
+    kannBuchen:         profile?.kann_buchen         ?? false,
+    kannGenehmigen:     profile?.kann_genehmigen     ?? false,
+    kannAdministrieren: profile?.kann_administrieren ?? false,
+    // Convenience: isAdmin bleibt als Alias für kann_administrieren
+    isAdmin:            profile?.kann_administrieren ?? false,
     loading,
     signIn,
     signOut,

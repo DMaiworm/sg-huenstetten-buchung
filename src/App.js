@@ -29,13 +29,12 @@ const DEMO_SLOTS = [
 ];
 
 export default function SportvereinBuchung() {
-  const { user, isAdmin, canApprove, profile, loading: authLoading } = useAuth();
-  const [currentView, setCurrentView] = useState('calendar');
+  const { user, profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin, loading: authLoading } = useAuth();
+  const [currentView, setCurrentView]   = useState('calendar');
   const [selectedResource, setSelectedResource] = useState(null);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [emailService] = useState(() => new EmailService());
+  const [currentDate, setCurrentDate]   = useState(new Date());
+  const [emailService]                  = useState(() => new EmailService());
 
-  // Supabase Hooks
   const { users, setUsers, createUser, updateUser, deleteUser, isDemo: isUserDemo, loading: usersLoading } = useUsers();
   const { operators } = useOperators();
   const {
@@ -56,8 +55,6 @@ export default function SportvereinBuchung() {
     bookings, createBookings, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries, loading: bookingsLoading,
   } = useBookings();
-
-  // Genehmiger-Ressourcen (welche Ressourcen darf der aktuelle User genehmigen)
   const {
     assignments: genehmigerAssignments,
     getResourcesForUser,
@@ -75,10 +72,10 @@ export default function SportvereinBuchung() {
   const setConfigResources = isFacilityDemo ? () => {} : setDbResources;
   const setSlots           = isFacilityDemo ? () => {} : setDbSlots;
 
-  const orgClubs           = isOrgDemo ? DEFAULT_CLUBS              : dbClubs;
-  const departments        = isOrgDemo ? DEFAULT_DEPARTMENTS        : dbDepartments;
-  const teams              = isOrgDemo ? DEFAULT_TEAMS              : dbTeams;
-  const trainerAssignments = isOrgDemo ? DEFAULT_TRAINER_ASSIGNMENTS : dbTrainerAssignments;
+  const orgClubs           = isOrgDemo ? DEFAULT_CLUBS               : dbClubs;
+  const departments        = isOrgDemo ? DEFAULT_DEPARTMENTS         : dbDepartments;
+  const teams              = isOrgDemo ? DEFAULT_TEAMS               : dbTeams;
+  const trainerAssignments = isOrgDemo ? DEFAULT_TRAINER_ASSIGNMENTS  : dbTrainerAssignments;
   const setOrgClubs           = isOrgDemo ? () => {} : setDbClubs;
   const setDepartments        = isOrgDemo ? () => {} : setDbDepartments;
   const setTeams              = isOrgDemo ? () => {} : setDbTeams;
@@ -88,23 +85,23 @@ export default function SportvereinBuchung() {
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
   const effectiveSelectedResource = selectedResource || (RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id || null);
 
-  // Genehmiger: nur die ihm zugewiesenen Ressourcen; Admin: null = alle
-  const myGenehmigerResources = isAdmin ? null : (canApprove ? getResourcesForUser(profile?.id) : null);
+  // Genehmiger: gefilterte Ressourcen (null = alle für Admin)
+  const myGenehmigerResources = kannAdministrieren ? null : (kannGenehmigen ? getResourcesForUser(profile?.id) : null);
 
-  // Pending-Count für Sidebar-Badge (gefiltert nach Berechtigungen)
+  // Pending-Count für Sidebar
   const pendingCount = bookings.filter(b => {
     if (b.status !== 'pending' || b.parentBooking) return false;
-    if (isAdmin) return true;
-    if (canApprove) return myGenehmigerResources?.includes(b.resourceId);
+    if (kannAdministrieren) return true;
+    if (kannGenehmigen) return myGenehmigerResources?.includes(b.resourceId);
     return false;
   }).length;
 
-  // Loading screens
+  // Loading
   if (authLoading) {
     return (
       <div className="flex h-screen bg-gray-50 items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
           <p className="text-gray-500">Wird geladen...</p>
         </div>
       </div>
@@ -117,27 +114,26 @@ export default function SportvereinBuchung() {
     return (
       <div className="flex h-screen bg-gray-50 items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
           <p className="text-gray-500">Daten werden geladen...</p>
         </div>
       </div>
     );
   }
 
-  // Booking Handlers
+  // Buchungsstatus: kann_genehmigen → auto-approved, sonst pending
+  const resolveBookingStatus = (userId) => {
+    const bookingUser = users.find(u => u.id === userId);
+    return (bookingUser?.kannGenehmigen || bookingUser?.kannAdministrieren) ? 'approved' : 'pending';
+  };
+
   const handleApprove = async (id) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
     const result = booking.seriesId
       ? await updateSeriesStatus(booking.seriesId, 'approved')
       : await updateBookingStatus(id, 'approved');
-    if (result.error) { window.alert('Fehler beim Genehmigen: ' + result.error); return; }
-    const bookingUser = users.find(u => u.id === booking.userId);
-    const resource    = RESOURCES.find(r => r.id === booking.resourceId);
-    const approver    = users.find(u => u.role === 'admin');
-    if (bookingUser && resource && approver) {
-      await emailService.send(EMAIL_TEMPLATES.bookingApproved(booking, bookingUser, resource, approver));
-    }
+    if (result.error) window.alert('Fehler: ' + result.error);
   };
 
   const handleReject = async (id, reason = '') => {
@@ -146,24 +142,17 @@ export default function SportvereinBuchung() {
     const result = booking.seriesId
       ? await updateSeriesStatus(booking.seriesId, 'rejected')
       : await updateBookingStatus(id, 'rejected');
-    if (result.error) { window.alert('Fehler beim Ablehnen: ' + result.error); return; }
-    const bookingUser = users.find(u => u.id === booking.userId);
-    const resource    = RESOURCES.find(r => r.id === booking.resourceId);
-    const approver    = users.find(u => u.role === 'admin');
-    if (bookingUser && resource && approver) {
-      await emailService.send(EMAIL_TEMPLATES.bookingRejected(booking, bookingUser, resource, approver, reason));
-    }
+    if (result.error) window.alert('Fehler: ' + result.error);
   };
 
   const handleNewBooking = async (data) => {
     if (!data.userId) {
-      window.alert('Fehler: Kein Benutzer/Trainer zugeordnet.');
+      window.alert('Kein Trainer für die ausgewählte Mannschaft gefunden.');
       return;
     }
     const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
     const seriesId      = needsSeriesId ? `series-${Date.now()}` : null;
-    const bookingUser   = users.find(u => u.id === data.userId);
-    const bookingStatus = bookingUser?.role === 'extern' ? 'pending' : 'approved';
+    const bookingStatus = resolveBookingStatus(data.userId);
 
     const newBookings = data.dates.map(date => ({
       resourceId: data.resourceId, date,
@@ -187,25 +176,15 @@ export default function SportvereinBuchung() {
     }
 
     const result = await createBookings(newBookings);
-    if (result.error) { window.alert('Fehler beim Speichern: ' + result.error); return; }
-
-    const resource = RESOURCES.find(r => r.id === data.resourceId);
-    if (bookingUser && resource && result.data?.length > 0) {
-      await emailService.send(EMAIL_TEMPLATES.bookingCreated(result.data[0], bookingUser, resource));
-      if (bookingUser.role === 'extern') {
-        const admins = users.filter(u => u.role === 'admin');
-        for (const admin of admins) {
-          await emailService.send(EMAIL_TEMPLATES.adminNewBooking(result.data[0], bookingUser, resource, admin.email));
-        }
-      }
-    }
+    if (result.error) { window.alert('Fehler: ' + result.error); return; }
+    window.alert('Buchungsanfrage für ' + data.dates.length + ' Termin(e) eingereicht!');
   };
 
   const handleDeleteBooking = async (bookingId, deleteType, seriesId) => {
     const result = deleteType === 'series' && seriesId
       ? await deleteBookingSeries(seriesId)
       : await deleteBooking(bookingId);
-    if (result.error) window.alert('Fehler beim Löschen: ' + result.error);
+    if (result.error) window.alert('Fehler: ' + result.error);
   };
 
   const orgProps      = { clubs: orgClubs, departments, teams, trainerAssignments };
@@ -217,9 +196,10 @@ export default function SportvereinBuchung() {
         currentView={currentView}
         setCurrentView={setCurrentView}
         isAdmin={isAdmin}
-        canApprove={canApprove}
+        kannBuchen={kannBuchen}
+        kannGenehmigen={kannGenehmigen}
+        kannAdministrieren={kannAdministrieren}
         pendingCount={pendingCount}
-        facilityName={club.name}
       />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
@@ -233,17 +213,17 @@ export default function SportvereinBuchung() {
             <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking}
               users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
           )}
-          {currentView === 'booking-request' && (
+          {currentView === 'booking-request' && kannBuchen && (
             <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking}
               users={users} resources={RESOURCES} {...facilityProps} {...orgProps} />
           )}
-          {currentView === 'approvals' && canApprove && (
+          {currentView === 'approvals' && kannGenehmigen && (
             <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject}
               users={users} resources={RESOURCES}
               genehmigerResources={myGenehmigerResources}
-              isAdmin={isAdmin} />
+              isAdmin={kannAdministrieren} />
           )}
-          {currentView === 'users' && isAdmin && (
+          {currentView === 'users' && kannAdministrieren && (
             <UserManagement
               users={users} setUsers={setUsers}
               createUser={createUser} updateUser={updateUser} deleteUser={deleteUser}
@@ -254,18 +234,18 @@ export default function SportvereinBuchung() {
               removeGenehmigerResource={removeGenehmigerResource}
             />
           )}
-          {currentView === 'emails' && isAdmin && <EmailLog emailService={emailService} />}
+          {currentView === 'emails' && kannAdministrieren && <EmailLog emailService={emailService} />}
           {currentView === 'export' && (
             <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />
           )}
-          {currentView === 'facilities' && isAdmin && (
+          {currentView === 'facilities' && kannAdministrieren && (
             <FacilityManagement
               facilities={facilities} setFacilities={setFacilities}
               resourceGroups={resourceGroups} setResourceGroups={setResourceGroups}
               resources={configResources} setResources={setConfigResources}
               slots={slots} setSlots={setSlots} />
           )}
-          {currentView === 'organization' && isAdmin && (
+          {currentView === 'organization' && kannAdministrieren && (
             <OrganizationManagement
               clubs={orgClubs} setClubs={setOrgClubs}
               departments={departments} setDepartments={setDepartments}

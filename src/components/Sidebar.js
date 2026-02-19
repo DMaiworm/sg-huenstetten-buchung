@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, ClipboardList, Settings, Building2, Users, FileText, Shield } from 'lucide-react';
 import UserMenu from './UserMenu';
 
-const Sidebar = ({ currentView, setCurrentView, pendingCount, isAdmin, canApprove }) => {
+const Sidebar = ({ currentView, setCurrentView, pendingCount, isAdmin, kannBuchen, kannGenehmigen, kannAdministrieren }) => {
   const navItem = (view, icon, label, badge) => {
     const active = currentView === view;
     return (
@@ -42,20 +42,18 @@ const Sidebar = ({ currentView, setCurrentView, pendingCount, isAdmin, canApprov
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Allgemein</p>
-        {navItem('calendar',       <Calendar className="w-5 h-5" />,     'Kalender')}
-        {navItem('my-bookings',    <ClipboardList className="w-5 h-5" />, 'Meine Buchungen')}
-        {navItem('booking-request',<FileText className="w-5 h-5" />,      'Neue Anfrage')}
+        {navItem('calendar', <Calendar className="w-5 h-5" />, 'Kalender')}
+        {navItem('my-bookings', <ClipboardList className="w-5 h-5" />, 'Meine Buchungen')}
+        {kannBuchen && navItem('booking-request', <FileText className="w-5 h-5" />, 'Neue Anfrage')}
 
-        {/* Genehmigungen: für Admin und Genehmiger */}
-        {canApprove && (
+        {kannGenehmigen && (
           <>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Genehmigungen</p>
             {navItem('approvals', <Shield className="w-5 h-5" />, 'Genehmigungen', pendingCount)}
           </>
         )}
 
-        {/* Administration: nur für Admin */}
-        {isAdmin && (
+        {kannAdministrieren && (
           <>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Administration</p>
             {navItem('users',        <Users className="w-5 h-5" />,    'Benutzerverwaltung')}

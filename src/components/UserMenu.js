@@ -1,13 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-/**
- * UserMenu – zeigt den eingeloggten User in der Sidebar an
- * und bietet einen Logout-Button.
- *
- * Zeigt immer einen Abmelden-Button, auch wenn das Profil noch nicht
- * geladen wurde (z.B. wegen RLS oder Netzwerkfehler).
- */
 export default function UserMenu() {
   const { user, profile, signOut } = useAuth();
   const [open, setOpen] = useState(false);
@@ -19,15 +12,20 @@ export default function UserMenu() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Fallback: kein Profil geladen, aber User ist eingeloggt
+  // Berechtigungs-Labels für die Anzeige
+  const permLabels = [];
+  if (profile?.kann_administrieren) permLabels.push('Admin');
+  if (profile?.kann_genehmigen)     permLabels.push('Genehmiger');
+  if (profile?.kann_buchen)         permLabels.push('Buchung');
+  if (profile?.ist_trainer)         permLabels.push('Trainer');
+
+  // Fallback wenn Profil noch nicht geladen
   if (!profile) {
     return (
       <div className="space-y-1">
         <p className="text-xs text-gray-400 truncate px-2">{user?.email}</p>
-        <button
-          onClick={signOut}
-          className="flex items-center gap-2 w-full px-2 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition"
-        >
+        <button onClick={signOut}
+          className="flex items-center gap-2 w-full px-2 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -39,22 +37,17 @@ export default function UserMenu() {
   }
 
   const initials = `${profile.first_name?.[0] ?? ''}${profile.last_name?.[0] ?? ''}`.toUpperCase();
-  const roleLabel = { admin: 'Administrator', trainer: 'Trainer', extern: 'Extern' }[profile.role] ?? profile.role;
 
   return (
     <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-gray-100 transition text-left"
-      >
+      <button onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-gray-100 transition text-left">
         <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
           {initials || '?'}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {profile.first_name} {profile.last_name}
-          </p>
-          <p className="text-xs text-gray-500 truncate">{roleLabel}</p>
+          <p className="text-sm font-medium text-gray-900 truncate">{profile.first_name} {profile.last_name}</p>
+          <p className="text-xs text-gray-500 truncate">{permLabels.join(' · ') || 'Kein Zugriff'}</p>
         </div>
         <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,10 +60,8 @@ export default function UserMenu() {
           <div className="px-3 py-2 border-b border-gray-100">
             <p className="text-xs text-gray-500 truncate">{profile.email}</p>
           </div>
-          <button
-            onClick={signOut}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition"
-          >
+          <button onClick={signOut}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
