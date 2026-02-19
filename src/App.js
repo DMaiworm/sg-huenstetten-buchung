@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
-import { EmailService, EMAIL_TEMPLATES } from './services/emailService';
+import { EmailService } from './services/emailService';
 import { useUsers, useOperators, useFacilities, useOrganization, useBookings, useGenehmigerResources } from './hooks/useSupabase';
 import { useAuth } from './contexts/AuthContext';
 import Sidebar from './components/Sidebar';
@@ -30,12 +30,12 @@ const DEMO_SLOTS = [
 
 export default function SportvereinBuchung() {
   const { user, profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin, loading: authLoading } = useAuth();
-  const [currentView, setCurrentView]   = useState('calendar');
+  const [currentView, setCurrentView]           = useState('calendar');
   const [selectedResource, setSelectedResource] = useState(null);
-  const [currentDate, setCurrentDate]   = useState(new Date());
-  const [emailService]                  = useState(() => new EmailService());
+  const [currentDate, setCurrentDate]           = useState(new Date());
+  const [emailService]                          = useState(() => new EmailService());
 
-  const { users, setUsers, createUser, updateUser, deleteUser, isDemo: isUserDemo, loading: usersLoading } = useUsers();
+  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, isDemo: isUserDemo, loading: usersLoading } = useUsers();
   const { operators } = useOperators();
   const {
     facilities: dbFacilities, setFacilities: setDbFacilities,
@@ -62,7 +62,6 @@ export default function SportvereinBuchung() {
     removeAssignment: removeGenehmigerResource,
   } = useGenehmigerResources();
 
-  // Fallbacks
   const facilities      = isFacilityDemo ? DEFAULT_FACILITIES      : dbFacilities;
   const resourceGroups  = isFacilityDemo ? DEFAULT_RESOURCE_GROUPS  : dbResourceGroups;
   const configResources = isFacilityDemo ? DEFAULT_RESOURCES        : dbResources;
@@ -85,10 +84,7 @@ export default function SportvereinBuchung() {
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
   const effectiveSelectedResource = selectedResource || (RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id || null);
 
-  // Genehmiger: gefilterte Ressourcen (null = alle für Admin)
   const myGenehmigerResources = kannAdministrieren ? null : (kannGenehmigen ? getResourcesForUser(profile?.id) : null);
-
-  // Pending-Count für Sidebar
   const pendingCount = bookings.filter(b => {
     if (b.status !== 'pending' || b.parentBooking) return false;
     if (kannAdministrieren) return true;
@@ -96,60 +92,47 @@ export default function SportvereinBuchung() {
     return false;
   }).length;
 
-  // Loading
-  if (authLoading) {
-    return (
-      <div className="flex h-screen bg-gray-50 items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-          <p className="text-gray-500">Wird geladen...</p>
-        </div>
+  if (authLoading) return (
+    <div className="flex h-screen bg-gray-50 items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+        <p className="text-gray-500">Wird geladen...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
   if (!user) return <LoginPage />;
 
-  if (usersLoading || facilitiesLoading || orgLoading || bookingsLoading) {
-    return (
-      <div className="flex h-screen bg-gray-50 items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-          <p className="text-gray-500">Daten werden geladen...</p>
-        </div>
+  if (usersLoading || facilitiesLoading || orgLoading || bookingsLoading) return (
+    <div className="flex h-screen bg-gray-50 items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+        <p className="text-gray-500">Daten werden geladen...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // Buchungsstatus: kann_genehmigen → auto-approved, sonst pending
   const resolveBookingStatus = (userId) => {
-    const bookingUser = users.find(u => u.id === userId);
-    return (bookingUser?.kannGenehmigen || bookingUser?.kannAdministrieren) ? 'approved' : 'pending';
+    const u = users.find(x => x.id === userId);
+    return (u?.kannGenehmigen || u?.kannAdministrieren) ? 'approved' : 'pending';
   };
 
   const handleApprove = async (id) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    const result = booking.seriesId
-      ? await updateSeriesStatus(booking.seriesId, 'approved')
-      : await updateBookingStatus(id, 'approved');
+    const result = booking.seriesId ? await updateSeriesStatus(booking.seriesId, 'approved') : await updateBookingStatus(id, 'approved');
     if (result.error) window.alert('Fehler: ' + result.error);
   };
 
   const handleReject = async (id, reason = '') => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    const result = booking.seriesId
-      ? await updateSeriesStatus(booking.seriesId, 'rejected')
-      : await updateBookingStatus(id, 'rejected');
+    const result = booking.seriesId ? await updateSeriesStatus(booking.seriesId, 'rejected') : await updateBookingStatus(id, 'rejected');
     if (result.error) window.alert('Fehler: ' + result.error);
   };
 
   const handleNewBooking = async (data) => {
-    if (!data.userId) {
-      window.alert('Kein Trainer für die ausgewählte Mannschaft gefunden.');
-      return;
-    }
+    if (!data.userId) { window.alert('Kein Trainer für die ausgewählte Mannschaft gefunden.'); return; }
     const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
     const seriesId      = needsSeriesId ? `series-${Date.now()}` : null;
     const bookingStatus = resolveBookingStatus(data.userId);
@@ -166,8 +149,7 @@ export default function SportvereinBuchung() {
       data.includedResources.forEach(resId => {
         data.dates.forEach(date => {
           newBookings.push({
-            resourceId: resId, date,
-            startTime: data.startTime, endTime: data.endTime,
+            resourceId: resId, date, startTime: data.startTime, endTime: data.endTime,
             title: data.title + ' (Ganzes Feld)', bookingType: data.bookingType,
             userId: data.userId, status: bookingStatus, seriesId, parentBooking: true,
           });
@@ -181,9 +163,7 @@ export default function SportvereinBuchung() {
   };
 
   const handleDeleteBooking = async (bookingId, deleteType, seriesId) => {
-    const result = deleteType === 'series' && seriesId
-      ? await deleteBookingSeries(seriesId)
-      : await deleteBooking(bookingId);
+    const result = deleteType === 'series' && seriesId ? await deleteBookingSeries(seriesId) : await deleteBooking(bookingId);
     if (result.error) window.alert('Fehler: ' + result.error);
   };
 
@@ -192,15 +172,9 @@ export default function SportvereinBuchung() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar
-        currentView={currentView}
-        setCurrentView={setCurrentView}
-        isAdmin={isAdmin}
-        kannBuchen={kannBuchen}
-        kannGenehmigen={kannGenehmigen}
-        kannAdministrieren={kannAdministrieren}
-        pendingCount={pendingCount}
-      />
+      <Sidebar currentView={currentView} setCurrentView={setCurrentView}
+        isAdmin={isAdmin} kannBuchen={kannBuchen} kannGenehmigen={kannGenehmigen}
+        kannAdministrieren={kannAdministrieren} pendingCount={pendingCount} />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
           {currentView === 'calendar' && (
@@ -220,13 +194,12 @@ export default function SportvereinBuchung() {
           {currentView === 'approvals' && kannGenehmigen && (
             <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject}
               users={users} resources={RESOURCES}
-              genehmigerResources={myGenehmigerResources}
-              isAdmin={kannAdministrieren} />
+              genehmigerResources={myGenehmigerResources} isAdmin={kannAdministrieren} />
           )}
           {currentView === 'users' && kannAdministrieren && (
             <UserManagement
               users={users} setUsers={setUsers}
-              createUser={createUser} updateUser={updateUser} deleteUser={deleteUser}
+              createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} inviteUser={inviteUser}
               operators={operators}
               resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities}
               genehmigerAssignments={genehmigerAssignments}
@@ -239,15 +212,13 @@ export default function SportvereinBuchung() {
             <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />
           )}
           {currentView === 'facilities' && kannAdministrieren && (
-            <FacilityManagement
-              facilities={facilities} setFacilities={setFacilities}
+            <FacilityManagement facilities={facilities} setFacilities={setFacilities}
               resourceGroups={resourceGroups} setResourceGroups={setResourceGroups}
               resources={configResources} setResources={setConfigResources}
               slots={slots} setSlots={setSlots} />
           )}
           {currentView === 'organization' && kannAdministrieren && (
-            <OrganizationManagement
-              clubs={orgClubs} setClubs={setOrgClubs}
+            <OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs}
               departments={departments} setDepartments={setDepartments}
               teams={teams} setTeams={setTeams}
               trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments}

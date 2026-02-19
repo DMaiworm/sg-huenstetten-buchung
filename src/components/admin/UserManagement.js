@@ -1,42 +1,66 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Mail, Phone, Shield } from 'lucide-react';
+import { X, UserPlus, Mail, Phone, Shield, Send, CheckCircle, Clock, UserX } from 'lucide-react';
 
 /**
- * UserManagement – Benutzerverwaltung mit Permission-Flags.
+ * UserManagement – Zeigt alle Trainer/Übungsleiter + andere Benutzer.
  *
- * Jede Person hat vier unabhängige Checkboxen:
- *   ist_trainer, kann_buchen, kann_genehmigen, kann_administrieren
+ * Status-System für Trainer:
+ *   Passiv    – is_passive=true, kein Auth-Account, kein invited_at
+ *   Eingeladen – invited_at gesetzt, aber noch kein Login
+ *   Aktiv     – hat Auth-Account (kann_buchen=true, is_passive=false, invited_at gesetzt)
  *
- * Passive Trainer (is_passive=true) werden separat angezeigt
- * und können nur aktiviert, nicht bearbeitet werden.
+ * Berechtigungen: vier unabhängige Checkboxen
  */
 
 const PERMISSIONS = [
-  { key: 'istTrainer',         label: 'Trainer',       description: 'Erscheint als Trainer bei Mannschaften',         color: '#2563eb' },
-  { key: 'kannBuchen',         label: 'Buchen',        description: 'Darf Buchungsanfragen stellen',                  color: '#16a34a' },
-  { key: 'kannGenehmigen',     label: 'Genehmigen',    description: 'Darf Anfragen genehmigen (eigene: auto-approved)', color: '#7c3aed' },
-  { key: 'kannAdministrieren', label: 'Administrieren',description: 'Zugang zu Benutzerverwaltung & Anlagen',         color: '#dc2626' },
+  { key: 'istTrainer',         label: 'Trainer',        description: 'Erscheint als Trainer bei Mannschaften',          color: '#2563eb' },
+  { key: 'kannBuchen',         label: 'Buchen',         description: 'Darf Buchungsanfragen stellen',                   color: '#16a34a' },
+  { key: 'kannGenehmigen',     label: 'Genehmigen',     description: 'Darf Anfragen genehmigen (eigene: auto-approved)',color: '#7c3aed' },
+  { key: 'kannAdministrieren', label: 'Administrieren', description: 'Zugang zu Benutzerverwaltung & Anlagen',          color: '#dc2626' },
 ];
 
-const emptyUser = { firstName: '', lastName: '', email: '', phone: '', operatorId: '',
-  isPassive: false, istTrainer: false, kannBuchen: false, kannGenehmigen: false, kannAdministrieren: false };
+const emptyUser = {
+  firstName: '', lastName: '', email: '', phone: '', operatorId: '',
+  isPassive: false, istTrainer: false, kannBuchen: false, kannGenehmigen: false, kannAdministrieren: false,
+};
+
+/** Leitet den Trainer-Status aus den Profilfeldern ab. */
+function trainerStatus(user) {
+  if (!user.istTrainer) return null;           // kein Trainer
+  if (user.kannBuchen && !user.isPassive) return 'aktiv';      // hat Login-Berechtigung
+  if (user.invitedAt)  return 'eingeladen';    // Einladung raus, noch kein Login
+  return 'passiv';                             // nur im System, kein Zugang
+}
+
+const STATUS_CONFIG = {
+  passiv:      { label: 'Passiv',      color: '#6b7280', bg: '#f3f4f6', icon: UserX },
+  eingeladen:  { label: 'Eingeladen', color: '#d97706', bg: '#fef3c7', icon: Clock },
+  aktiv:       { label: 'Aktiv',      color: '#16a34a', bg: '#dcfce7', icon: CheckCircle },
+};
 
 const UserManagement = ({
-  users, setUsers, createUser, updateUser, deleteUser,
+  users, setUsers, createUser, updateUser, deleteUser, inviteUser,
   operators,
   resources, resourceGroups, facilities,
   genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource,
 }) => {
   const [showForm,     setShowForm]     = useState(false);
   const [editingUser,  setEditingUser]  = useState(null);
-  const [filterTab,    setFilterTab]    = useState('aktiv');  // 'aktiv' | 'passiv'
+  const [filterTab,    setFilterTab]    = useState('trainer'); // 'trainer' | 'andere' 
   const [saving,       setSaving]       = useState(false);
+  const [inviting,     setInviting]     = useState(null);      // userId der gerade eingeladen wird
   const [expandedUser, setExpandedUser] = useState(null);
   const [newUser,      setNewUser]      = useState(emptyUser);
 
-  const activeUsers  = users.filter(u => !u.isPassive);
-  const passiveUsers = users.filter(u =>  u.isPassive);
-  const displayUsers = filterTab === 'aktiv' ? activeUsers : passiveUsers;
+  const trainerUsers = users.filter(u => u.istTrainer);
+  const andereUsers  = users.filter(u => !u.istTrainer);
+  const displayUsers = filterTab === 'trainer' ? trainerUsers : andereUsers;
+
+  // Trainer nach Status sortieren: aktiv > eingeladen > passiv
+  const statusOrder = { aktiv: 0, eingeladen: 1, passiv: 2, null: 3 };
+  const sortedDisplay = filterTab === 'trainer'
+    ? [...displayUsers].sort((a, b) => (statusOrder[trainerStatus(a)] ?? 3) - (statusOrder[trainerStatus(b)] ?? 3))
+    : displayUsers;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,11 +88,13 @@ const UserManagement = ({
     }
   };
 
-  // Passiven Trainer aktivieren: is_passive=false + kann_buchen=true
-  const handleActivate = async (user) => {
-    if (updateUser) {
-      await updateUser(user.id, { ...user, isPassive: false, kannBuchen: true });
-    }
+  const handleInvite = async (user) => {
+    if (!window.confirm(`Einladungs-E-Mail an ${user.email} senden?`)) return;
+    setInviting(user.id);
+    const { error } = await inviteUser(user.id);
+    setInviting(null);
+    if (error) window.alert('Fehler beim Einladen: ' + error);
+    else window.alert(`Einladung an ${user.email} gesendet!`);
   };
 
   const closeModal = () => { setShowForm(false); setEditingUser(null); setNewUser(emptyUser); };
@@ -89,23 +115,33 @@ const UserManagement = ({
     })),
   }));
 
-  // Permission-Badges für einen User
   const PermBadges = ({ user }) => (
     <div className="flex flex-wrap gap-1 mt-1">
-      {user.isPassive
-        ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Passiv (kein Login)</span>
-        : PERMISSIONS.filter(p => user[p.key]).map(p => (
-          <span key={p.key} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-            style={{ backgroundColor: p.color + '18', color: p.color }}>
-            {p.label}
-          </span>
-        ))
-      }
-      {!user.isPassive && !PERMISSIONS.some(p => user[p.key]) && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">Kein Zugriff</span>
+      {PERMISSIONS.filter(p => user[p.key]).map(p => (
+        <span key={p.key} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+          style={{ backgroundColor: p.color + '18', color: p.color }}>
+          {p.label}
+        </span>
+      ))}
+      {!PERMISSIONS.some(p => user[p.key]) && (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-400">Kein Zugriff</span>
       )}
     </div>
   );
+
+  const StatusBadge = ({ user }) => {
+    const status = trainerStatus(user);
+    if (!status) return null;
+    const cfg = STATUS_CONFIG[status];
+    const Icon = cfg.icon;
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+        style={{ backgroundColor: cfg.bg, color: cfg.color }}>
+        <Icon style={{ width: '10px', height: '10px' }} />
+        {cfg.label}
+      </span>
+    );
+  };
 
   return (
     <>
@@ -113,7 +149,11 @@ const UserManagement = ({
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Benutzerverwaltung</h2>
-            <p className="text-gray-500 mt-1">{activeUsers.length} aktive · {passiveUsers.length} passive Trainer</p>
+            <p className="text-gray-500 mt-1">
+              {trainerUsers.filter(u => trainerStatus(u) === 'aktiv').length} aktiv · 
+              {trainerUsers.filter(u => trainerStatus(u) === 'eingeladen').length} eingeladen · 
+              {trainerUsers.filter(u => trainerStatus(u) === 'passiv').length} passiv
+            </p>
           </div>
           <button onClick={() => { setShowForm(true); setEditingUser(null); setNewUser(emptyUser); }}
             className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors gap-2">
@@ -121,48 +161,75 @@ const UserManagement = ({
           </button>
         </div>
 
-        {/* Tab: Aktiv / Passiv */}
+        {/* Tabs */}
         <div className="flex gap-2 mb-4 bg-gray-100 p-1.5 rounded-lg w-fit">
-          <button onClick={() => setFilterTab('aktiv')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              filterTab === 'aktiv' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'
-            }`}>
-            Aktive Benutzer <span className="ml-1 text-xs font-bold text-gray-500">{activeUsers.length}</span>
-          </button>
-          <button onClick={() => setFilterTab('passiv')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              filterTab === 'passiv' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'
-            }`}>
-            Passive Trainer <span className="ml-1 text-xs font-bold text-gray-500">{passiveUsers.length}</span>
-          </button>
+          {[{ key: 'trainer', label: 'Trainer / Übungsleiter', count: trainerUsers.length },
+            { key: 'andere',  label: 'Andere Benutzer',        count: andereUsers.length }].map(tab => (
+            <button key={tab.key} onClick={() => setFilterTab(tab.key)}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                filterTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+              }`}>
+              {tab.label} <span className="ml-1 text-xs font-bold text-gray-400">{tab.count}</span>
+            </button>
+          ))}
         </div>
+
+        {/* Trainer-Status-Legende */}
+        {filterTab === 'trainer' && (
+          <div className="flex gap-3 mb-4 flex-wrap">
+            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+              const Icon = cfg.icon;
+              const count = trainerUsers.filter(u => trainerStatus(u) === key).length;
+              return (
+                <div key={key} className="flex items-center gap-1.5 text-sm" style={{ color: cfg.color }}>
+                  <Icon style={{ width: '14px', height: '14px' }} />
+                  <span className="font-medium">{cfg.label}</span>
+                  <span className="text-gray-400">({count})</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Benutzerliste */}
         <div className="space-y-3">
-          {displayUsers.map(user => {
-            const initials   = `${(user.firstName||'?')[0]}${(user.lastName||'?')[0]}`.toUpperCase();
-            const isExpanded = expandedUser === user.id;
+          {sortedDisplay.map(user => {
+            const initials    = `${(user.firstName||'?')[0]}${(user.lastName||'?')[0]}`.toUpperCase();
+            const isExpanded  = expandedUser === user.id;
             const assignedIds = getAssignedResources(user.id);
-            const avatarColor = user.kannAdministrieren ? '#dc2626' : user.kannGenehmigen ? '#7c3aed' : user.kannBuchen ? '#2563eb' : '#6b7280';
+            const status      = trainerStatus(user);
+            const avatarColor = user.kannAdministrieren ? '#dc2626'
+              : user.kannGenehmigen   ? '#7c3aed'
+              : user.kannBuchen       ? '#2563eb'
+              : status === 'eingeladen' ? '#d97706'
+              : '#9ca3af';
+
+            // Teams dieses Trainers ermitteln (aus props nicht verfügbar, daher über users nicht möglich hier)
+            // Teams werden in OrganizationManagement verwaltet
 
             return (
               <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 min-w-0">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0"
-                      style={{ backgroundColor: user.isPassive ? '#9ca3af' : avatarColor }}>
+                      style={{ backgroundColor: avatarColor }}>
                       {initials}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{user.firstName} {user.lastName}</h3>
-                      <p className="text-sm text-gray-500">{user.email}</p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-gray-800">{user.firstName} {user.lastName}</h3>
+                        {status && <StatusBadge user={user} />}
+                      </div>
+                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <Mail className="w-3 h-3" />{user.email}
+                      </p>
                       {user.phone && <p className="text-sm text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{user.phone}</p>}
                       <PermBadges user={user} />
                     </div>
                   </div>
 
-                  <div className="flex gap-2 flex-shrink-0">
-                    {/* Ressourcen-Zuweisung nur für Genehmiger */}
+                  <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+                    {/* Genehmiger: Ressourcen zuweisen */}
                     {user.kannGenehmigen && !user.isPassive && addGenehmigerResource && (
                       <button onClick={() => setExpandedUser(isExpanded ? null : user.id)}
                         className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors gap-1.5 ${
@@ -171,19 +238,33 @@ const UserManagement = ({
                         <Shield className="w-4 h-4" />{isExpanded ? 'Schließen' : 'Ressourcen'}
                       </button>
                     )}
-                    {/* Passiven Trainer aktivieren */}
-                    {user.isPassive && (
-                      <button onClick={() => handleActivate(user)}
-                        className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition-colors">
-                        Aktivieren
+
+                    {/* Einladen: nur für passive Trainer */}
+                    {status === 'passiv' && inviteUser && (
+                      <button onClick={() => handleInvite(user)}
+                        disabled={inviting === user.id}
+                        className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white rounded-full text-sm font-medium hover:bg-blue-600 transition-colors gap-1.5 disabled:opacity-50">
+                        <Send className="w-4 h-4" />
+                        {inviting === user.id ? 'Sende...' : 'Einladen'}
                       </button>
                     )}
+
+                    {/* Erneut einladen: für eingeladene Trainer */}
+                    {status === 'eingeladen' && inviteUser && (
+                      <button onClick={() => handleInvite(user)}
+                        disabled={inviting === user.id}
+                        className="inline-flex items-center px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors gap-1.5 disabled:opacity-50">
+                        <Send className="w-4 h-4" />
+                        {inviting === user.id ? 'Sende...' : 'Erneut einladen'}
+                      </button>
+                    )}
+
                     <button onClick={() => handleEdit(user)}
                       className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
                       Bearbeiten
                     </button>
                     <button onClick={() => handleDelete(user.id)}
-                      className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-red-600 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors gap-1">
+                      className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-red-600 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -228,6 +309,12 @@ const UserManagement = ({
               </div>
             );
           })}
+
+          {sortedDisplay.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <p>Keine Einträge in dieser Kategorie</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -249,38 +336,36 @@ const UserManagement = ({
 
             <form onSubmit={handleSubmit}>
               <div style={{ padding:'1.25rem 1.5rem',display:'flex',flexDirection:'column',gap:'0.875rem' }}>
-
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.875rem' }}>
                   <div>
                     <label style={{ display:'block',fontSize:'0.875rem',fontWeight:500,color:'#374151',marginBottom:'0.25rem' }}>Vorname *</label>
-                    <input type="text" value={newUser.firstName} onChange={e => setNewUser({...newUser, firstName: e.target.value})}
+                    <input type="text" value={newUser.firstName} onChange={e => setNewUser({...newUser,firstName:e.target.value})}
                       style={{ width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display:'block',fontSize:'0.875rem',fontWeight:500,color:'#374151',marginBottom:'0.25rem' }}>Nachname *</label>
-                    <input type="text" value={newUser.lastName} onChange={e => setNewUser({...newUser, lastName: e.target.value})}
+                    <input type="text" value={newUser.lastName} onChange={e => setNewUser({...newUser,lastName:e.target.value})}
                       style={{ width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display:'block',fontSize:'0.875rem',fontWeight:500,color:'#374151',marginBottom:'0.25rem' }}>E-Mail *</label>
-                    <input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})}
+                    <input type="email" value={newUser.email} onChange={e => setNewUser({...newUser,email:e.target.value})}
                       style={{ width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem' }} required />
                   </div>
                   <div>
                     <label style={{ display:'block',fontSize:'0.875rem',fontWeight:500,color:'#374151',marginBottom:'0.25rem' }}>Telefon</label>
-                    <input type="tel" value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})}
+                    <input type="tel" value={newUser.phone} onChange={e => setNewUser({...newUser,phone:e.target.value})}
                       style={{ width:'100%',padding:'0.5rem 0.75rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',fontSize:'0.875rem' }} />
                   </div>
                 </div>
 
-                {/* Permission-Checkboxen */}
                 <div>
                   <label style={{ display:'block',fontSize:'0.875rem',fontWeight:600,color:'#374151',marginBottom:'0.5rem' }}>Berechtigungen</label>
                   <div style={{ display:'flex',flexDirection:'column',gap:'0.5rem' }}>
                     {PERMISSIONS.map(p => (
-                      <label key={p.key} style={{ display:'flex',alignItems:'flex-start',gap:'0.75rem',padding:'0.625rem 0.75rem',border:'1px solid #e5e7eb',borderRadius:'0.5rem',cursor:'pointer',backgroundColor: newUser[p.key] ? p.color+'10' : 'white',borderColor: newUser[p.key] ? p.color+'60' : '#e5e7eb' }}>
-                        <input type="checkbox" checked={newUser[p.key]} onChange={e => setNewUser({...newUser, [p.key]: e.target.checked})}
-                          style={{ width:'1rem',height:'1rem',marginTop:'2px',accentColor: p.color }} />
+                      <label key={p.key} style={{ display:'flex',alignItems:'flex-start',gap:'0.75rem',padding:'0.625rem 0.75rem',border:'1px solid',borderRadius:'0.5rem',cursor:'pointer',backgroundColor: newUser[p.key] ? p.color+'10' : 'white',borderColor: newUser[p.key] ? p.color+'60' : '#e5e7eb' }}>
+                        <input type="checkbox" checked={!!newUser[p.key]} onChange={e => setNewUser({...newUser,[p.key]:e.target.checked})}
+                          style={{ width:'1rem',height:'1rem',marginTop:'2px',accentColor:p.color }} />
                         <div>
                           <span style={{ fontWeight:500,fontSize:'0.875rem',color: newUser[p.key] ? p.color : '#374151' }}>{p.label}</span>
                           <p style={{ fontSize:'0.75rem',color:'#6b7280',marginTop:'1px' }}>{p.description}</p>
@@ -290,24 +375,21 @@ const UserManagement = ({
                   </div>
                 </div>
 
-                {/* Hinweis wenn kein Zugriff */}
                 {!PERMISSIONS.some(p => newUser[p.key]) && (
                   <div style={{ padding:'0.625rem 0.875rem',backgroundColor:'#fef3c7',borderRadius:'0.5rem',fontSize:'0.8125rem',color:'#92400e' }}>
                     ⚠️ Ohne Berechtigungen kann diese Person sich zwar einloggen, aber nichts tun.
                   </div>
                 )}
-
-                {/* Ressourcen-Zuweisung Hinweis für Genehmiger */}
                 {newUser.kannGenehmigen && (
                   <div style={{ padding:'0.625rem 0.875rem',backgroundColor:'#f5f3ff',borderRadius:'0.5rem',fontSize:'0.8125rem',color:'#6d28d9' }}>
-                    💡 Ressourcen-Zuweisung für Genehmigungen kannst du nach dem Anlegen in der Benutzerliste vornehmen.
+                    💡 Ressourcen-Zuweisung kannst du nach dem Anlegen in der Benutzerliste vornehmen.
                   </div>
                 )}
               </div>
 
               <div style={{ display:'flex',gap:'0.75rem',padding:'1.25rem 1.5rem',borderTop:'1px solid #e5e7eb',backgroundColor:'#f9fafb' }}>
                 <button type="submit" disabled={saving}
-                  style={{ flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0.625rem 1rem',backgroundColor: saving ? '#93c5fd' : '#3b82f6',color:'white',borderRadius:'0.5rem',fontWeight:500,border:'none',cursor: saving ? 'wait' : 'pointer',fontSize:'0.875rem' }}>
+                  style={{ flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0.625rem 1rem',backgroundColor: saving ? '#93c5fd':'#3b82f6',color:'white',borderRadius:'0.5rem',fontWeight:500,border:'none',cursor: saving?'wait':'pointer',fontSize:'0.875rem' }}>
                   {saving ? 'Speichern...' : editingUser ? 'Änderungen speichern' : 'Benutzer anlegen'}
                 </button>
                 <button type="button" onClick={closeModal}

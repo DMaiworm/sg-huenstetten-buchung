@@ -13,16 +13,17 @@ import { supabase } from '../lib/supabase';
 
 function profileToLegacyUser(profile) {
   return {
-    id:               profile.id,
-    firstName:        profile.first_name,
-    lastName:         profile.last_name,
-    email:            profile.email,
-    phone:            profile.phone || '',
-    operatorId:       profile.operator_id,
-    isPassive:        profile.is_passive        || false,
-    istTrainer:       profile.ist_trainer       || false,
-    kannBuchen:       profile.kann_buchen       || false,
-    kannGenehmigen:   profile.kann_genehmigen   || false,
+    id:                 profile.id,
+    firstName:          profile.first_name,
+    lastName:           profile.last_name,
+    email:              profile.email,
+    phone:              profile.phone || '',
+    operatorId:         profile.operator_id,
+    isPassive:          profile.is_passive          || false,
+    invitedAt:          profile.invited_at          || null,
+    istTrainer:         profile.ist_trainer         || false,
+    kannBuchen:         profile.kann_buchen         || false,
+    kannGenehmigen:     profile.kann_genehmigen     || false,
     kannAdministrieren: profile.kann_administrieren || false,
   };
 }
@@ -45,11 +46,9 @@ function legacyUserToProfile(user) {
 function dbFacilityToLegacy(f) {
   return { id: f.id, name: f.name, street: f.street || '', houseNumber: f.house_number || '', zip: f.zip || '', city: f.city || '', sortOrder: f.sort_order };
 }
-
 function dbResourceGroupToLegacy(g) {
   return { id: g.id, facilityId: g.facility_id, name: g.name, icon: g.icon, sortOrder: g.sort_order, sharedScheduling: g.shared_scheduling };
 }
-
 function buildConfigResources(allDbResources) {
   const parents  = allDbResources.filter(r => !r.parent_resource_id);
   const children = allDbResources.filter(r =>  r.parent_resource_id);
@@ -62,7 +61,6 @@ function buildConfigResources(allDbResources) {
       .map(c => ({ id: c.id, name: c.name, color: c.color })),
   }));
 }
-
 function dbSlotToLegacy(s) {
   return {
     id: s.id, resourceId: s.resource_id, dayOfWeek: s.day_of_week,
@@ -71,12 +69,10 @@ function dbSlotToLegacy(s) {
     validFrom: s.valid_from, validUntil: s.valid_until,
   };
 }
-
-function dbClubToLegacy(c)      { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
-function dbDepartmentToLegacy(d){ return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
-function dbTeamToLegacy(t)      { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
+function dbClubToLegacy(c)       { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
+function dbDepartmentToLegacy(d) { return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
+function dbTeamToLegacy(t)       { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
 function dbTrainerAssignmentToLegacy(ta) { return { id: ta.id, userId: ta.user_id, teamId: ta.team_id, isPrimary: ta.is_primary }; }
-
 function dbBookingToLegacy(b) {
   return {
     id: b.id, resourceId: b.resource_id, date: b.date,
@@ -88,7 +84,6 @@ function dbBookingToLegacy(b) {
     parentBooking: b.parent_booking || false,
   };
 }
-
 function legacyBookingToDb(b) {
   return {
     resource_id: b.resourceId, date: b.date,
@@ -109,6 +104,7 @@ export function useUsers() {
   const [error,   setError]    = useState(null);
   const [isDemo,  setIsDemo]   = useState(false);
 
+  // Auth-Account-Status parallel laden
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
@@ -150,8 +146,44 @@ export function useUsers() {
     } catch (err) { return { error: err.message }; }
   }, []);
 
+  /**
+   * Sendet eine Einladungs-E-Mail über die Edge Function invite-trainer.
+   * Setzt invited_at, is_passive=false, kann_buchen=true auf dem Profil.
+   */
+  const inviteUser = useCallback(async (userId) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return { error: 'User nicht gefunden' };
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        'https://zqjheewhgrmcwzjurjlg.supabase.co/functions/v1/invite-trainer',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            profileId: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.error) return { error: result.error || 'Unbekannter Fehler' };
+      // Lokalen State aktualisieren
+      setUsersState(p => p.map(u => u.id === userId
+        ? { ...u, invitedAt: new Date().toISOString(), isPassive: false, kannBuchen: true }
+        : u
+      ));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, [users]);
+
   const setUsers = useCallback((v) => setUsersState(v), []);
-  return { users, setUsers, loading, error, isDemo, createUser, updateUser, deleteUser, refreshUsers: fetchUsers };
+  return { users, setUsers, loading, error, isDemo, createUser, updateUser, deleteUser, inviteUser, refreshUsers: fetchUsers };
 }
 
 // ============================================================
