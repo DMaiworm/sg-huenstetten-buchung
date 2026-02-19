@@ -1,9 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { DEFAULT_CLUB, DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from './config/facilityConfig';
 import { DEFAULT_CLUBS, DEFAULT_DEPARTMENTS, DEFAULT_TEAMS, DEFAULT_TRAINER_ASSIGNMENTS } from './config/organizationConfig';
 import { EmailService } from './services/emailService';
 import { useUsers, useOperators, useFacilities, useOrganization, useBookings, useGenehmigerResources } from './hooks/useSupabase';
 import { useAuth } from './contexts/AuthContext';
+
+import ProtectedRoute from './routes/ProtectedRoute';
+import PermissionRoute from './routes/PermissionRoute';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import BookingRequest from './components/BookingRequest';
@@ -28,9 +32,15 @@ const DEMO_SLOTS = [
   { id: 5, resourceId: 'halle-klein', dayOfWeek: 4, startTime: '17:00', endTime: '21:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
 ];
 
-export default function SportvereinBuchung() {
-  const { user, profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin, loading: authLoading } = useAuth();
-  const [currentView, setCurrentView]           = useState('calendar');
+/**
+ * AppLayout – Hauptlayout mit Sidebar + Routing.
+ * Wird nur angezeigt wenn der User eingeloggt ist (via ProtectedRoute).
+ *
+ * Hinweis: Hooks/State bleiben vorerst hier.
+ * In Phase 3 werden sie in Contexts ausgelagert.
+ */
+function AppLayout() {
+  const { user, profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin } = useAuth();
   const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate]           = useState(new Date());
   const [emailService]                          = useState(() => new EmailService());
@@ -89,25 +99,19 @@ export default function SportvereinBuchung() {
     return false;
   }).length;
 
-  if (authLoading) return (
-    <div className="flex h-screen bg-gray-50 items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-        <p className="text-gray-500">Wird geladen...</p>
+  // Daten-Ladebildschirm
+  if (usersLoading || facilitiesLoading || orgLoading || bookingsLoading) {
+    return (
+      <div className="flex h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+          <p className="text-gray-500">Daten werden geladen...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  if (!user) return <LoginPage />;
-
-  if (usersLoading || facilitiesLoading || orgLoading || bookingsLoading) return (
-    <div className="flex h-screen bg-gray-50 items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-        <p className="text-gray-500">Daten werden geladen...</p>
-      </div>
-    </div>
-  );
+  // --- Handler (bleiben vorerst hier, Phase 4 extrahiert sie in Hooks) ---
 
   const resolveBookingStatus = (userId) => {
     const u = users.find(x => x.id === userId);
@@ -166,66 +170,109 @@ export default function SportvereinBuchung() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar currentView={currentView} setCurrentView={setCurrentView}
-        isAdmin={isAdmin} kannBuchen={kannBuchen} kannGenehmigen={kannGenehmigen}
-        kannAdministrieren={kannAdministrieren} pendingCount={pendingCount} />
+      <Sidebar
+        kannBuchen={kannBuchen} kannGenehmigen={kannGenehmigen}
+        kannAdministrieren={kannAdministrieren} pendingCount={pendingCount}
+      />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
-          {currentView === 'calendar' && (
-            <CalendarView bookings={bookings} slots={slots}
-              selectedResource={effectiveSelectedResource} setSelectedResource={setSelectedResource}
-              currentDate={currentDate} setCurrentDate={setCurrentDate}
-              users={users} resources={RESOURCES} {...facilityProps} />
-          )}
-          {currentView === 'my-bookings' && (
-            <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking}
-              users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
-          )}
-          {currentView === 'booking-request' && kannBuchen && (
-            <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking}
-              users={users} resources={RESOURCES} {...facilityProps} {...orgProps} />
-          )}
-          {currentView === 'approvals' && kannGenehmigen && (
-            <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject}
-              users={users} resources={RESOURCES}
-              genehmigerResources={myGenehmigerResources} isAdmin={kannAdministrieren} />
-          )}
-          {currentView === 'users' && kannAdministrieren && (
-            <UserManagement
-              users={users} setUsers={setUsers}
-              createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} inviteUser={inviteUser}
-              operators={operators}
-              resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities}
-              genehmigerAssignments={genehmigerAssignments}
-              addGenehmigerResource={addGenehmigerResource}
-              removeGenehmigerResource={removeGenehmigerResource}
-            />
-          )}
-          {currentView === 'emails' && kannAdministrieren && <EmailLog emailService={emailService} />}
-          {currentView === 'export' && (
-            <PDFExportPage bookings={bookings} users={users} onBack={() => setCurrentView('calendar')} resources={RESOURCES} />
-          )}
-          {currentView === 'facilities' && kannAdministrieren && (
-            <FacilityManagement facilities={facilities} setFacilities={setFacilities}
-              resourceGroups={resourceGroups} setResourceGroups={setResourceGroups}
-              resources={configResources} setResources={setConfigResources}
-              slots={slots} setSlots={setSlots} />
-          )}
-          {currentView === 'organization' && kannAdministrieren && (
-            <OrganizationManagement
-              clubs={orgClubs} departments={departments} teams={teams} trainerAssignments={trainerAssignments}
-              users={users}
-              createClub={isOrgDemo ? undefined : createClub} updateClub={isOrgDemo ? undefined : updateClub} deleteClub={isOrgDemo ? undefined : deleteClub}
-              createDepartment={isOrgDemo ? undefined : createDepartment} updateDepartment={isOrgDemo ? undefined : updateDepartment} deleteDepartment={isOrgDemo ? undefined : deleteDepartment}
-              createTeam={isOrgDemo ? undefined : createTeam} updateTeam={isOrgDemo ? undefined : updateTeam} deleteTeam={isOrgDemo ? undefined : deleteTeam}
-              createTrainerAssignment={isOrgDemo ? undefined : createTrainerAssignment}
-              updateTrainerAssignment={isOrgDemo ? undefined : updateTrainerAssignment}
-              deleteTrainerAssignment={isOrgDemo ? undefined : deleteTrainerAssignment}
-              setClubs={setDbClubs} setDepartments={setDbDepartments} setTeams={setDbTeams} setTrainerAssignments={setDbTrainerAssignments}
-            />
-          )}
+          <Routes>
+            {/* Allgemein */}
+            <Route path="/" element={
+              <CalendarView bookings={bookings} slots={slots}
+                selectedResource={effectiveSelectedResource} setSelectedResource={setSelectedResource}
+                currentDate={currentDate} setCurrentDate={setCurrentDate}
+                users={users} resources={RESOURCES} {...facilityProps} />
+            } />
+            <Route path="/meine-buchungen" element={
+              <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking}
+                users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
+            } />
+            <Route path="/export" element={
+              <PDFExportPage bookings={bookings} users={users} onBack={() => {}} resources={RESOURCES} />
+            } />
+
+            {/* Buchen – erfordert kannBuchen */}
+            <Route path="/buchen" element={
+              <PermissionRoute permission="kannBuchen">
+                <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking}
+                  users={users} resources={RESOURCES} {...facilityProps} {...orgProps} />
+              </PermissionRoute>
+            } />
+
+            {/* Genehmigungen – erfordert kannGenehmigen */}
+            <Route path="/genehmigungen" element={
+              <PermissionRoute permission="kannGenehmigen">
+                <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject}
+                  users={users} resources={RESOURCES}
+                  genehmigerResources={myGenehmigerResources} isAdmin={kannAdministrieren} />
+              </PermissionRoute>
+            } />
+
+            {/* Admin-Bereich – erfordert kannAdministrieren */}
+            <Route path="/admin/benutzer" element={
+              <PermissionRoute permission="kannAdministrieren">
+                <UserManagement
+                  users={users} setUsers={setUsers}
+                  createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} inviteUser={inviteUser}
+                  operators={operators}
+                  resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities}
+                  genehmigerAssignments={genehmigerAssignments}
+                  addGenehmigerResource={addGenehmigerResource}
+                  removeGenehmigerResource={removeGenehmigerResource}
+                />
+              </PermissionRoute>
+            } />
+            <Route path="/admin/anlagen" element={
+              <PermissionRoute permission="kannAdministrieren">
+                <FacilityManagement facilities={facilities} setFacilities={setFacilities}
+                  resourceGroups={resourceGroups} setResourceGroups={setResourceGroups}
+                  resources={configResources} setResources={setConfigResources}
+                  slots={slots} setSlots={setSlots} />
+              </PermissionRoute>
+            } />
+            <Route path="/admin/organisation" element={
+              <PermissionRoute permission="kannAdministrieren">
+                <OrganizationManagement
+                  clubs={orgClubs} departments={departments} teams={teams} trainerAssignments={trainerAssignments}
+                  users={users}
+                  createClub={isOrgDemo ? undefined : createClub} updateClub={isOrgDemo ? undefined : updateClub} deleteClub={isOrgDemo ? undefined : deleteClub}
+                  createDepartment={isOrgDemo ? undefined : createDepartment} updateDepartment={isOrgDemo ? undefined : updateDepartment} deleteDepartment={isOrgDemo ? undefined : deleteDepartment}
+                  createTeam={isOrgDemo ? undefined : createTeam} updateTeam={isOrgDemo ? undefined : updateTeam} deleteTeam={isOrgDemo ? undefined : deleteTeam}
+                  createTrainerAssignment={isOrgDemo ? undefined : createTrainerAssignment}
+                  updateTrainerAssignment={isOrgDemo ? undefined : updateTrainerAssignment}
+                  deleteTrainerAssignment={isOrgDemo ? undefined : deleteTrainerAssignment}
+                  setClubs={setDbClubs} setDepartments={setDbDepartments} setTeams={setDbTeams} setTrainerAssignments={setDbTrainerAssignments}
+                />
+              </PermissionRoute>
+            } />
+            <Route path="/admin/emails" element={
+              <PermissionRoute permission="kannAdministrieren">
+                <EmailLog emailService={emailService} />
+              </PermissionRoute>
+            } />
+
+            {/* Fallback: unbekannte Routen → Kalender */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
       </main>
     </div>
+  );
+}
+
+/**
+ * App – Wurzelkomponente mit Login-Route und geschütztem Layout.
+ */
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      } />
+    </Routes>
   );
 }
