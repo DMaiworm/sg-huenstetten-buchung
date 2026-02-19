@@ -41,7 +41,9 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
   const [expanded, setExpanded] = useState(false);
   const teamAssignments = trainerAssignments.filter(ta => ta.teamId === team.id);
   const assignedUserIds = teamAssignments.map(ta => ta.userId);
-  const availableTrainers = users.filter(u => (u.role === 'trainer' || u.role === 'admin') && !assignedUserIds.includes(u.id));
+
+  // Alle Trainer (ist_trainer=true) die noch nicht zugewiesen sind
+  const availableTrainers = users.filter(u => u.istTrainer && !assignedUserIds.includes(u.id));
 
   return (
     <div className="border border-gray-200 rounded-lg bg-white mb-2 overflow-hidden">
@@ -123,14 +125,21 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
                   onUpdate={onUpdateAssignment} onRemove={() => onRemoveTrainer(ta.id)} />
               ))}
             </div>
-            {availableTrainers.length > 0 && (
-              <select onChange={e => { if (e.target.value) { onAddTrainer(team.id, Number(e.target.value)); e.target.value = ''; } }}
+            {availableTrainers.length > 0 ? (
+              <select onChange={e => { if (e.target.value) { onAddTrainer(team.id, e.target.value); e.target.value = ''; } }}
                 defaultValue="" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 text-gray-500">
                 <option value="">+ Trainer hinzuf{UMLAUT_U}gen...</option>
                 {availableTrainers.map(u => (
-                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName} ({u.role === 'admin' ? 'Admin' : 'Trainer'})</option>
+                  <option key={u.id} value={u.id}>
+                    {u.firstName} {u.lastName}
+                    {u.kannAdministrieren ? ' (Admin)' : u.isPassive ? ' (passiv)' : u.invitedAt ? ' (eingeladen)' : ' (aktiv)'}
+                  </option>
                 ))}
               </select>
+            ) : (
+              availableTrainers.length === 0 && users.filter(u => u.istTrainer).length === 0 && (
+                <p className="text-xs text-gray-400 italic">Keine Trainer im System vorhanden</p>
+              )
             )}
           </div>
         </div>
@@ -273,7 +282,6 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
   const [addingClub, setAddingClub] = useState(false);
   const [newClubForm, setNewClubForm] = useState({ name: '', shortName: '', color: '#6b7280', isHomeClub: false });
 
-  // --- Club CRUD ---
   const handleAddClub = () => {
     setClubs([...clubs, { ...newClubForm, id: generateOrgId('club') }]);
     setNewClubForm({ name: '', shortName: '', color: '#6b7280', isHomeClub: false });
@@ -296,7 +304,6 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
     setClubs(clubs.filter(c => c.id !== id));
   };
 
-  // --- Department CRUD ---
   const handleAddDept = (clubId) => {
     const clubDepts = departments.filter(d => d.clubId === clubId);
     setDepartments([...departments, {
@@ -317,7 +324,6 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
     setDepartments(departments.filter(d => d.id !== id));
   };
 
-  // --- Team CRUD ---
   const handleAddTeam = (departmentId) => {
     const deptTeams = teams.filter(t => t.departmentId === departmentId);
     setTeams([...teams, {
@@ -333,18 +339,16 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
     setTeams(teams.filter(t => t.id !== id));
   };
 
-  // --- Trainer Assignment CRUD ---
   const handleAddTrainer = (teamId, userId) => {
     setTrainerAssignments([...trainerAssignments, {
-      id: generateOrgId('ta'), userId, teamId, isPrimary: trainerAssignments.filter(ta => ta.teamId === teamId).length === 0,
+      id: generateOrgId('ta'), userId, teamId,
+      isPrimary: trainerAssignments.filter(ta => ta.teamId === teamId).length === 0,
     }]);
   };
 
   const handleUpdateAssignment = (updated) => setTrainerAssignments(trainerAssignments.map(ta => ta.id === updated.id ? updated : ta));
-
   const handleRemoveTrainer = (id) => setTrainerAssignments(trainerAssignments.filter(ta => ta.id !== id));
 
-  // Stats
   const totalTeams = teams.length;
   const totalAssignments = trainerAssignments.length;
 
@@ -371,7 +375,6 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
         </Button>
       </div>
 
-      {/* Add Club Form */}
       {addingClub && (
         <div className="mb-6 border-2 border-blue-300 rounded-lg p-4 bg-blue-50/30">
           <h4 className="font-bold text-gray-900 mb-3">Neuen Verein anlegen</h4>
@@ -391,7 +394,6 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
         </div>
       )}
 
-      {/* Club List */}
       {clubs.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
           <Building className="w-10 h-10 text-gray-300 mx-auto mb-3" />
