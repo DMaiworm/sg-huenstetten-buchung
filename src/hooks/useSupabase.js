@@ -16,6 +16,7 @@ function profileToLegacyUser(profile) {
     id: profile.id, firstName: profile.first_name, lastName: profile.last_name,
     email: profile.email, phone: profile.phone || '', role: profile.role,
     operatorId: profile.operator_id, club: '', team: '',
+    isPassive: profile.is_passive || false,
   };
 }
 
@@ -23,6 +24,7 @@ function legacyUserToProfile(user) {
   return {
     first_name: user.firstName, last_name: user.lastName, email: user.email,
     phone: user.phone || null, role: user.role, operator_id: user.operatorId || null,
+    is_passive: user.isPassive || false,
   };
 }
 
@@ -341,7 +343,6 @@ export function useBookings() {
 
 // ============================================================
 // useGenehmigerResources
-// Lädt und verwaltet die Ressourcen-Zuweisungen für Genehmiger
 // ============================================================
 export function useGenehmigerResources() {
   const [assignments, setAssignments] = useState([]);
@@ -358,12 +359,10 @@ export function useGenehmigerResources() {
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  /** Gibt die resourceIds zurück, die ein bestimmter Genehmiger genehmigen darf. */
   const getResourcesForUser = useCallback((userId) => {
     return assignments.filter(a => a.user_id === userId).map(a => a.resource_id);
   }, [assignments]);
 
-  /** Gibt alle Genehmiger-IDs zurück, die eine bestimmte Ressource genehmigen dürfen. */
   const getUsersForResource = useCallback((resourceId) => {
     return assignments.filter(a => a.resource_id === resourceId).map(a => a.user_id);
   }, [assignments]);
