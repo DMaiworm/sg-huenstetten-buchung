@@ -1,15 +1,15 @@
 /**
  * Shared utility / helper functions.
  *
- * Pure functions only \u2013 no React, no side-effects.
+ * Pure functions only - no React, no side-effects.
  * Used across CalendarView, BookingRequest, conflict checks, etc.
  */
 
 import { EVENT_TYPES } from '../config/organizationConfig';
 
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─────────────────────────────────────────────────
 //  Date formatting
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 
 /** Format a Date as "dd.MM.yyyy" (German locale). */
 export const formatDate = (date) => {
@@ -24,9 +24,9 @@ export const formatDateISO = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ───────────────────────────────────────────────
 //  Week helpers
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 
 /**
  * Return the Monday (start of ISO week) for any given date.
@@ -61,9 +61,9 @@ export const getWeekDates = (date) => {
   });
 };
 
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 //  Time helpers
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 
 /** Convert "HH:MM" to total minutes since midnight. */
 export const timeToMinutes = (time) => {
@@ -71,9 +71,9 @@ export const timeToMinutes = (time) => {
   return h * 60 + m;
 };
 
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 //  Series / recurrence
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 
 /**
  * Generate all ISO date strings for a recurring weekly event.
@@ -97,9 +97,9 @@ export const generateSeriesDates = (dayOfWeek, startDate, endDate) => {
   return dates;
 };
 
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 //  Conflict detection
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ────────────────────────────────────────────────
 
 /** Check whether two time ranges overlap. */
 export const hasTimeOverlap = (start1, end1, start2, end2) => {
@@ -146,7 +146,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
         new Date(date) <= new Date(s.validUntil)
       );
       if (!availableSlot) {
-        dateConflicts.push({ type: 'no_slot', message: 'Kein verf\u00fcgbarer Slot an diesem Tag', severity: 'error' });
+        dateConflicts.push({ type: 'no_slot', message: 'Kein verfügbarer Slot an diesem Tag', severity: 'error' });
       } else {
         const reqStart = timeToMinutes(startTime);
         const reqEnd = timeToMinutes(endTime);
@@ -155,7 +155,7 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
         if (reqStart < slotStart || reqEnd > slotEnd) {
           dateConflicts.push({
             type: 'outside_slot',
-            message: `Zeit au\u00dferhalb des Slots (${availableSlot.startTime}-${availableSlot.endTime})`,
+            message: `Zeit außerhalb des Slots (${availableSlot.startTime}-${availableSlot.endTime})`,
             severity: 'error',
             slot: availableSlot,
           });
@@ -179,8 +179,8 @@ export const checkBookingConflicts = (resourceId, dates, startTime, endTime, boo
           booking,
           existingType,
           explanation: severity === 'error'
-            ? 'Diese Buchungstypen k\u00f6nnen sich nicht \u00fcberschneiden'
-            : '\u00dcberschneidung m\u00f6glich, aber pr\u00fcfen Sie ob sinnvoll',
+            ? 'Diese Buchungstypen können sich nicht überschneiden'
+            : '\u00dcberschneidung möglich, aber prüfen Sie ob sinnvoll',
         });
       }
       // 2b) Composite: sub-resource booked while requesting whole field
