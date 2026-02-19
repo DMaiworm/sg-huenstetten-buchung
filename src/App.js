@@ -6,6 +6,7 @@ import { FacilityProvider, useFacility } from './contexts/FacilityContext';
 import { OrganizationProvider, useOrg } from './contexts/OrganizationContext';
 import { BookingProvider, useBookingContext } from './contexts/BookingContext';
 import { UserProvider, useUserContext } from './contexts/UserContext';
+import { useBookingActions } from './hooks/useBookingActions';
 
 import ProtectedRoute from './routes/ProtectedRoute';
 import PermissionRoute from './routes/PermissionRoute';
@@ -27,14 +28,15 @@ registerLocale('de', de);
 
 /**
  * AppLayout – Hauptlayout mit Sidebar + Routing.
- * Bezieht Daten aus Contexts statt Props.
+ * Bezieht Daten aus Contexts, Handler aus Custom Hooks.
  */
 function AppLayout() {
   const { profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin } = useAuth();
   const { facilities, resourceGroups, configResources, slots, setFacilities, setResourceGroups, setConfigResources, setSlots, RESOURCES, loading: facilitiesLoading } = useFacility();
   const org = useOrg();
-  const { bookings, createBookings, updateBookingStatus, updateSeriesStatus, deleteBooking, deleteBookingSeries, loading: bookingsLoading } = useBookingContext();
+  const { bookings, loading: bookingsLoading } = useBookingContext();
   const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
+  const { handleNewBooking, handleApprove, handleReject, handleDeleteBooking } = useBookingActions();
 
   const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate]           = useState(new Date());
@@ -62,61 +64,7 @@ function AppLayout() {
     );
   }
 
-  // --- Handler (Phase 4 extrahiert diese in Custom Hooks) ---
-
-  const resolveBookingStatus = (userId) => {
-    const u = users.find(x => x.id === userId);
-    return (u?.kannGenehmigen || u?.kannAdministrieren) ? 'approved' : 'pending';
-  };
-
-  const handleApprove = async (id) => {
-    const booking = bookings.find(b => b.id === id);
-    if (!booking) return;
-    const result = booking.seriesId ? await updateSeriesStatus(booking.seriesId, 'approved') : await updateBookingStatus(id, 'approved');
-    if (result.error) window.alert('Fehler: ' + result.error);
-  };
-
-  const handleReject = async (id) => {
-    const booking = bookings.find(b => b.id === id);
-    if (!booking) return;
-    const result = booking.seriesId ? await updateSeriesStatus(booking.seriesId, 'rejected') : await updateBookingStatus(id, 'rejected');
-    if (result.error) window.alert('Fehler: ' + result.error);
-  };
-
-  const handleNewBooking = async (data) => {
-    if (!data.userId) { window.alert('Kein Trainer f\u00fcr die ausgew\u00e4hlte Mannschaft gefunden.'); return; }
-    const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
-    const seriesId      = needsSeriesId ? `series-${Date.now()}` : null;
-    const bookingStatus = resolveBookingStatus(data.userId);
-    const newBookings = data.dates.map(date => ({
-      resourceId: data.resourceId, date,
-      startTime: data.startTime, endTime: data.endTime,
-      title: data.title, description: data.description,
-      bookingType: data.bookingType, userId: data.userId,
-      status: bookingStatus, seriesId,
-    }));
-    if (data.isComposite && data.includedResources) {
-      data.includedResources.forEach(resId => {
-        data.dates.forEach(date => {
-          newBookings.push({
-            resourceId: resId, date, startTime: data.startTime, endTime: data.endTime,
-            title: data.title + ' (Ganzes Feld)', bookingType: data.bookingType,
-            userId: data.userId, status: bookingStatus, seriesId, parentBooking: true,
-          });
-        });
-      });
-    }
-    const result = await createBookings(newBookings);
-    if (result.error) { window.alert('Fehler: ' + result.error); return; }
-    window.alert('Buchungsanfrage f\u00fcr ' + data.dates.length + ' Termin(e) eingereicht!');
-  };
-
-  const handleDeleteBooking = async (bookingId, deleteType, seriesId) => {
-    const result = deleteType === 'series' && seriesId ? await deleteBookingSeries(seriesId) : await deleteBooking(bookingId);
-    if (result.error) window.alert('Fehler: ' + result.error);
-  };
-
-  // Shorthand-Props f\u00fcr Komponenten die noch nicht auf Contexts umgestellt sind
+  // Shorthand-Props für Komponenten die noch nicht auf Contexts umgestellt sind
   const orgProps      = { clubs: org.clubs, departments: org.departments, teams: org.teams, trainerAssignments: org.trainerAssignments };
   const facilityProps = { facilities, resourceGroups };
 
