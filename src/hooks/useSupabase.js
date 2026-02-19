@@ -1,7 +1,5 @@
 /**
  * Supabase hooks for data loading and CRUD operations.
- *
- * Hooks: useUsers, useOperators, useFacilities, useOrganization, useBookings, useGenehmigerResources
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -104,7 +102,6 @@ export function useUsers() {
   const [error,   setError]    = useState(null);
   const [isDemo,  setIsDemo]   = useState(false);
 
-  // Auth-Account-Status parallel laden
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
@@ -146,10 +143,6 @@ export function useUsers() {
     } catch (err) { return { error: err.message }; }
   }, []);
 
-  /**
-   * Sendet eine Einladungs-E-Mail über die Edge Function invite-trainer.
-   * Setzt invited_at, is_passive=false, kann_buchen=true auf dem Profil.
-   */
   const inviteUser = useCallback(async (userId) => {
     const user = users.find(u => u.id === userId);
     if (!user) return { error: 'User nicht gefunden' };
@@ -159,21 +152,12 @@ export function useUsers() {
         'https://zqjheewhgrmcwzjurjlg.supabase.co/functions/v1/invite-trainer',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            profileId: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-          }),
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ profileId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName }),
         }
       );
       const result = await response.json();
       if (!response.ok || result.error) return { error: result.error || 'Unbekannter Fehler' };
-      // Lokalen State aktualisieren
       setUsersState(p => p.map(u => u.id === userId
         ? { ...u, invitedAt: new Date().toISOString(), isPassive: false, kannBuchen: true }
         : u
@@ -250,7 +234,7 @@ export function useFacilities() {
 }
 
 // ============================================================
-// useOrganization
+// useOrganization  –  alle Mutationen schreiben direkt in Supabase
 // ============================================================
 export function useOrganization() {
   const [clubs,              setClubsState]              = useState([]);
@@ -285,12 +269,164 @@ export function useOrganization() {
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // --- Clubs ---
+  const createClub = useCallback(async (clubData) => {
+    try {
+      const { data, error } = await supabase.from('clubs').insert({
+        name: clubData.name, short_name: clubData.shortName || '',
+        color: clubData.color || '#3b82f6', is_home_club: clubData.isHomeClub || false,
+      }).select().single();
+      if (error) throw error;
+      const c = dbClubToLegacy(data);
+      setClubsState(p => [...p, c]);
+      return { data: c, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateClub = useCallback(async (club) => {
+    try {
+      const { data, error } = await supabase.from('clubs').update({
+        name: club.name, short_name: club.shortName || '',
+        color: club.color, is_home_club: club.isHomeClub || false,
+      }).eq('id', club.id).select().single();
+      if (error) throw error;
+      const c = dbClubToLegacy(data);
+      setClubsState(p => p.map(x => x.id === c.id ? c : x));
+      return { data: c, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteClub = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('clubs').delete().eq('id', id);
+      if (error) throw error;
+      setClubsState(p => p.filter(c => c.id !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // --- Departments ---
+  const createDepartment = useCallback(async (deptData) => {
+    try {
+      const { data, error } = await supabase.from('departments').insert({
+        club_id: deptData.clubId, name: deptData.name,
+        icon: deptData.icon || null, sort_order: deptData.sortOrder || 0,
+      }).select().single();
+      if (error) throw error;
+      const d = dbDepartmentToLegacy(data);
+      setDepartmentsState(p => [...p, d]);
+      return { data: d, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateDepartment = useCallback(async (dept) => {
+    try {
+      const { data, error } = await supabase.from('departments').update({
+        name: dept.name, icon: dept.icon || null, sort_order: dept.sortOrder || 0,
+      }).eq('id', dept.id).select().single();
+      if (error) throw error;
+      const d = dbDepartmentToLegacy(data);
+      setDepartmentsState(p => p.map(x => x.id === d.id ? d : x));
+      return { data: d, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteDepartment = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('departments').delete().eq('id', id);
+      if (error) throw error;
+      setDepartmentsState(p => p.filter(d => d.id !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // --- Teams ---
+  const createTeam = useCallback(async (teamData) => {
+    try {
+      const { data, error } = await supabase.from('teams').insert({
+        department_id: teamData.departmentId, name: teamData.name,
+        short_name: teamData.shortName || '', color: teamData.color || '#3b82f6',
+        sort_order: teamData.sortOrder || 0, event_types: teamData.eventTypes || ['training'],
+      }).select().single();
+      if (error) throw error;
+      const t = dbTeamToLegacy(data);
+      setTeamsState(p => [...p, t]);
+      return { data: t, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateTeam = useCallback(async (team) => {
+    try {
+      const { data, error } = await supabase.from('teams').update({
+        name: team.name, short_name: team.shortName || '',
+        color: team.color, sort_order: team.sortOrder || 0,
+        event_types: team.eventTypes || ['training'],
+      }).eq('id', team.id).select().single();
+      if (error) throw error;
+      const t = dbTeamToLegacy(data);
+      setTeamsState(p => p.map(x => x.id === t.id ? t : x));
+      return { data: t, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteTeam = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('teams').delete().eq('id', id);
+      if (error) throw error;
+      setTeamsState(p => p.filter(t => t.id !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // --- Trainer Assignments ---
+  const createTrainerAssignment = useCallback(async (userId, teamId, isPrimary) => {
+    try {
+      const { data, error } = await supabase.from('trainer_assignments').insert({
+        user_id: userId, team_id: teamId, is_primary: isPrimary,
+      }).select().single();
+      if (error) throw error;
+      const ta = dbTrainerAssignmentToLegacy(data);
+      setTrainerAssignmentsState(p => [...p, ta]);
+      return { data: ta, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateTrainerAssignment = useCallback(async (assignment) => {
+    try {
+      const { data, error } = await supabase.from('trainer_assignments').update({
+        is_primary: assignment.isPrimary,
+      }).eq('id', assignment.id).select().single();
+      if (error) throw error;
+      const ta = dbTrainerAssignmentToLegacy(data);
+      setTrainerAssignmentsState(p => p.map(x => x.id === ta.id ? ta : x));
+      return { data: ta, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteTrainerAssignment = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('trainer_assignments').delete().eq('id', id);
+      if (error) throw error;
+      setTrainerAssignmentsState(p => p.filter(ta => ta.id !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // Legacy setters (für Demo-Fallback in App.js)
   const setClubs              = useCallback((v) => setClubsState(v),              []);
   const setDepartments        = useCallback((v) => setDepartmentsState(v),        []);
   const setTeams              = useCallback((v) => setTeamsState(v),              []);
   const setTrainerAssignments = useCallback((v) => setTrainerAssignmentsState(v), []);
 
-  return { clubs, setClubs, departments, setDepartments, teams, setTeams, trainerAssignments, setTrainerAssignments, loading, isDemo, refreshOrganization: fetchAll };
+  return {
+    clubs, departments, teams, trainerAssignments, loading, isDemo,
+    setClubs, setDepartments, setTeams, setTrainerAssignments,
+    createClub, updateClub, deleteClub,
+    createDepartment, updateDepartment, deleteDepartment,
+    createTeam, updateTeam, deleteTeam,
+    createTrainerAssignment, updateTrainerAssignment, deleteTrainerAssignment,
+    refreshOrganization: fetchAll,
+  };
 }
 
 // ============================================================

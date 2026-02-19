@@ -35,7 +35,7 @@ export default function SportvereinBuchung() {
   const [currentDate, setCurrentDate]           = useState(new Date());
   const [emailService]                          = useState(() => new EmailService());
 
-  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, isDemo: isUserDemo, loading: usersLoading } = useUsers();
+  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, loading: usersLoading } = useUsers();
   const { operators } = useOperators();
   const {
     facilities: dbFacilities, setFacilities: setDbFacilities,
@@ -45,10 +45,12 @@ export default function SportvereinBuchung() {
     loading: facilitiesLoading, isDemo: isFacilityDemo,
   } = useFacilities();
   const {
-    clubs: dbClubs, setClubs: setDbClubs,
-    departments: dbDepartments, setDepartments: setDbDepartments,
-    teams: dbTeams, setTeams: setDbTeams,
-    trainerAssignments: dbTrainerAssignments, setTrainerAssignments: setDbTrainerAssignments,
+    clubs: dbClubs, departments: dbDepartments, teams: dbTeams, trainerAssignments: dbTrainerAssignments,
+    setClubs: setDbClubs, setDepartments: setDbDepartments, setTeams: setDbTeams, setTrainerAssignments: setDbTrainerAssignments,
+    createClub, updateClub, deleteClub,
+    createDepartment, updateDepartment, deleteDepartment,
+    createTeam, updateTeam, deleteTeam,
+    createTrainerAssignment, updateTrainerAssignment, deleteTrainerAssignment,
     loading: orgLoading, isDemo: isOrgDemo,
   } = useOrganization();
   const {
@@ -75,12 +77,7 @@ export default function SportvereinBuchung() {
   const departments        = isOrgDemo ? DEFAULT_DEPARTMENTS         : dbDepartments;
   const teams              = isOrgDemo ? DEFAULT_TEAMS               : dbTeams;
   const trainerAssignments = isOrgDemo ? DEFAULT_TRAINER_ASSIGNMENTS  : dbTrainerAssignments;
-  const setOrgClubs           = isOrgDemo ? () => {} : setDbClubs;
-  const setDepartments        = isOrgDemo ? () => {} : setDbDepartments;
-  const setTeams              = isOrgDemo ? () => {} : setDbTeams;
-  const setTrainerAssignments = isOrgDemo ? () => {} : setDbTrainerAssignments;
 
-  const [club] = useState(DEFAULT_CLUB);
   const RESOURCES = useMemo(() => buildLegacyResources(resourceGroups, configResources), [resourceGroups, configResources]);
   const effectiveSelectedResource = selectedResource || (RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id || null);
 
@@ -124,7 +121,7 @@ export default function SportvereinBuchung() {
     if (result.error) window.alert('Fehler: ' + result.error);
   };
 
-  const handleReject = async (id, reason = '') => {
+  const handleReject = async (id) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
     const result = booking.seriesId ? await updateSeriesStatus(booking.seriesId, 'rejected') : await updateBookingStatus(id, 'rejected');
@@ -136,7 +133,6 @@ export default function SportvereinBuchung() {
     const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
     const seriesId      = needsSeriesId ? `series-${Date.now()}` : null;
     const bookingStatus = resolveBookingStatus(data.userId);
-
     const newBookings = data.dates.map(date => ({
       resourceId: data.resourceId, date,
       startTime: data.startTime, endTime: data.endTime,
@@ -144,7 +140,6 @@ export default function SportvereinBuchung() {
       bookingType: data.bookingType, userId: data.userId,
       status: bookingStatus, seriesId,
     }));
-
     if (data.isComposite && data.includedResources) {
       data.includedResources.forEach(resId => {
         data.dates.forEach(date => {
@@ -156,7 +151,6 @@ export default function SportvereinBuchung() {
         });
       });
     }
-
     const result = await createBookings(newBookings);
     if (result.error) { window.alert('Fehler: ' + result.error); return; }
     window.alert('Buchungsanfrage für ' + data.dates.length + ' Termin(e) eingereicht!');
@@ -218,11 +212,17 @@ export default function SportvereinBuchung() {
               slots={slots} setSlots={setSlots} />
           )}
           {currentView === 'organization' && kannAdministrieren && (
-            <OrganizationManagement clubs={orgClubs} setClubs={setOrgClubs}
-              departments={departments} setDepartments={setDepartments}
-              teams={teams} setTeams={setTeams}
-              trainerAssignments={trainerAssignments} setTrainerAssignments={setTrainerAssignments}
-              users={users} />
+            <OrganizationManagement
+              clubs={orgClubs} departments={departments} teams={teams} trainerAssignments={trainerAssignments}
+              users={users}
+              createClub={isOrgDemo ? undefined : createClub} updateClub={isOrgDemo ? undefined : updateClub} deleteClub={isOrgDemo ? undefined : deleteClub}
+              createDepartment={isOrgDemo ? undefined : createDepartment} updateDepartment={isOrgDemo ? undefined : updateDepartment} deleteDepartment={isOrgDemo ? undefined : deleteDepartment}
+              createTeam={isOrgDemo ? undefined : createTeam} updateTeam={isOrgDemo ? undefined : updateTeam} deleteTeam={isOrgDemo ? undefined : deleteTeam}
+              createTrainerAssignment={isOrgDemo ? undefined : createTrainerAssignment}
+              updateTrainerAssignment={isOrgDemo ? undefined : updateTrainerAssignment}
+              deleteTrainerAssignment={isOrgDemo ? undefined : deleteTrainerAssignment}
+              setClubs={setDbClubs} setDepartments={setDbDepartments} setTeams={setDbTeams} setTrainerAssignments={setDbTrainerAssignments}
+            />
           )}
         </div>
       </main>

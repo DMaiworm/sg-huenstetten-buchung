@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Building, UserCheck, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { Button, Badge } from '../ui/Badge';
-import { generateOrgId, EVENT_TYPES } from '../../config/organizationConfig';
+import { EVENT_TYPES } from '../../config/organizationConfig';
 
 const UMLAUT_O = String.fromCharCode(246);
 const UMLAUT_U = String.fromCharCode(252);
@@ -23,11 +23,11 @@ const TrainerAssignmentRow = ({ assignment, users, onUpdate, onRemove }) => {
       </div>
       <span className="flex-1 font-medium text-gray-700">{user.firstName} {user.lastName}</span>
       {assignment.isPrimary ? (
-        <button onClick={() => onUpdate({ ...assignment, isPrimary: false })} className="text-xs text-yellow-600 flex items-center gap-0.5" title="Haupttrainer">
+        <button onClick={() => onUpdate({ ...assignment, isPrimary: false })} className="text-xs text-yellow-600 flex items-center gap-0.5">
           <Star className="w-3 h-3 fill-yellow-500" /> Haupt
         </button>
       ) : (
-        <button onClick={() => onUpdate({ ...assignment, isPrimary: true })} className="text-xs text-gray-400 flex items-center gap-0.5" title="Zum Haupttrainer machen">
+        <button onClick={() => onUpdate({ ...assignment, isPrimary: true })} className="text-xs text-gray-400 flex items-center gap-0.5">
           <Star className="w-3 h-3" /> Co
         </button>
       )}
@@ -36,13 +36,30 @@ const TrainerAssignmentRow = ({ assignment, users, onUpdate, onRemove }) => {
   );
 };
 
+// ===================== Debounced Team Name Input =====================
+// Schreibt nach 800ms Pause in die DB, um nicht bei jedem Tastendruck zu speichern
+const DebouncedInput = ({ value, onChange, className, placeholder }) => {
+  const [local, setLocal] = useState(value);
+  const timer = useRef(null);
+
+  const handleChange = (e) => {
+    const v = e.target.value;
+    setLocal(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => onChange(v), 800);
+  };
+
+  // Sync wenn sich der externe Wert ändert (z.B. nach DB-Refresh)
+  React.useEffect(() => { setLocal(value); }, [value]);
+
+  return <input type="text" value={local} onChange={handleChange} className={className} placeholder={placeholder} />;
+};
+
 // ===================== Team Card =====================
 const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam, onAddTrainer, onUpdateAssignment, onRemoveTrainer }) => {
   const [expanded, setExpanded] = useState(false);
   const teamAssignments = trainerAssignments.filter(ta => ta.teamId === team.id);
   const assignedUserIds = teamAssignments.map(ta => ta.userId);
-
-  // Alle Trainer (ist_trainer=true) die noch nicht zugewiesen sind
   const availableTrainers = users.filter(u => u.istTrainer && !assignedUserIds.includes(u.id));
 
   return (
@@ -52,8 +69,11 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
         <div className="w-4 h-4 rounded" style={{ backgroundColor: team.color }} />
-        <input type="text" value={team.name} onChange={e => onUpdateTeam({ ...team, name: e.target.value })}
-          className="flex-1 px-2 py-1 text-sm font-medium border border-transparent hover:border-gray-200 rounded focus:ring-1 focus:ring-blue-500" />
+        <DebouncedInput
+          value={team.name}
+          onChange={name => onUpdateTeam({ ...team, name })}
+          className="flex-1 px-2 py-1 text-sm font-medium border border-transparent hover:border-gray-200 rounded focus:ring-1 focus:ring-blue-500"
+        />
         <div className="flex items-center gap-1.5">
           {teamAssignments.length > 0 && (
             <span className="text-xs text-gray-400 flex items-center gap-0.5">
@@ -73,12 +93,15 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
 
       {expanded && (
         <div className="border-t border-gray-100 p-3 bg-gray-50/50 space-y-3">
-          {/* Short name + color */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">K{UMLAUT_U}rzel</label>
-              <input type="text" value={team.shortName || ''} onChange={e => onUpdateTeam({ ...team, shortName: e.target.value })}
-                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500" placeholder="z.B. Herren I" />
+              <DebouncedInput
+                value={team.shortName || ''}
+                onChange={shortName => onUpdateTeam({ ...team, shortName })}
+                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500"
+                placeholder="z.B. Herren I"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Farbe</label>
@@ -92,7 +115,6 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
             </div>
           </div>
 
-          {/* Event Types */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Terminarten</label>
             <div className="flex flex-wrap gap-2">
@@ -103,7 +125,9 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
                     const types = team.eventTypes || [];
                     onUpdateTeam({ ...team, eventTypes: isActive ? types.filter(t => t !== et.id) : [...types, et.id] });
                   }}
-                    className={`px-2.5 py-1 text-xs rounded-full border transition-all flex items-center gap-1 ${isActive ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                    className={`px-2.5 py-1 text-xs rounded-full border transition-all flex items-center gap-1 ${
+                      isActive ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                    }`}>
                     <span>{et.icon}</span> {et.label}
                   </button>
                 );
@@ -111,7 +135,6 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
             </div>
           </div>
 
-          {/* Trainer Assignments */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
               <UserCheck className="w-3.5 h-3.5" /> {UMLAUT_U + 'bungsleiter / Trainer'}
@@ -125,7 +148,7 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
                   onUpdate={onUpdateAssignment} onRemove={() => onRemoveTrainer(ta.id)} />
               ))}
             </div>
-            {availableTrainers.length > 0 ? (
+            {availableTrainers.length > 0 && (
               <select onChange={e => { if (e.target.value) { onAddTrainer(team.id, e.target.value); e.target.value = ''; } }}
                 defaultValue="" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 text-gray-500">
                 <option value="">+ Trainer hinzuf{UMLAUT_U}gen...</option>
@@ -136,10 +159,6 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
                   </option>
                 ))}
               </select>
-            ) : (
-              availableTrainers.length === 0 && users.filter(u => u.istTrainer).length === 0 && (
-                <p className="text-xs text-gray-400 italic">Keine Trainer im System vorhanden</p>
-              )
             )}
           </div>
         </div>
@@ -149,7 +168,9 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
 };
 
 // ===================== Department Section =====================
-const DepartmentSection = ({ department, teams, users, trainerAssignments, onUpdateDept, onDeleteDept, onAddTeam, onUpdateTeam, onDeleteTeam, onAddTrainer, onUpdateAssignment, onRemoveTrainer }) => {
+const DepartmentSection = ({ department, teams, users, trainerAssignments,
+  onUpdateDept, onDeleteDept, onAddTeam, onUpdateTeam, onDeleteTeam,
+  onAddTrainer, onUpdateAssignment, onRemoveTrainer }) => {
   const [expanded, setExpanded] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const deptTeams = teams.filter(t => t.departmentId === department.id).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -163,14 +184,20 @@ const DepartmentSection = ({ department, teams, users, trainerAssignments, onUpd
         <span className="text-base">{department.icon || ''}</span>
         {editingName ? (
           <div className="flex-1 flex items-center gap-2">
-            <input type="text" value={department.name} onChange={e => onUpdateDept({ ...department, name: e.target.value })}
-              onBlur={() => setEditingName(false)} onKeyDown={e => e.key === 'Enter' && setEditingName(false)}
-              autoFocus className="flex-1 px-2 py-1 font-semibold text-sm border border-blue-300 rounded focus:ring-1 focus:ring-blue-500" />
-            <input type="text" value={department.icon || ''} onChange={e => onUpdateDept({ ...department, icon: e.target.value })}
+            <input type="text" value={department.name}
+              onChange={e => onUpdateDept({ ...department, name: e.target.value })}
+              onBlur={() => setEditingName(false)}
+              onKeyDown={e => e.key === 'Enter' && setEditingName(false)}
+              autoFocus className="flex-1 px-2 py-1 font-semibold text-sm border border-blue-300 rounded" />
+            <input type="text" value={department.icon || ''}
+              onChange={e => onUpdateDept({ ...department, icon: e.target.value })}
+              onBlur={() => setEditingName(false)}
               className="w-12 px-2 py-1 text-sm border border-gray-200 rounded text-center" placeholder="Icon" />
           </div>
         ) : (
-          <h4 className="font-semibold text-sm text-gray-800 flex-1 cursor-pointer" onClick={() => setEditingName(true)}>{department.name}</h4>
+          <h4 className="font-semibold text-sm text-gray-800 flex-1 cursor-pointer" onClick={() => setEditingName(true)}>
+            {department.name}
+          </h4>
         )}
         <span className="text-xs text-gray-400">{deptTeams.length} Mannschaft{deptTeams.length !== 1 ? 'en' : ''}</span>
         <button onClick={onDeleteDept} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -206,7 +233,6 @@ const ClubSection = ({ club, departments, teams, users, trainerAssignments,
 
   return (
     <div className="mb-6 border border-gray-200 rounded-xl overflow-hidden">
-      {/* Club Header */}
       <div className="bg-white p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <button onClick={() => setExpanded(!expanded)} className="text-gray-400 hover:text-gray-600">
@@ -219,14 +245,14 @@ const ClubSection = ({ club, departments, teams, users, trainerAssignments,
             <div className="flex-1 space-y-2">
               <div className="grid grid-cols-3 gap-2">
                 <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="col-span-2 px-2 py-1.5 text-sm font-bold border border-blue-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="Vereinsname" />
+                  className="col-span-2 px-2 py-1.5 text-sm font-bold border border-blue-300 rounded" placeholder="Vereinsname" />
                 <input type="text" value={form.shortName || ''} onChange={e => setForm({ ...form, shortName: e.target.value })}
-                  className="px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500" placeholder={'K' + UMLAUT_U + 'rzel'} />
+                  className="px-2 py-1.5 text-sm border border-gray-200 rounded" placeholder={'K' + UMLAUT_U + 'rzel'} />
               </div>
               <div className="flex items-center gap-2">
                 <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0" />
                 <label className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <input type="checkbox" checked={form.isHomeClub || false} onChange={e => setForm({ ...form, isHomeClub: e.target.checked })} className="w-3.5 h-3.5 text-blue-600 rounded" />
+                  <input type="checkbox" checked={form.isHomeClub || false} onChange={e => setForm({ ...form, isHomeClub: e.target.checked })} className="w-3.5 h-3.5" />
                   Heimatverein
                 </label>
                 <div className="ml-auto flex gap-1">
@@ -257,7 +283,6 @@ const ClubSection = ({ club, departments, teams, users, trainerAssignments,
         </div>
       </div>
 
-      {/* Departments & Teams */}
       {expanded && (
         <div className="bg-gray-50/50 p-4">
           {clubDepts.map(dept => (
@@ -278,76 +303,55 @@ const ClubSection = ({ club, departments, teams, users, trainerAssignments,
 };
 
 // ===================== Main Component =====================
-const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, teams, setTeams, trainerAssignments, setTrainerAssignments, users }) => {
+const OrganizationManagement = ({
+  clubs, departments, teams, trainerAssignments, users,
+  // Supabase-Mutationen
+  createClub, updateClub, deleteClub,
+  createDepartment, updateDepartment, deleteDepartment,
+  createTeam, updateTeam, deleteTeam,
+  createTrainerAssignment, updateTrainerAssignment, deleteTrainerAssignment,
+  // Legacy setters (Demo-Fallback)
+  setClubs, setDepartments, setTeams, setTrainerAssignments,
+}) => {
   const [addingClub, setAddingClub] = useState(false);
   const [newClubForm, setNewClubForm] = useState({ name: '', shortName: '', color: '#6b7280', isHomeClub: false });
 
-  const handleAddClub = () => {
-    setClubs([...clubs, { ...newClubForm, id: generateOrgId('club') }]);
+  const handleAddClub = async () => {
+    if (createClub) await createClub(newClubForm);
     setNewClubForm({ name: '', shortName: '', color: '#6b7280', isHomeClub: false });
     setAddingClub(false);
   };
 
-  const handleUpdateClub = (updated) => setClubs(clubs.map(c => c.id === updated.id ? updated : c));
-
-  const handleDeleteClub = (id) => {
-    const clubDepts = departments.filter(d => d.clubId === id);
-    const deptIds = clubDepts.map(d => d.id);
-    const clubTeams = teams.filter(t => deptIds.includes(t.departmentId));
-    const teamIds = clubTeams.map(t => t.id);
-    if (clubDepts.length > 0) {
-      if (!window.confirm('Verein mit ' + clubDepts.length + ' Abteilung(en) und ' + clubTeams.length + ' Mannschaft(en) l' + UMLAUT_O + 'schen?')) return;
-    }
-    setTrainerAssignments(trainerAssignments.filter(ta => !teamIds.includes(ta.teamId)));
-    setTeams(teams.filter(t => !deptIds.includes(t.departmentId)));
-    setDepartments(departments.filter(d => d.clubId !== id));
-    setClubs(clubs.filter(c => c.id !== id));
+  const handleUpdateClub    = async (updated) => { if (updateClub) await updateClub(updated); };
+  const handleDeleteClub    = async (id) => {
+    if (!window.confirm('Verein wirklich l' + UMLAUT_O + 'schen?')) return;
+    if (deleteClub) await deleteClub(id);
   };
 
-  const handleAddDept = (clubId) => {
-    const clubDepts = departments.filter(d => d.clubId === clubId);
-    setDepartments([...departments, {
-      id: generateOrgId('dept'), clubId, name: 'Neue Abteilung', icon: String.fromCharCode(9917), sortOrder: clubDepts.length + 1,
-    }]);
+  const handleAddDept       = async (clubId) => {
+    if (createDepartment) await createDepartment({ clubId, name: 'Neue Abteilung', icon: '⚽', sortOrder: 0 });
+  };
+  const handleUpdateDept    = async (updated) => { if (updateDepartment) await updateDepartment(updated); };
+  const handleDeleteDept    = async (id) => {
+    if (!window.confirm('Abteilung l' + UMLAUT_O + 'schen?')) return;
+    if (deleteDepartment) await deleteDepartment(id);
   };
 
-  const handleUpdateDept = (updated) => setDepartments(departments.map(d => d.id === updated.id ? updated : d));
-
-  const handleDeleteDept = (id) => {
-    const deptTeams = teams.filter(t => t.departmentId === id);
-    const teamIds = deptTeams.map(t => t.id);
-    if (deptTeams.length > 0) {
-      if (!window.confirm('Abteilung mit ' + deptTeams.length + ' Mannschaft(en) l' + UMLAUT_O + 'schen?')) return;
-    }
-    setTrainerAssignments(trainerAssignments.filter(ta => !teamIds.includes(ta.teamId)));
-    setTeams(teams.filter(t => t.departmentId !== id));
-    setDepartments(departments.filter(d => d.id !== id));
+  const handleAddTeam       = async (departmentId) => {
+    if (createTeam) await createTeam({ departmentId, name: 'Neue Mannschaft', shortName: '', color: '#3b82f6', sortOrder: 0, eventTypes: ['training'] });
+  };
+  const handleUpdateTeam    = async (updated) => { if (updateTeam) await updateTeam(updated); };
+  const handleDeleteTeam    = async (id) => {
+    if (!window.confirm('Mannschaft l' + UMLAUT_O + 'schen?')) return;
+    if (deleteTeam) await deleteTeam(id);
   };
 
-  const handleAddTeam = (departmentId) => {
-    const deptTeams = teams.filter(t => t.departmentId === departmentId);
-    setTeams([...teams, {
-      id: generateOrgId('team'), departmentId, name: 'Neue Mannschaft', shortName: '', color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)],
-      sortOrder: deptTeams.length + 1, eventTypes: ['training'],
-    }]);
+  const handleAddTrainer    = async (teamId, userId) => {
+    const isPrimary = !trainerAssignments.some(ta => ta.teamId === teamId);
+    if (createTrainerAssignment) await createTrainerAssignment(userId, teamId, isPrimary);
   };
-
-  const handleUpdateTeam = (updated) => setTeams(teams.map(t => t.id === updated.id ? updated : t));
-
-  const handleDeleteTeam = (id) => {
-    setTrainerAssignments(trainerAssignments.filter(ta => ta.teamId !== id));
-    setTeams(teams.filter(t => t.id !== id));
-  };
-
-  const handleAddTrainer = (teamId, userId) => {
-    setTrainerAssignments([...trainerAssignments, {
-      id: generateOrgId('ta'), userId, teamId,
-      isPrimary: trainerAssignments.filter(ta => ta.teamId === teamId).length === 0,
-    }]);
-  };
-
-  const handleUpdateAssignment = (updated) => setTrainerAssignments(trainerAssignments.map(ta => ta.id === updated.id ? updated : ta));
-  const handleRemoveTrainer = (id) => setTrainerAssignments(trainerAssignments.filter(ta => ta.id !== id));
+  const handleUpdateAssignment = async (updated) => { if (updateTrainerAssignment) await updateTrainerAssignment(updated); };
+  const handleRemoveTrainer    = async (id) => { if (deleteTrainerAssignment) await deleteTrainerAssignment(id); };
 
   const totalTeams = teams.length;
   const totalAssignments = trainerAssignments.length;
@@ -362,12 +366,9 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             {clubs.length} Verein{clubs.length !== 1 ? 'e' : ''}
-            {' ' + String.fromCharCode(183) + ' '}
-            {departments.length} Abteilung{departments.length !== 1 ? 'en' : ''}
-            {' ' + String.fromCharCode(183) + ' '}
-            {totalTeams} Mannschaft{totalTeams !== 1 ? 'en' : ''}
-            {' ' + String.fromCharCode(183) + ' '}
-            {totalAssignments} Trainer-Zuordnung{totalAssignments !== 1 ? 'en' : ''}
+            {' · '}{departments.length} Abteilung{departments.length !== 1 ? 'en' : ''}
+            {' · '}{totalTeams} Mannschaft{totalTeams !== 1 ? 'en' : ''}
+            {' · '}{totalAssignments} Trainer-Zuordnung{totalAssignments !== 1 ? 'en' : ''}
           </p>
         </div>
         <Button variant="primary" size="sm" onClick={() => setAddingClub(true)}>
@@ -380,9 +381,9 @@ const OrganizationManagement = ({ clubs, setClubs, departments, setDepartments, 
           <h4 className="font-bold text-gray-900 mb-3">Neuen Verein anlegen</h4>
           <div className="grid grid-cols-3 gap-3">
             <input type="text" value={newClubForm.name} onChange={e => setNewClubForm({ ...newClubForm, name: e.target.value })}
-              className="col-span-2 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Vereinsname" />
+              className="col-span-2 px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder="Vereinsname" />
             <input type="text" value={newClubForm.shortName} onChange={e => setNewClubForm({ ...newClubForm, shortName: e.target.value })}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder={'K' + UMLAUT_U + 'rzel'} />
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder={'K' + UMLAUT_U + 'rzel'} />
           </div>
           <div className="flex items-center gap-3 mt-3">
             <input type="color" value={newClubForm.color} onChange={e => setNewClubForm({ ...newClubForm, color: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0" />
