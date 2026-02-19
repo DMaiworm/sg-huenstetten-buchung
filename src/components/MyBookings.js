@@ -5,25 +5,7 @@
  *   1. Title
  *   2. Resource group filter tabs (dynamically derived from resourceGroups)
  *   3. Resource sub-filter     (when a specific group is selected)
- *   4. Booking cards           (series grouped, 4-column layout)
- *
- * Each booking card shows:
- *   Col 1: Title, resource, weekday, time, date range
- *   Col 2: Trainer(s) / requester
- *   Col 3: Booking type + organisation hierarchy (Club → Dept → Team)
- *   Col 4: Status badge + delete actions (admin only)
- *
- * Props:
- *   bookings            - Array of booking objects
- *   isAdmin             - Whether the current user has admin rights
- *   onDelete            - Callback(bookingId, deleteType, seriesId)
- *   users               - Array of user objects
- *   resources           - Legacy flat resource array (with groupId from buildLegacyResources)
- *   resourceGroups      - Array of resource group objects
- *   clubs               - Array of club objects
- *   departments         - Array of department objects
- *   teams               - Array of team objects
- *   trainerAssignments  - Array of trainer assignment objects
+ *   4. Booking cards           (series grouped)
  */
 
 import React, { useState, useMemo } from 'react';
@@ -32,39 +14,35 @@ import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 
 // ──────────────────────────────────────────────
-//  Display constants
+//  Sub-components
 // ──────────────────────────────────────────────
-const ENDASH = '\u2013';
-
-// ──────────────────────────────────────────────
-//  Inline style helpers
-// ──────────────────────────────────────────────
-
-/** Generate a pill-button style object for delete/confirm buttons. */
-const pillButtonStyle = (color, bgColor) => ({
-  display: 'inline-flex', alignItems: 'center', gap: '4px',
-  padding: '4px 12px', borderRadius: '9999px',
-  fontSize: '12px', fontWeight: 600,
-  backgroundColor: bgColor, color,
-  border: 'none', cursor: 'pointer',
-  transition: 'background-color 0.15s',
-});
 
 /** Compact icon + text row used inside booking cards. */
 const IconRow = ({ icon, children, bold, muted }) => (
-  <div style={{
-    display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px',
-    color: muted ? '#9ca3af' : bold ? '#1f2937' : '#6b7280',
-    fontWeight: bold ? 700 : 400,
-  }}>
-    <span style={{ flexShrink: 0, width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
+  <div className={`flex items-center gap-1.5 text-[13px] ${
+    muted ? 'text-gray-400' : bold ? 'text-gray-800 font-bold' : 'text-gray-500'
+  }`}>
+    <span className="flex-shrink-0 w-4 flex items-center justify-center text-gray-400">
       {icon}
     </span>
-    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-      {children}
-    </span>
+    <span className="truncate">{children}</span>
   </div>
 );
+
+/** Status badge pill. */
+const StatusBadge = ({ status }) => {
+  const cfg = {
+    approved: { cls: 'bg-green-500 text-white', label: 'Genehmigt' },
+    pending:  { cls: 'bg-yellow-400 text-gray-800', label: 'Ausstehend' },
+    rejected: { cls: 'bg-red-500 text-white', label: 'Abgelehnt' },
+  }[status];
+  if (!cfg) return null;
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  );
+};
 
 // ──────────────────────────────────────────────
 //  Component
@@ -79,26 +57,25 @@ const MyBookings = ({
   const [selectedResource, setSelectedResource] = useState('all');
   const [deleteConfirm, setDeleteConfirm]       = useState(null);
 
-  // ── Dynamic group tabs (derived from resourceGroups prop) ──
+  // ── Dynamic group tabs ──
   const groupTabs = useMemo(() => {
     if (!resourceGroups || resourceGroups.length === 0) return [];
     return resourceGroups
       .slice()
       .sort((a, b) => {
-        // Sort by facilityId first (to keep facility grouping), then sortOrder
         if (a.facilityId < b.facilityId) return -1;
         if (a.facilityId > b.facilityId) return 1;
         return a.sortOrder - b.sortOrder;
       });
   }, [resourceGroups]);
 
-  // ── Resources for the selected group (via groupId) ──
+  // ── Resources for the selected group ──
   const groupResources = useMemo(() => {
     if (selectedGroupId === 'all') return [];
     return resources.filter(r => r.groupId === selectedGroupId);
   }, [selectedGroupId, resources]);
 
-  // ── Filtered bookings ────────────────────────
+  // ── Filtered bookings ──
   const filteredBookings = useMemo(() => {
     if (selectedGroupId === 'all') return bookings;
     const groupResIds = resources.filter(r => r.groupId === selectedGroupId).map(r => r.id);
@@ -109,7 +86,7 @@ const MyBookings = ({
     return filtered;
   }, [bookings, selectedGroupId, selectedResource, resources]);
 
-  // ── Group series bookings together ─────────────
+  // ── Group series bookings together ──
   const groupedBookings = useMemo(() => {
     const seriesMap = {};
     const singles = [];
@@ -123,35 +100,26 @@ const MyBookings = ({
         singles.push(b);
       }
     });
-    // Sort series dates chronologically
     Object.values(seriesMap).forEach(s => s.dates.sort());
     return [...Object.values(seriesMap), ...singles];
   }, [filteredBookings]);
 
-  // ── Tab change handler ───────────────────────
+  // ── Tab change handler ──
   const handleGroupChange = (groupId) => {
     setSelectedGroupId(groupId);
     setSelectedResource('all');
   };
 
-  // ── Booking count helpers ────────────────────
-
-  /** Count bookings across all resources in a group. */
+  // ── Booking count helpers ──
   const getBookingCountForGroup = (groupId) => {
     const resIds = resources.filter(r => r.groupId === groupId).map(r => r.id);
     return bookings.filter(b => resIds.includes(b.resourceId)).length;
   };
 
-  /** Count bookings for a single resource. */
   const getBookingCountForResource = (resId) =>
     bookings.filter(b => b.resourceId === resId).length;
 
-  // ── Organisation / trainer lookup helpers ────
-
-  /**
-   * Resolve a userId to their organisational context(s).
-   * Returns an array of { team, dept, club, isPrimary } or null.
-   */
+  // ── Organisation / trainer lookup helpers ──
   const getOrgInfo = (userId) => {
     if (!trainerAssignments || !teams || !departments || !clubs) return null;
     const assignments = trainerAssignments.filter(ta => ta.userId === userId);
@@ -165,7 +133,6 @@ const MyBookings = ({
     }).filter(Boolean);
   };
 
-  /** Get all trainers assigned to a team, sorted primary-first. */
   const getTeamTrainers = (teamId) => {
     if (!trainerAssignments || !users) return [];
     return trainerAssignments
@@ -178,15 +145,12 @@ const MyBookings = ({
       .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
   };
 
-  /** Resolve userId → display name. */
   const getUserName = (userId) => {
     const user = users.find(u => u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'Unbekannt';
   };
 
-  // ── Date / weekday display helpers ─────────────
-
-  /** Return weekday string, e.g. "Montag" or "Jeden Montag" for series. */
+  // ── Date / weekday display helpers ──
   const getWeekday = (booking) => {
     const isSeries = booking.dates && booking.dates.length > 1;
     const dateStr = isSeries ? booking.dates[0] : booking.date;
@@ -195,12 +159,11 @@ const MyBookings = ({
     return isSeries ? ('Jeden ' + DAYS_FULL[d.getDay()]) : DAYS_FULL[d.getDay()];
   };
 
-  /** Return formatted date or date range for display. */
   const getDateDisplay = (booking) => {
     const fmt = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const isSeries = booking.dates && booking.dates.length > 1;
     if (isSeries) {
-      return fmt(booking.dates[0]) + ' ' + ENDASH + ' ' + fmt(booking.dates[booking.dates.length - 1]);
+      return fmt(booking.dates[0]) + ' – ' + fmt(booking.dates[booking.dates.length - 1]);
     }
     return booking.date ? fmt(booking.date) : '';
   };
@@ -213,10 +176,9 @@ const MyBookings = ({
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Meine Buchungen</h2>
 
-      {/* ── 1. Resource group filter tabs (dynamic) ── */}
+      {/* ── 1. Resource group filter tabs ── */}
       <div className="mb-4">
         <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
-          {/* "Alle" tab */}
           <button
             onClick={() => handleGroupChange('all')}
             className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${
@@ -233,7 +195,6 @@ const MyBookings = ({
             </span>
           </button>
 
-          {/* Dynamic group tabs */}
           {groupTabs.map(group => (
             <button
               key={group.id}
@@ -255,7 +216,7 @@ const MyBookings = ({
         </div>
       </div>
 
-      {/* ── 2. Resource sub-filter (when a group is selected) ── */}
+      {/* ── 2. Resource sub-filter ── */}
       {selectedGroupId !== 'all' && groupResources.length > 0 && (
         <div className="mb-4">
           <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
@@ -295,7 +256,7 @@ const MyBookings = ({
           <p>Keine Buchungen</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="flex flex-col gap-3">
           {groupedBookings.map((booking, idx) => {
             const resource      = resources.find(r => r.id === booking.resourceId);
             const isSeries      = booking.dates && booking.dates.length > 1;
@@ -306,133 +267,118 @@ const MyBookings = ({
             const userName      = getUserName(booking.userId);
 
             return (
-              <div key={booking.seriesId || booking.id || idx} style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+              <div key={booking.seriesId || booking.id || idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-stretch">
                   {/* Color bar */}
-                  <div style={{ width: '6px', flexShrink: 0, backgroundColor: resource?.color || '#ccc' }} />
+                  <div className="w-1.5 flex-shrink-0" style={{ backgroundColor: resource?.color || '#ccc' }} />
 
-                  <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+                  <div className="flex flex-1 min-w-0">
 
                     {/* Col 1: Booking info */}
-                    <div style={{ flex: '2 1 0%', padding: '12px 16px', minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <span style={{ fontWeight: 700, fontSize: '15px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div className="flex-[2] p-3 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="font-bold text-[15px] text-gray-900 truncate">
                           "{booking.title}"
                         </span>
                         {isSeries && (
-                          <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                            <Repeat style={{ width: '11px', height: '11px' }} />{booking.dates.length}x
+                          <span className="text-[11px] text-blue-600 font-semibold flex-shrink-0 inline-flex items-center gap-0.5">
+                            <Repeat className="w-3 h-3" />{booking.dates.length}x
                           </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <IconRow icon={<MapPin style={{ width: '14px', height: '14px' }} />}>{resource?.name}</IconRow>
-                        <IconRow icon={<Calendar style={{ width: '14px', height: '14px' }} />}>{getWeekday(booking)}</IconRow>
-                        <IconRow icon={<Clock style={{ width: '14px', height: '14px' }} />} bold>{booking.startTime} - {booking.endTime}</IconRow>
-                        <IconRow icon={<Calendar style={{ width: '14px', height: '14px' }} />} muted>{getDateDisplay(booking)}</IconRow>
+                      <div className="flex flex-col gap-0.5">
+                        <IconRow icon={<MapPin className="w-3.5 h-3.5" />}>{resource?.name}</IconRow>
+                        <IconRow icon={<Calendar className="w-3.5 h-3.5" />}>{getWeekday(booking)}</IconRow>
+                        <IconRow icon={<Clock className="w-3.5 h-3.5" />} bold>{booking.startTime} - {booking.endTime}</IconRow>
+                        <IconRow icon={<Calendar className="w-3.5 h-3.5" />} muted>{getDateDisplay(booking)}</IconRow>
                       </div>
                     </div>
 
                     {/* Col 2: Trainers */}
-                    <div style={{ flex: '1.2 1 0%', padding: '12px 16px', borderLeft: '1px solid #f3f4f6', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: '6px' }}>
-                        Trainer / \u00dcbungsleiter
+                    <div className="flex-[1.2] p-3 border-l border-gray-100 min-w-0 flex flex-col">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                        Trainer / Übungsleiter
                       </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div className="flex-1 flex flex-col justify-center">
                         {teamTrainers.length > 0 ? (
                           teamTrainers.map(t => (
-                            <div key={t.id} style={{ fontSize: '13px', color: '#374151', lineHeight: '1.8' }}>
+                            <div key={t.id} className="text-[13px] text-gray-700 leading-7">
                               {t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}
                             </div>
                           ))
                         ) : (
-                          <div style={{ fontSize: '13px', color: '#6b7280' }}>{userName}</div>
+                          <div className="text-[13px] text-gray-500">{userName}</div>
                         )}
                       </div>
                     </div>
 
                     {/* Col 3: Org + booking type */}
-                    <div style={{ flex: '1.2 1 0%', padding: '12px 16px', borderLeft: '1px solid #f3f4f6', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div className="flex-[1.2] p-3 border-l border-gray-100 min-w-0 flex flex-col justify-center">
                       {bookingType && (
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                        <div className="text-[13px] font-semibold text-gray-700 mb-1.5">
                           {bookingType.icon} {bookingType.label}
                         </div>
                       )}
                       {primaryOrg ? (
-                        <div style={{ fontSize: '13px', lineHeight: '1.6' }}>
-                          <div style={{ fontWeight: 700, color: '#1f2937' }}>{primaryOrg.club?.name}</div>
-                          <div style={{ color: '#6b7280' }}>{primaryOrg.dept?.icon} {primaryOrg.dept?.name}</div>
-                          <div style={{ color: '#374151' }}>{primaryOrg.team?.name}</div>
+                        <div className="text-[13px] leading-relaxed">
+                          <div className="font-bold text-gray-800">{primaryOrg.club?.name}</div>
+                          <div className="text-gray-500">{primaryOrg.dept?.icon} {primaryOrg.dept?.name}</div>
+                          <div className="text-gray-700">{primaryOrg.team?.name}</div>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '13px', color: '#9ca3af' }}>{userName}</div>
+                        <div className="text-[13px] text-gray-400">{userName}</div>
                       )}
                     </div>
                   </div>
 
                   {/* Col 4: Status + delete actions */}
-                  <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0, borderLeft: '1px solid #f3f4f6' }}>
-                    {/* Status badge */}
-                    {booking.status === 'approved' && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600, backgroundColor: '#22c55e', color: '#fff' }}>
-                        Genehmigt
-                      </span>
-                    )}
-                    {booking.status === 'pending' && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600, backgroundColor: '#facc15', color: '#1f2937' }}>
-                        Ausstehend
-                      </span>
-                    )}
-                    {booking.status === 'rejected' && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600, backgroundColor: '#ef4444', color: '#fff' }}>
-                        Abgelehnt
-                      </span>
-                    )}
+                  <div className="p-3 flex flex-col items-end gap-2 flex-shrink-0 border-l border-gray-100">
+                    <StatusBadge status={booking.status} />
 
                     {/* Delete actions (admin only) */}
                     {isAdmin && (
                       <>
                         {deleteConfirm?.id === booking.id ? (
-                          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '8px', fontSize: '12px' }}>
-                            <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: '4px' }}>L\u00f6schen?</div>
-                            <div style={{ display: 'flex', gap: '4px' }}>
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
+                            <div className="text-red-700 font-semibold mb-1">Löschen?</div>
+                            <div className="flex gap-1">
                               <button
                                 onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}
-                                style={{ ...pillButtonStyle('#fff', '#ef4444'), padding: '3px 10px' }}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
                               >
                                 Ja
                               </button>
                               <button
                                 onClick={() => setDeleteConfirm(null)}
-                                style={{ ...pillButtonStyle('#374151', '#e5e7eb'), padding: '3px 10px' }}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors cursor-pointer"
                               >
                                 Nein
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div className="flex flex-col gap-1">
                             {isSeries ? (
                               <>
                                 <button
                                   onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })}
-                                  style={pillButtonStyle('#fff', '#ef4444')}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
                                 >
-                                  <X style={{ width: '12px', height: '12px' }} />1 Termin
+                                  <X className="w-3 h-3" />1 Termin
                                 </button>
                                 <button
                                   onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })}
-                                  style={pillButtonStyle('#fff', '#dc2626')}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer"
                                 >
-                                  <X style={{ width: '12px', height: '12px' }} />Serie
+                                  <X className="w-3 h-3" />Serie
                                 </button>
                               </>
                             ) : (
                               <button
                                 onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })}
-                                style={pillButtonStyle('#fff', '#ef4444')}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
                               >
-                                <X style={{ width: '12px', height: '12px' }} />L\u00f6schen
+                                <X className="w-3 h-3" />Löschen
                               </button>
                             )}
                           </div>
