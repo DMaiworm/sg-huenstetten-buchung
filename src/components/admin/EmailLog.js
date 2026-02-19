@@ -18,7 +18,7 @@ const EmailLog = ({ emailService }) => {
         </div>
         {emails.length > 0 && (
           <Button variant="secondary" onClick={() => {
-            if (window.confirm('Moechten Sie wirklich alle E-Mails aus dem Log loeschen?')) {
+            if (window.confirm('Möchten Sie wirklich alle E-Mails aus dem Log löschen?')) {
               emailService.clearEmails();
               setSelectedEmail(null);
             }
@@ -79,14 +79,14 @@ const EmailLog = ({ emailService }) => {
                     </div>
                   </div>
                 </div>
-                <div className="p-6 overflow-auto" style={{ maxHeight: '600px' }}>
+                <div className="p-6 overflow-auto max-h-[600px]">
                   <div dangerouslySetInnerHTML={{ __html: selectedEmail.html }} />
                 </div>
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                 <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Waehlen Sie eine E-Mail aus der Liste</p>
+                <p className="text-gray-500">Wählen Sie eine E-Mail aus der Liste</p>
               </div>
             )}
           </div>
@@ -99,7 +99,7 @@ const EmailLog = ({ emailService }) => {
           <div className="flex-1">
             <h4 className="font-semibold text-blue-800 mb-1">Prototyp-Modus</h4>
             <p className="text-sm text-blue-700">
-              Dies ist eine Vorschau der E-Mails, die im echten System versendet wuerden.
+              Dies ist eine Vorschau der E-Mails, die im echten System versendet würden.
             </p>
           </div>
         </div>

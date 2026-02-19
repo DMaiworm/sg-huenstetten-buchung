@@ -1,17 +1,5 @@
 /**
  * Approvals – Genehmigungsansicht für Admins und Genehmiger.
- *
- * Admins sehen alle offenen Anfragen.
- * Genehmiger sehen nur Anfragen für ihre zugewiesenen Ressourcen.
- *
- * Props:
- *   bookings            - Alle Buchungen
- *   onApprove           - Callback(bookingId)
- *   onReject            - Callback(bookingId, reason)
- *   users               - User-Objekte
- *   resources           - Ressource-Array
- *   genehmigerResources - resourceIds die der aktuelle User genehmigen darf (leer = alle)
- *   isAdmin             - ob der aktuelle User Admin ist
  */
 
 import React, { useState } from 'react';
@@ -23,8 +11,6 @@ import { Badge } from '../ui/Badge';
 const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmigerResources = null, isAdmin = false }) => {
   const [rejectDialog, setRejectDialog] = useState(null);
 
-  // Filter: nur pending, keine parentBookings
-  // Genehmiger: nur ihre zugewiesenen Ressourcen
   const pendingBookings = bookings.filter(b => {
     if (b.status !== 'pending' || b.parentBooking) return false;
     if (isAdmin || genehmigerResources === null) return true;
@@ -75,16 +61,16 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmiger
       ) : (
         <div className="space-y-4">
           {pendingBookings.map(booking => {
-            const resource          = resources.find(r => r.id === booking.resourceId);
-            const userInfo          = getUserInfo(booking.userId);
-            const showingRejectDlg  = rejectDialog?.bookingId === booking.id;
-            const relatedCount      = getRelatedCount(booking);
+            const resource = resources.find(r => r.id === booking.resourceId);
+            const userInfo = getUserInfo(booking.userId);
+            const showingRejectDlg = rejectDialog?.bookingId === booking.id;
+            const relatedCount = getRelatedCount(booking);
 
             return (
               <div key={booking.id} className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="w-3 h-full min-h-16 rounded-full" style={{ backgroundColor: resource?.color }} />
+                    <div className="w-3 min-h-[64px] rounded-full" style={{ backgroundColor: resource?.color }} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="font-semibold text-gray-800">{booking.title}</h3>
@@ -112,7 +98,7 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmiger
                         </p>
                       </div>
                       {relatedCount > 0 && (
-                        <div style={{ marginTop: '8px', padding: '6px 10px', backgroundColor: '#eff6ff', borderRadius: '6px', fontSize: '12px', color: '#1e40af' }}>
+                        <div className="mt-2 px-2.5 py-1.5 bg-blue-50 rounded text-xs text-blue-800">
                           ℹ️ Genehmigung/Ablehnung gilt auch für {relatedCount} verknüpfte Buchung{relatedCount !== 1 ? 'en' : ''} (Serie/Teilflächen).
                         </div>
                       )}
