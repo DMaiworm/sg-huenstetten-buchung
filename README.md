@@ -1,66 +1,116 @@
-# SG Hünstetten - Ressourcen-Buchungssystem
+# SG Hünstetten – Ressourcen-Buchungssystem
 
-Ein modernes Buchungssystem für Sportstätten und Räumlichkeiten mit intelligenter Konfliktprüfung und E-Mail-Benachrichtigungen.
+Internes Buchungssystem für Sportstätten und Räumlichkeiten der SG Hünstetten. Mitglieder können Anlagen buchen, Genehmiger prüfen Anfragen, und Admins verwalten Benutzer, Anlagen und Organisationsstruktur.
 
-## ✨ Features
+**Live:** [sg-huenstetten-buchung-iota.vercel.app](https://sg-huenstetten-buchung-iota.vercel.app)
 
-- 📅 **Kalenderansicht** - Wochenübersicht mit allen Buchungen
-- 🔄 **Wiederkehrende Buchungen** - Serien für regelmäßige Trainings
-- 🎯 **Buchungstypen** - Training, Spiel, Veranstaltung, Sonstiges
-- ⚠️ **Konfliktprüfung** - Live-Erkennung von Überschneidungen
-- 📧 **E-Mail-Benachrichtigungen** - Automatische Bestätigungen (Prototyp)
-- 👥 **Benutzerverwaltung** - Admin, Trainer, Externe
-- 📊 **E-Mail-Log** - Vorschau aller versendeten E-Mails
-- 📄 **PDF-Export** - Monatskalender als PDF
+## Features
 
-## 🚀 Quick Start
+- **Wochenkalender** – Stundenraster (7–22 Uhr) mit Facility-/Gruppen-/Ressource-Auswahl
+- **Buchungsanfragen** – Einzeltermine und wiederkehrende Serien mit Live-Konfliktprüfung
+- **Genehmigungsworkflow** – Anfragen genehmigen oder ablehnen, mit optionalem Kommentar
+- **Rollen & Berechtigungen** – Admin, Trainer, Genehmiger, Extern (einladungsbasiert)
+- **Genehmiger-Ressourcen** – Admins weisen Genehmigern gezielt einzelne Ressourcen zu
+- **Anlagenverwaltung** – Anlagen → Gruppen → Ressourcen (inklusive Unter-Ressourcen, Splittable-Felder, Slot-basierte Verfügbarkeit)
+- **Organisationsstruktur** – Vereine → Abteilungen → Mannschaften, Trainer-Zuordnung
+- **Benutzerverwaltung** – Einladung per E-Mail, Rollenzuweisung, Trainer-Status
+- **PDF-Export** – Monatsplan pro Kategorie als PDF (jsPDF)
+- **Meine Buchungen** – Filterbarer Überblick aller eigenen Buchungen mit Serien-Gruppierung
 
-Dieses Repository wurde von Claude erstellt und ist deployment-ready für Vercel!
+## Tech Stack
 
-### Sofort deployen auf Vercel:
+| Schicht | Technologie |
+|---------|------------|
+| Frontend | React 18, React Router 6, Tailwind CSS (CDN) |
+| Backend | Supabase (PostgreSQL, Auth, Row Level Security) |
+| Hosting | Vercel (Auto-Deploy bei Push auf `main`) |
+| PDF | jsPDF (on-demand CDN-Load) |
+| Icons | Lucide React |
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/DMaiworm/sg-huenstetten-buchung)
+## Projektstruktur
 
-### Manuelles Deployment:
+```
+src/
+├── App.js                    # Root – Provider-Hierarchie + Routing
+├── index.js                  # BrowserRouter + AuthProvider
+├── contexts/                 # React Contexts
+│   ├── AuthContext.js        #   Login, Session, Rollen-Check
+│   ├── FacilityContext.js    #   Anlagen, Gruppen, Ressourcen, Slots
+│   ├── OrganizationContext.js#   Vereine, Abteilungen, Mannschaften
+│   ├── BookingContext.js     #   Buchungen (CRUD)
+│   └── UserContext.js        #   Benutzer, Genehmiger-Zuweisungen
+├── hooks/
+│   ├── useBookingActions.js  #   Buchen, Genehmigen, Ablehnen, Löschen
+│   └── useConfirm.js         #   Promise-basierter ConfirmDialog-Ersatz
+├── routes/
+│   ├── ProtectedRoute.js     #   Auth-Guard (Redirect → /login)
+│   └── PermissionRoute.js    #   Rollen-Guard (kannBuchen, kannGenehmigen, etc.)
+├── components/
+│   ├── ui/                   #   Shared UI (Badge, Button, ConfirmDialog, Modal, etc.)
+│   ├── admin/
+│   │   ├── facilities/       #   Anlagenverwaltung (7 Dateien)
+│   │   ├── organization/     #   Organisationsverwaltung (5 Dateien)
+│   │   ├── users/            #   Benutzerverwaltung (6 Dateien)
+│   │   ├── Approvals.js      #   Genehmigungen
+│   │   └── EmailLog.js       #   E-Mail-Protokoll
+│   ├── CalendarView.js       #   Wochenkalender
+│   ├── BookingRequest.js     #   Buchungsformular
+│   ├── MyBookings.js         #   Meine Buchungen
+│   ├── PDFExportPage.js      #   PDF-Export
+│   ├── Sidebar.js            #   Navigation
+│   └── LoginPage.js          #   Login
+├── config/
+│   ├── constants.js          #   UI-Konstanten, Farben, Icons
+│   └── organizationConfig.js #   Buchungstypen, Event-Types
+├── services/
+│   └── emailService.js       #   E-Mail-Simulation
+├── lib/
+│   └── supabase.js           #   Supabase-Client
+└── utils/
+    └── helpers.js            #   Datum, Format, Kalender-Helfer
+```
 
-1. Gehe zu [vercel.com](https://vercel.com)
-2. "Add New Project" → "Import Git Repository"
-3. Wähle dieses Repository
-4. Klicke "Deploy"
-5. Fertig! 🎉
+## Rollen
 
-## 💻 Lokale Entwicklung
+| Rolle | Rechte |
+|-------|--------|
+| **Admin** | Alles – Benutzer, Anlagen, Organisation, alle Genehmigungen |
+| **Genehmiger** | Genehmigt/lehnt Anfragen für zugewiesene Ressourcen ab |
+| **Trainer** | Kann Buchungsanfragen stellen |
+| **Extern** | Kann Buchungsanfragen stellen (eingeschränkt) |
+
+Benutzer werden ausschließlich per Admin-Einladung angelegt. Kein Self-Service-Signup.
+
+## Lokale Entwicklung
 
 ```bash
 # Dependencies installieren
 npm install
 
+# .env konfigurieren (Supabase-Credentials)
+cp .env.example .env
+# REACT_APP_SUPABASE_URL und REACT_APP_SUPABASE_ANON_KEY eintragen
+
 # Development Server starten
 npm start
 ```
 
-Die App öffnet sich auf `http://localhost:3000`
+Die App öffnet sich auf `http://localhost:3000`.
 
-## 📱 Demo-Modus
+## Deployment
 
-Die Anwendung läuft im **Prototyp-Modus**:
-- Alle Buchungen werden im Browser-Speicher gehalten
-- E-Mails werden simuliert (siehe E-Mail-Log)
-- Keine Datenbank erforderlich
-- Perfekt für Demos!
+Jeder Push auf `main` triggert automatisch ein Vercel-Deployment. Umgebungsvariablen in Vercel Settings hinterlegen:
 
-**Admin-Modus:** Checkbox oben rechts aktivieren
+- `REACT_APP_SUPABASE_URL`
+- `REACT_APP_SUPABASE_ANON_KEY`
 
-## 📖 Dokumentation
+## Datenbank
 
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Detaillierte Deployment-Anleitung
-- [BUCHUNGSTYPEN-FEATURE.md](./BUCHUNGSTYPEN-FEATURE.md) - Feature-Dokumentation
-- [EMAIL-BENACHRICHTIGUNGEN.md](./EMAIL-BENACHRICHTIGUNGEN.md) - E-Mail-System
+Die App nutzt Supabase (PostgreSQL) mit Row Level Security. Migrationen liegen in `supabase/`. Wichtige Tabellen:
 
-## 🔄 Automatische Updates
-
-Jeder `git push` triggert automatisch ein neues Deployment auf Vercel!
-
----
-
-**Von Claude erstellt für SG Hünstetten** ❤️
+- `profiles` – Benutzerprofile (verknüpft mit Supabase Auth)
+- `facilities`, `resource_groups`, `resources`, `sub_resources` – Anlagenstruktur
+- `slots` – Verfügbarkeitsfenster für limitierte Ressourcen
+- `bookings` – Buchungen (Einzel + Serien)
+- `clubs`, `departments`, `teams`, `trainer_assignments` – Organisationsstruktur
+- `genehmiger_resource_assignments` – Ressourcen-Zuweisung für Genehmiger
