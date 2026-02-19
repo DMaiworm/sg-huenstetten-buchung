@@ -1,8 +1,8 @@
 # SG Hünstetten – Ressourcen-Buchungssystem
 
-## Prototyp-Dokumentation (Stand: 18.02.2026)
+## Systemdokumentation (Stand: 20.02.2026)
 
-> **Zweck dieses Dokuments:** Vollständige Beschreibung des Prototyps als "Source of Truth" für die anschließende Datenbankmodellierung und Backend-Implementierung. Alle Entitäten, Beziehungen, Geschäftsregeln und UI-Seiten sind hier dokumentiert.
+> **Zweck dieses Dokuments:** Vollständige Beschreibung des Systems als "Source of Truth" für die weitere Entwicklung. Alle Entitäten, Beziehungen, Geschäftsregeln und UI-Seiten sind hier dokumentiert.
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### 1.1 Zweck
 
-Webbasiertes Buchungssystem für Sportanlagen und -räume. Ermöglicht Vereinen, Abteilungen und Mannschaften die Reservierung von Ressourcen (Sportplätze, Hallen, Räume) über eine zentrale Oberfläche.
+Webbasiertes Buchungssystem für Sportanlagen und -räume. Ermöglicht Vereinen, Abteilungen und Mannschaften die Reservierung von Ressourcen (Sportplätze, Hallen, Räume) über eine zentrale Oberfläche mit rollenbasiertem Zugriff und Genehmigungsworkflow.
 
 ### 1.2 Kernkonzepte
 
@@ -18,20 +18,23 @@ Das System besteht aus **drei unabhängigen Verwaltungsbereichen**, die über Bu
 
 | Bereich | Beschreibung | Admin-Seite |
 |---------|-------------|-------------|
-| **Anlagenverwaltung** | Physische Orte, Ressourcengruppen, Einzelressourcen, Slots | Anlagen |
+| **Anlagenverwaltung** | Physische Orte, Ressourcengruppen, Einzelressourcen, Slots | Anlagenverwaltung |
 | **Organisationsverwaltung** | Vereine, Abteilungen, Mannschaften, Trainer-Zuordnungen | Organisation |
-| **Personenverwaltung** | Benutzerkonten mit Rollen und Kontaktdaten | Personen |
+| **Benutzerverwaltung** | Benutzerkonten mit Rollen, Einladungen, Genehmiger-Zuweisungen | Benutzerverwaltung |
 
 ### 1.3 Technologie-Stack
 
-- **Frontend:** React (Single Page Application)
-- **Styling:** Tailwind CSS + Inline Styles
-- **Icons:** Lucide React
-- **Backend/Datenbank:** Supabase (PostgreSQL)
-- **Supabase-Client:** `@supabase/supabase-js` (via `src/lib/supabase.js`)
-- **Deployment:** Vercel (automatisch via GitHub)
-- **State:** React Hooks (`useUsers`, `useFacilities`, `useOrganization`, `useBookings`) mit Supabase-Anbindung + Demo-Fallback
-- **Repository:** `DMaiworm/sg-huenstetten-buchung` (Branch: main)
+| Schicht | Technologie |
+|---------|------------|
+| Frontend | React 18.2, React Router 6.23 |
+| Styling | Tailwind CSS (CDN) |
+| Icons | Lucide React |
+| Backend/DB | Supabase (PostgreSQL, Auth, Row Level Security) |
+| Auth | Supabase Auth (E-Mail/Passwort, einladungsbasiert) |
+| PDF | jsPDF (on-demand CDN-Load) |
+| Hosting | Vercel (Auto-Deploy bei Push auf `main`) |
+| State | React Contexts (Auth, Facility, Organization, Booking, User) |
+| Repository | `DMaiworm/sg-huenstetten-buchung` (Branch: main) |
 
 ---
 
@@ -39,7 +42,7 @@ Das System besteht aus **drei unabhängigen Verwaltungsbereichen**, die über Bu
 
 ### 2.1 Datenbankschema (Supabase/PostgreSQL)
 
-Die Datenbank wurde über 7 Migrationen aufgebaut:
+Die Datenbank wurde über mehrere Migrationen aufgebaut:
 
 | Migration | Datei | Inhalt |
 |-----------|-------|--------|
@@ -49,17 +52,17 @@ Die Datenbank wurde über 7 Migrationen aufgebaut:
 | 004 | `004_organization.sql` | Clubs, Departments, Teams, TrainerAssignments + Seed-Daten |
 | 005 | `005_bookings.sql` | Bookings-Tabelle mit ENUMs + Konflikterkennung-Funktion + Seed-Daten |
 | 006 | `006_fix_sub_resources_as_bookable.sql` | Sub-Resources als reguläre Resources mit `parent_resource_id` (FK-Fix) |
-| 007 | `007_drop_deprecated_sub_resources.sql` | Drop der veralteten `sub_resources`-Tabelle (Daten in `resources` seit Mig. 006) |
+| 007 | `007_drop_deprecated_sub_resources.sql` | Drop der veralteten `sub_resources`-Tabelle |
 
 **Vollständiges ER-Diagramm:**
 
 ```
 operators
- └── profiles (user_id → operators.id)
+ └── profiles (user_id → operators.id, verknüpft mit Supabase Auth via auth_user_id)
  └── facilities (operator_id → operators.id)
       └── resource_groups (facility_id → facilities.id)
            └── resources (group_id → resource_groups.id)
-                ├── resources [children] (parent_resource_id → resources.id)  ← Migration 006
+                ├── resources [children] (parent_resource_id → resources.id)
                 ├── slots (resource_id → resources.id)
                 └── bookings (resource_id → resources.id)
                      └── bookings.user_id → profiles.id
@@ -68,28 +71,40 @@ clubs
  └── departments (club_id → clubs.id)
       └── teams (department_id → departments.id)
            └── trainer_assignments (team_id → teams.id, user_id → profiles.id)
+
+genehmiger_resource_assignments (user_id → profiles.id, resource_id → resources.id)
 ```
 
-> **Alle IDs sind UUIDs** (gen_random_uuid()). Die Legacy-Config-Dateien und Demo-Fallbacks verwenden z.T. noch String-IDs; die Supabase-Hooks konvertieren zwischen DB-Format (snake_case) und Legacy-Format (camelCase).
+> **Alle IDs sind UUIDs** (gen_random_uuid()). Die Legacy-Funktion `buildLegacyResources()` konvertiert zwischen DB-Format (snake_case) und dem flachen Frontend-Format (camelCase).
 
-### 2.2 Hooks-Architektur (src/hooks/useSupabase.js)
+### 2.2 State-Architektur (React Contexts)
 
-Jeder Hook folgt dem Muster: Laden bei Mount → DB-Format konvertieren → Fallback auf Demo-Daten bei Fehler → CRUD-Callbacks.
+Das State-Management nutzt eine Provider-Hierarchie mit 5 Contexts:
 
-| Hook | Tabellen | Konverter | Fallback |
-|------|----------|-----------|----------|
-| `useUsers()` | profiles | `profileToLegacyUser()` | `DEMO_USERS_FALLBACK` |
-| `useOperators()` | operators | direkt | Hardcoded SG Hünstetten |
-| `useFacilities()` | facilities, resource_groups, resources, slots | `buildConfigResources()` | `DEFAULT_*` aus facilityConfig.js |
-| `useOrganization()` | clubs, departments, teams, trainer_assignments | `db*ToLegacy()` | `DEFAULT_*` aus organizationConfig.js |
-| `useBookings()` | bookings | `dbBookingToLegacy()` | Leere Liste |
+```
+BrowserRouter (index.js)
+  → AuthProvider (index.js)
+    → FacilityProvider
+      → OrganizationProvider
+        → BookingProvider
+          → UserProvider
+            → Routes (App.js)
+```
 
-**Besonderheit `buildConfigResources()`** (Migration 006):
-Nach Migration 006 sind Sub-Resources (z.B. "Sportplatz - links") auch Zeilen in der `resources`-Tabelle mit gesetztem `parent_resource_id`. Die Funktion `buildConfigResources()` rekonstruiert die Parent-Child-Hierarchie:
-- Alle Resources ohne `parent_resource_id` = Top-Level (Parents)
-- Alle Resources mit `parent_resource_id` = Children (→ `subResources[]` des Parents)
+| Context | Datei | Verantwortung |
+|---------|-------|---------------|
+| `AuthContext` | `contexts/AuthContext.js` | Supabase Auth Session, Login/Logout, Profil-Laden, Rollen-Checks (`kannBuchen`, `kannGenehmigen`, `kannAdministrieren`, `isAdmin`) |
+| `FacilityContext` | `contexts/FacilityContext.js` | Facilities, ResourceGroups, Resources (Config + Legacy), Slots, `RESOURCES` (flaches Array via `buildLegacyResources()`) |
+| `OrganizationContext` | `contexts/OrganizationContext.js` | Clubs, Departments, Teams, TrainerAssignments + CRUD |
+| `BookingContext` | `contexts/BookingContext.js` | Bookings laden, erstellen, Status-Updates, Löschen |
+| `UserContext` | `contexts/UserContext.js` | User-Profile, Einladungen, Genehmiger-Zuweisungen (`genehmiger_resource_assignments`) |
 
-Die alte `sub_resources`-Tabelle wurde in Migration 007 entfernt.
+**Custom Hooks:**
+
+| Hook | Datei | Verantwortung |
+|------|-------|---------------|
+| `useBookingActions` | `hooks/useBookingActions.js` | Orchestriert Buchen, Genehmigen, Ablehnen, Löschen (nutzt BookingContext + AuthContext) |
+| `useConfirm` | `hooks/useConfirm.js` | Promise-basierter Ersatz für `window.confirm()` → rendert `ConfirmDialog` |
 
 ---
 
@@ -97,16 +112,14 @@ Die alte `sub_resources`-Tabelle wurde in Migration 007 entfernt.
 
 #### 2.3.1 Operator (Betreiber)
 
-Oberste Ebene. Repräsentiert die Organisation, die die Anlagen betreibt. Dies ist **nicht** dasselbe wie ein Verein in der Organisationsverwaltung – ein Betreiber kann auch eine öffentliche Einrichtung oder Kommune sein (z.B. "Gemeinde Hünstetten").
+Oberste Ebene. Repräsentiert die Organisation, die die Anlagen betreibt. **Nicht** identisch mit einem Verein – ein Betreiber kann auch eine Kommune sein.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
 | `id` | UUID | ✅ | PK (gen_random_uuid) |
-| `name` | String | ✅ | Betreibername (z.B. "SG Hünstetten" oder "Gemeinde Hünstetten") |
-| `type` | Enum | ✅ | Art des Betreibers: `verein` / `kommune` / `sonstige` |
+| `name` | String | ✅ | Betreibername |
+| `type` | Enum | ✅ | `verein` / `kommune` / `sonstige` |
 | `primaryColor` | String | ✅ | Primärfarbe für Branding (Hex) |
-
-> **Entscheidung:** Betreiber und Verein (Organisation) sind **getrennte Tabellen**. Begründung: Der Betreiber kann eine Kommune, ein Verein oder eine andere Einrichtung sein. Admins werden dem Betreiber zugeordnet, nicht einem Verein.
 
 #### 2.3.2 Facility (Anlage)
 
@@ -123,7 +136,7 @@ Physischer Standort mit Adresse. Ein Betreiber verwaltet eine oder mehrere Anlag
 | `city` | String | ❌ | Ort |
 | `sortOrder` | Number | ✅ | Sortierreihenfolge |
 
-**Demo-Daten:**
+**Seed-Daten:**
 - Biogrund Sportpark (Am Sportpark 1, 65510 Hünstetten-Görsroth)
 - Dorfgemeinschaftshaus Görsroth (Hauptstraße, 65510 Hünstetten-Görsroth)
 
@@ -137,10 +150,10 @@ Logische Gruppierung von Ressourcen innerhalb einer Anlage.
 | `facilityId` | UUID | ✅ | FK → Facility |
 | `name` | String | ✅ | Gruppenname (z.B. "Außenanlagen") |
 | `icon` | Enum | ✅ | Kategorie: `outdoor` / `indoor` / `shared` |
-| `sortOrder` | Number | ✅ | Sortierreihenfolge innerhalb der Anlage |
-| `sharedScheduling` | Boolean | ✅ | Wenn `true`: Ressourcen dieser Gruppe sind slot-basiert → Zahnrad-Icon für Slot-Verwaltung erscheint |
+| `sortOrder` | Number | ✅ | Sortierreihenfolge |
+| `sharedScheduling` | Boolean | ✅ | `true` → Slot-basierte Buchung, Zahnrad-Icon für Slot-Verwaltung |
 
-**Demo-Daten:**
+**Seed-Daten:**
 
 | Gruppe | Anlage | Kategorie | Slot-basiert |
 |--------|--------|-----------|-------------|
@@ -150,7 +163,7 @@ Logische Gruppierung von Ressourcen innerhalb einer Anlage.
 
 #### 2.3.4 Resource (Ressource)
 
-Einzelne buchbare Einheit. Die `resources`-Tabelle enthält sowohl Top-Level-Ressourcen als auch Sub-Resources (seit Migration 006; alte `sub_resources`-Tabelle wurde in Migration 007 entfernt).
+Einzelne buchbare Einheit. Die `resources`-Tabelle enthält sowohl Top-Level-Ressourcen als auch Sub-Resources (seit Migration 006).
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -162,14 +175,12 @@ Einzelne buchbare Einheit. Die `resources`-Tabelle enthält sowohl Top-Level-Res
 | `bookingMode` | Enum | ✅ | `free` (frei buchbar) / `slotOnly` (nur in zugewiesenen Slots) |
 | `parentResourceId` | UUID | ❌ | FK → Resource (self-ref). `NULL` = Top-Level; gesetzt = Sub-Resource |
 
-**Ressourcen-Filterung in Komponenten:**
-Alle Komponenten (CalendarView, BookingRequest, MyBookings) filtern Ressourcen konsistent über `groupId`-FK:
+**Ressourcen-Filterung in allen Komponenten:**
 ```js
 resources.filter(r => r.groupId === selectedGroupId)
 ```
-Die alte `category`-basierte Filterung (`r.category === group.icon`) wurde in allen Komponenten durch die FK-basierte ersetzt.
 
-**Demo-Daten:**
+**Seed-Daten:**
 
 | Ressource | Gruppe | Teilbar | Buchungsmodus | parent_resource_id |
 |-----------|--------|---------|---------------|-------------------|
@@ -185,7 +196,7 @@ Die alte `category`-basierte Filterung (`r.category === group.icon`) wurde in al
 
 #### 2.3.5 Slot (Zeitfenster)
 
-Zeitfenster für slot-basierte Ressourcen. Nur Ressourcen in Gruppen mit `sharedScheduling = true` können Slots haben.
+Zeitfenster für slot-basierte Ressourcen. Nur Ressourcen in Gruppen mit `sharedScheduling = true`.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -196,16 +207,6 @@ Zeitfenster für slot-basierte Ressourcen. Nur Ressourcen in Gruppen mit `shared
 | `endTime` | Time | ✅ | Endzeit (HH:MM) |
 | `validFrom` | Date | ❌ | Gültig ab |
 | `validUntil` | Date | ❌ | Gültig bis |
-
-**Demo-Daten:**
-
-| Ressource | Wochentag | Zeit | Gültigkeitszeitraum |
-|-----------|-----------|------|---------------------|
-| Große Mehrzweckhalle | Montag | 17:00–21:00 | 01.01.–30.06.2026 |
-| Große Mehrzweckhalle | Mittwoch | 18:00–22:00 | 01.01.–30.06.2026 |
-| Große Mehrzweckhalle | Samstag | 09:00–14:00 | 01.01.–30.06.2026 |
-| Kleine Mehrzweckhalle | Dienstag | 16:00–20:00 | 01.01.–30.06.2026 |
-| Kleine Mehrzweckhalle | Donnerstag | 17:00–21:00 | 01.01.–30.06.2026 |
 
 #### 2.3.6 Beziehungen (Anlagen)
 
@@ -223,19 +224,18 @@ Operator (Betreiber) ← NICHT identisch mit Club (Organisation)
 ```
 
 **Geschäftsregeln:**
-- Wenn eine teilbare Ressource ("komplett") gebucht wird, werden automatisch alle Unterressourcen ("links", "rechts") mitgebucht
-- Wenn eine Unterressource gebucht ist, kann die übergeordnete Ressource nicht mehr gebucht werden (Konflikt)
+- Wenn eine teilbare Ressource ("komplett") gebucht wird, werden automatisch alle Unterressourcen mitgebucht
+- Wenn eine Unterressource gebucht ist, kann die übergeordnete Ressource nicht gebucht werden (Konflikt)
 - Slot-basierte Ressourcen können NUR innerhalb zugewiesener Zeitfenster gebucht werden
-- Beim Löschen einer Ressource werden zugehörige Slots ebenfalls gelöscht (CASCADE)
-- Sub-Resources sind vollwertige `resources`-Zeilen → direkt als `bookings.resource_id` FK-Ziel gültig
+- Beim Löschen einer Ressource werden zugehörige Slots mitgelöscht (CASCADE)
 
 ---
 
 ### 2.4 Organisationsverwaltung (Organization Domain)
 
-#### 2.4.1 Club (Verein – Organisation)
+#### 2.4.1 Club (Verein)
 
-Verein im organisatorischen Sinne. Kann der Heimatverein oder ein Gastverein sein. **Getrennt vom Betreiber** (Operator), da Betreiber auch Kommunen oder andere Einrichtungen sein können.
+Verein im organisatorischen Sinne. **Getrennt vom Betreiber** (Operator).
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -243,29 +243,19 @@ Verein im organisatorischen Sinne. Kann der Heimatverein oder ein Gastverein sei
 | `name` | String | ✅ | Vereinsname |
 | `shortName` | String | ✅ | Kurzname (z.B. "SGH") |
 | `color` | String | ✅ | Vereinsfarbe (Hex) |
-| `isHomeClub` | Boolean | ✅ | Ist dies der Heimatverein (Betreiber)? |
-
-**Demo-Daten:**
-
-| Verein | Kürzel | Farbe | Heimatverein |
-|--------|--------|-------|-------------|
-| SG Hünstetten | SGH | #2563eb | ✅ |
-| TV Idstein | TVI | #dc2626 | ❌ |
-| TSV Wallrabenstein | TSV | #16a34a | ❌ |
+| `isHomeClub` | Boolean | ✅ | Heimatverein? |
 
 #### 2.4.2 Department (Abteilung)
-
-Sportliche Abteilung innerhalb eines Vereins.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
 | `id` | UUID | ✅ | PK |
 | `clubId` | UUID | ✅ | FK → Club |
-| `name` | String | ✅ | Abteilungsname (z.B. "Fußball") |
+| `name` | String | ✅ | Abteilungsname |
 | `icon` | String | ✅ | Emoji-Icon |
 | `sortOrder` | Number | ✅ | Sortierreihenfolge |
 
-#### 2.4.3 Team (Gruppe/Mannschaft)
+#### 2.4.3 Team (Mannschaft)
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -279,20 +269,20 @@ Sportliche Abteilung innerhalb eines Vereins.
 
 #### 2.4.4 EventType (Terminart) – Single Source of Truth
 
-Globale Aufzählung der möglichen Terminarten. Definiert als `EVENT_TYPES` in `organizationConfig.js` (Single Source of Truth). Der alte Alias `BOOKING_TYPES` aus `constants.js` wurde entfernt; `organizationConfig.js` exportiert `BOOKING_TYPES` nur noch als deprecated Re-Export für Abwärtskompatibilität. Perspektivisch DB-Tabelle.
+Definiert als `EVENT_TYPES` in `organizationConfig.js`. Perspektivisch DB-Tabelle.
 
 | ID | Label | Icon | Farbe | allowOverlap | Beschreibung |
 |----|-------|------|-------|-------------|-------------|
 | `training` | Training | 🏃 | #3b82f6 | ❌ | Regelmäßiges Training |
 | `match` | Heimspiel | ⚽ | #dc2626 | ❌ | Wettkampf oder Freundschaftsspiel |
-| `event` | Event/Wettkampf | 🎉 | #8b5cf6 | ❌ | Turnier, Wettkampf, Sonderveranstaltung |
+| `event` | Event/Wettkampf | 🎉 | #8b5cf6 | ❌ | Turnier, Sonderveranstaltung |
 | `other` | Sonstiges | 📋 | #6b7280 | ✅ | Besprechung, Wartung, etc. |
 
-> **`allowOverlap`:** Steuert die Konflikterkennung in `helpers.js → checkBookingConflicts()`. Wenn beide sich überlappende Buchungen `allowOverlap: true` haben, wird der Konflikt als Warnung statt als Fehler gemeldet. Nur `other` erlaubt Überlappungen.
+> **`allowOverlap`:** Steuert die Konflikterkennung. Wenn beide sich überlappende Buchungen `allowOverlap: true` haben, wird der Konflikt als Warnung statt als Fehler gemeldet.
 
 #### 2.4.5 TrainerAssignment (Trainer-Zuordnung)
 
-Verknüpfung zwischen Person (Profile) und Mannschaft (Team). N:M-Beziehung.
+N:M-Beziehung zwischen Profile und Team.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -303,35 +293,84 @@ Verknüpfung zwischen Person (Profile) und Mannschaft (Team). N:M-Beziehung.
 
 ---
 
-### 2.5 Personenverwaltung (User Domain)
+### 2.5 Benutzerverwaltung (User Domain)
 
-#### 2.5.1 Profile (Benutzer/Person)
+#### 2.5.1 Authentifizierung
+
+Das System nutzt **Supabase Auth** mit E-Mail/Passwort. Kein Self-Service-Signup – Benutzer werden ausschließlich per Admin-Einladung angelegt:
+
+1. Admin erstellt Einladung (E-Mail + Rolle)
+2. Supabase sendet Einladungs-E-Mail mit Magic Link
+3. Benutzer setzt Passwort und wird aktiviert
+4. `AuthContext` verknüpft Supabase Auth Session mit `profiles`-Tabelle via `auth_user_id`
+
+**Session-Management:**
+- `AuthContext` hört auf `onAuthStateChange` Events
+- Profil wird bei Login automatisch geladen
+- Rollen-Checks (`kannBuchen`, `kannGenehmigen`, `kannAdministrieren`) werden aus dem Profil abgeleitet
+- Geschützte Routen via `ProtectedRoute` (Auth-Guard) und `PermissionRoute` (Rollen-Guard)
+
+#### 2.5.2 Profile (Benutzer)
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
 | `id` | UUID | ✅ | PK (gen_random_uuid) |
+| `auth_user_id` | UUID | ❌ | FK → Supabase Auth (gesetzt nach Einladung) |
 | `firstName` | String | ✅ | Vorname |
 | `lastName` | String | ✅ | Nachname |
 | `email` | String | ✅ | E-Mail-Adresse |
 | `phone` | String | ❌ | Telefonnummer |
-| `role` | Enum | ✅ | Rolle: `admin` / `trainer` / `extern` |
+| `role` | Enum | ✅ | `admin` / `trainer` / `extern` / `genehmiger` |
 | `operatorId` | UUID | ❌ | FK → Operator (Pflicht für Admins) |
 
-#### 2.5.2 Rollen
+#### 2.5.3 Rollen
 
-| Rolle | Label | Beschreibung | Genehmigungspflicht |
-|-------|-------|-------------|---------------------|
-| `admin` | Administrator | Volle Rechte. Muss einem Betreiber zugeordnet sein. | ❌ Auto-genehmigt |
-| `trainer` | Trainer | Eigene Buchungen erstellen und verwalten | ❌ Auto-genehmigt |
-| `extern` | Extern | Nur Anfragen stellen | ✅ Muss genehmigt werden |
+| Rolle | Label | Beschreibung | Buchungsrecht | Genehmigungsrecht | Admin-Bereich |
+|-------|-------|-------------|---------------|-------------------|---------------|
+| `admin` | Administrator | Volle Rechte | ✅ | ✅ Alle Ressourcen | ✅ |
+| `genehmiger` | Genehmiger | Genehmigt Anfragen für zugewiesene Ressourcen | ✅ | ✅ Nur zugewiesene | ❌ |
+| `trainer` | Trainer | Eigene Buchungen erstellen | ✅ | ❌ | ❌ |
+| `extern` | Extern | Nur Anfragen stellen (genehmigungspflichtig) | ✅ | ❌ | ❌ |
+
+**Rollen-Checks im AuthContext:**
+
+| Check | Wer | Verwendet in |
+|-------|-----|-------------|
+| `kannBuchen` | Alle eingeloggten Benutzer | PermissionRoute, Sidebar |
+| `kannGenehmigen` | admin + genehmiger | PermissionRoute, Sidebar, Approvals |
+| `kannAdministrieren` | admin | PermissionRoute, Sidebar, Admin-Bereich |
+| `isAdmin` | admin | MyBookings (Lösch-Buttons) |
+
+#### 2.5.4 GenehmigerResourceAssignment (Genehmiger-Ressourcen-Zuweisung)
+
+Admins weisen Genehmigern gezielt einzelne Ressourcen zu. Genehmiger sehen in der Approvals-Ansicht nur Anfragen für ihre zugewiesenen Ressourcen.
+
+| Feld | Typ | Pflicht | Beschreibung |
+|------|-----|---------|-------------|
+| `id` | UUID | ✅ | PK |
+| `user_id` | UUID | ✅ | FK → profiles (Rolle muss `genehmiger` sein) |
+| `resource_id` | UUID | ✅ | FK → resources |
+
+**Logik in AppLayout:**
+```js
+const myGenehmigerResources = kannAdministrieren
+  ? null                                        // Admin sieht alles
+  : (kannGenehmigen ? getResourcesForUser(profile?.id) : null);
+
+// Pending-Count filtert nach zugewiesenen Ressourcen
+const pendingCount = bookings.filter(b => {
+  if (b.status !== 'pending' || b.parentBooking) return false;
+  if (kannAdministrieren) return true;
+  if (kannGenehmigen) return myGenehmigerResources?.includes(b.resourceId);
+  return false;
+}).length;
+```
 
 ---
 
 ### 2.6 Buchungen (Booking Domain)
 
 #### 2.6.1 Booking (Buchung)
-
-Einzelner Termin einer Ressource.
 
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|-------------|
@@ -340,49 +379,42 @@ Einzelner Termin einer Ressource.
 | `date` | Date | ✅ | Datum (ISO: YYYY-MM-DD) |
 | `startTime` | Time | ✅ | Startzeit (HH:MM) |
 | `endTime` | Time | ✅ | Endzeit (HH:MM) |
-| `title` | String | ✅ | Titel (z.B. "A-Jugend Training") |
+| `title` | String | ✅ | Titel |
 | `description` | String | ❌ | Beschreibung |
 | `bookingType` | Enum | ✅ | `training` / `match` / `event` / `other` |
-| `userId` | UUID | ✅ | FK → profiles (Ersteller / Haupttrainer) |
+| `userId` | UUID | ✅ | FK → profiles (Ersteller) |
 | `status` | Enum | ✅ | `pending` / `approved` / `rejected` / `cancelled` |
-| `seriesId` | String | ❌ | Serien-ID (wenn Teil einer Terminserie oder Composite-Booking) |
-| `parentBooking` | Boolean | ❌ | `true` = Auto-generierte Teilfeld-Buchung (nicht in Approvals angezeigt) |
+| `seriesId` | String | ❌ | Serien-ID (Terminserie oder Composite-Booking) |
+| `parentBooking` | Boolean | ❌ | `true` = Auto-generierte Teilfeld-Buchung |
 
 #### 2.6.2 Buchungslogik
 
-**Einzeltermin:**
-- Ein einzelnes Datum mit Start- und Endzeit
-- Erzeugt genau eine Booking-Zeile
+**Einzeltermin:** Ein Datum mit Start-/Endzeit → eine Booking-Zeile.
 
-**Terminserie:**
-- Wochentag + Startdatum + Enddatum + Start-/Endzeit
-- Erzeugt N Booking-Zeilen (eine pro Woche im Zeitraum)
-- Alle teilen dieselbe `seriesId`
-- Können einzeln oder als Serie gelöscht werden
+**Terminserie:** Wochentag + Zeitraum → N Booking-Zeilen mit geteilter `seriesId`. Einzeln oder als Serie löschbar.
 
 **Teilbare Ressourcen (Composite):**
-- Bei Buchung von "Sportplatz - komplett" werden automatisch zusätzliche Buchungen für "Sportplatz - links" und "Sportplatz - rechts" erzeugt
-- Diese Zusatzbuchungen haben `parentBooking: true` und dieselbe `seriesId`
-- **Auch Einzeltermin-Composites erhalten eine `seriesId`** (um die Verknüpfung herzustellen)
-- Sub-Resource-IDs sind gültige FK-Targets (seit Migration 006)
+- Buchung von "Sportplatz - komplett" erzeugt automatisch Zusatzbuchungen für "links" und "rechts"
+- Zusatzbuchungen haben `parentBooking: true` und dieselbe `seriesId`
+- Auch Einzeltermin-Composites erhalten eine `seriesId`
 
 **Genehmigungsworkflow:**
 
 ```
 Neue Buchung erstellt
-    ├── User.role = admin/trainer → status = 'approved' (sofort)
-    └── User.role = extern → status = 'pending' (wartet auf Admin)
-         ├── Admin genehmigt → status = 'approved' (+ alle mit gleicher seriesId)
-         └── Admin lehnt ab → status = 'rejected' (+ alle mit gleicher seriesId)
+    ├── User.role = admin/trainer/genehmiger → status = 'approved' (sofort)
+    └── User.role = extern → status = 'pending'
+         ├── Admin/Genehmiger genehmigt → status = 'approved' (+ alle mit gleicher seriesId)
+         └── Admin/Genehmiger lehnt ab → status = 'rejected' (+ alle mit gleicher seriesId)
 ```
 
-> **Cascading Approve/Reject:** Beim Genehmigen/Ablehnen werden alle Bookings mit derselben `seriesId` gleichzeitig aktualisiert (`updateSeriesStatus()`). Dadurch werden Composite-Buchungen (Ganzes Feld + Teilflächen) als Einheit behandelt. In der Approvals-Ansicht erscheinen nur die Haupt-Buchungen (`parentBooking !== true`), mit einem Info-Banner über die Anzahl verknüpfter Buchungen.
+> **Genehmiger sehen nur Anfragen für ihre zugewiesenen Ressourcen.** Admins sehen alle.
 
 #### 2.6.3 Konflikterkennung
 
 | Konflikttyp | Schweregrad | Beschreibung |
 |-------------|------------|-------------|
-| `time_overlap` | error/warning | Zeitüberschneidung mit bestehender Buchung auf derselben Ressource. Schweregrad hängt von `allowOverlap` beider EVENT_TYPES ab. |
+| `time_overlap` | error/warning | Zeitüberschneidung (Schweregrad abhängig von `allowOverlap`) |
 | `composite_blocked` | error/warning | Teilfeld belegt → Ganzes Feld nicht buchbar |
 | `parent_blocked` | error/warning | Ganzes Feld gebucht → Teilfeld nicht buchbar |
 | `no_slot` | error | Kein verfügbarer Slot an diesem Tag (nur slot-basiert) |
@@ -396,123 +428,156 @@ Neue Buchung erstellt
 
 ```
 ┌─────────────────────┐
-│ 🏠 SG Hünstetten    │
-│    Ressourcen-Buchung│
+│ SG  SG Hünstetten    │
+│     Buchungssystem   │
 ├─────────────────────┤
+│ ALLGEMEIN            │
 │ 📅 Kalender         │
 │ 📋 Meine Buchungen  │
-│ ➕ Neue Anfrage     │
+│ 📝 Neue Anfrage     │  ← nur wenn kannBuchen
+│ 📥 PDF-Export       │
 ├─────────────────────┤
-│ EXPORT              │
-│ 📥 Monatsplan PDF   │
+│ GENEHMIGUNGEN        │  ← nur wenn kannGenehmigen
+│ 🛡️ Genehmigungen (N)│  ← Badge mit pendingCount
 ├─────────────────────┤
-│ ADMINISTRATION      │  ← nur wenn Admin-Modus aktiv
-│ ✅ Genehmigungen    │
-│ 👤 Personen         │
-│ 🏢 Organisation     │
-│ 🏗️ Anlagen          │
-│ 📧 E-Mail-Log       │
+│ ADMINISTRATION       │  ← nur wenn kannAdministrieren
+│ 👥 Benutzerverwaltung│
+│ 🏢 Anlagenverwaltung│
+│ ⚙️ Organisation     │
+├─────────────────────┤
+│ DM  Daniel Maiworm   │  ← UserMenu (Name, Rollen, Logout)
+│     Admin · Genehm…  │
 └─────────────────────┘
 ```
 
-### 3.2 Kalender (CalendarView) ✅ Refactored
+### 3.2 Login (LoginPage)
 
-**Zweck:** Wochenübersicht aller Buchungen pro Ressource
+**Route:** `/login`
+
+Supabase Auth Login-Formular (E-Mail + Passwort). Nach erfolgreicher Anmeldung Redirect auf `/`. Kein Registrierungsformular – Benutzer werden per Admin-Einladung angelegt.
+
+### 3.3 Kalender (CalendarView)
+
+**Route:** `/`
 
 **Aufbau:**
-1. **Facility-Dropdown** (oben): Auswahl der Anlage + Anzeige der Adresse
-2. **Gruppen-Tabs**: Ressourcengruppen der gewählten Anlage, dynamisch via `groupId`-FK
-3. **Ressourcen-Tabs**: Einzelressourcen der gewählten Gruppe via `r.groupId === selectedGroupId`
-4. **Wochennavigation**: ← Prev | "KW XX: DD.MM – DD.MM.YYYY" | Next →
-5. **Kalender-Grid**: 7 Tage × Zeitslots (8:00–22:00), Buchungen als farbige Blöcke
+1. **Facility-Dropdown** + Adressanzeige
+2. **Gruppen-Tabs** (Ressourcengruppen der Anlage, dynamisch via `groupId`-FK) mit Buchungs-Count
+3. **Ressourcen-Tabs** (Einzelressourcen der Gruppe) mit Farbbalken und Buchungs-Count
+4. **Resource-Info** (Name, Farbe, Badges: "Nur in zugewiesenen Slots", "Beide Hälften") + **Wochennavigation** (← | DatePicker | → | Heute)
+5. **Kalender-Grid**: 7 Tage × 7:00–22:00 Uhr, 48px/Stunde. Buchungen als farbige Blöcke (approved = Ressourcenfarbe, pending = gelb, blocking = grau gestrichelt). Slot-Shading (grün/grau) bei limitierten Ressourcen.
+6. **Legende**: Genehmigt, Ausstehend, Blockiert, Event-Types, Slot-Info
 
-### 3.3 Meine Buchungen (MyBookings) ✅ Refactored
+### 3.4 Meine Buchungen (MyBookings)
 
-**Zweck:** Übersicht aller Buchungen des aktuellen Benutzers (oder aller, im Admin-Modus)
+**Route:** `/meine-buchungen`
 
-**Layout:** 4-Spalten Flexbox mit Farbbalken, dynamische Gruppen-Tabs aus `resourceGroups`-Prop.
+**Aufbau:**
+1. **Gruppen-Filter-Tabs** (dynamisch aus `resourceGroups`, mit "Alle Buchungen" Tab)
+2. **Ressourcen-Sub-Filter** (wenn Gruppe ausgewählt)
+3. **Booking-Cards** (4-Spalten-Layout):
+   - Col 1: Titel, Ressource, Wochentag, Zeit, Datumsbereich (+ Serien-Badge mit Anzahl)
+   - Col 2: Trainer/Übungsleiter (Primary + Co)
+   - Col 3: Buchungstyp + Organisations-Hierarchie (Verein → Abteilung → Mannschaft)
+   - Col 4: Status-Badge (Genehmigt/Ausstehend/Abgelehnt) + Lösch-Aktionen (Admin: 1 Termin / Serie)
 
-### 3.4 Neue Anfrage (BookingRequest) ✅ Refactored
+### 3.5 Neue Anfrage (BookingRequest)
 
-**Zweck:** Neue Buchungsanfrage erstellen
+**Route:** `/buchen` (nur `kannBuchen`)
 
 **Formular-Schritte:**
 
 | Schritt | Sektion | Felder |
 |---------|---------|--------|
-| 1 | **Ressource auswählen** | Anlage → Bereich → Ressource (3 kaskadierende Dropdowns, via `groupId`-FK) |
-| 2 | **Mannschaft auswählen** | Verein → Abteilung → Mannschaft + Trainer-Anzeige + Warnung bei fehlendem Trainer |
-| 3 | **Terminart** | Gefiltert auf erlaubte Terminarten der Mannschaft |
-| 4 | **Terminplanung** | Toggle: Einzeltermin / Terminserie |
-| 5 | **Buchungsdetails** | Titel (auto-vorgeschlagen), Beschreibung |
-| 6 | **Vorschau** | Terminliste mit Konfliktprüfung (grün/gelb/rot) |
-| 7 | **Zusammenfassung** | Alle gewählten Daten auf einen Blick |
-| 8 | **Absenden** | Button mit Terminanzahl, deaktiviert bei Konflikten oder fehlendem Trainer |
+| 1 | Ressource auswählen | Anlage → Bereich → Ressource (3 kaskadierende Dropdowns via `groupId`-FK) |
+| 2 | Mannschaft auswählen | Verein → Abteilung → Mannschaft + Trainer-Anzeige + Warnung bei fehlendem Trainer |
+| 3 | Terminart | Gefiltert auf erlaubte Terminarten der Mannschaft |
+| 4 | Terminplanung | Toggle: Einzeltermin / Terminserie |
+| 5 | Buchungsdetails | Titel (auto-vorgeschlagen), Beschreibung |
+| 6 | Vorschau | Terminliste mit Konfliktprüfung (grün/gelb/rot) |
+| 7 | Zusammenfassung | Alle gewählten Daten |
+| 8 | Absenden | Button mit Terminanzahl, deaktiviert bei Konflikten oder fehlendem Trainer |
 
-**Validierungen vor Submit:**
-- `resourceId` muss gesetzt sein
-- `previewDates` darf nicht leer sein
-- `userId` wird aus Primary Trainer aufgelöst – wenn leer, Warnung + Submit blockiert
-- Slot-Validierung für limitierte Ressourcen
-- Konflikt-Prüfung (Errors blockieren Submit)
+### 3.6 Genehmigungen (Approvals)
 
-### 3.5 Genehmigungen (Approvals) ✅ Refactored
+**Route:** `/genehmigungen` (nur `kannGenehmigen`)
 
-**Zweck:** Admin-Übersicht ausstehender Buchungsanfragen
-
-**Features:**
-- Filtert `status === 'pending' && !parentBooking` (auto-generierte Sperren ausgeblendet)
+- Filtert `status === 'pending' && !parentBooking`
+- **Genehmiger** sehen nur Anfragen für ihre zugewiesenen Ressourcen
+- **Admins** sehen alle ausstehenden Anfragen
 - Info-Banner: "Genehmigung gilt auch für X verknüpfte Buchungen"
-- Approve/Reject cascaded via `seriesId` auf alle zugehörigen Buchungen
-- E-Mail-Benachrichtigung bei Genehmigung/Ablehnung
+- Approve/Reject cascaded via `seriesId`
+- Optionaler Kommentar bei Ablehnung
 
-### 3.6 Personen (UserManagement)
+### 3.7 PDF-Export (PDFExportPage)
 
-**Zweck:** Benutzerkonten verwalten (CRUD über Supabase)
+**Route:** `/export`
 
-### 3.7 Organisation (OrganizationManagement)
+Export des Buchungsplans als PDF (Querformat A4):
+- Kategorie-Auswahl (Außenanlagen, Innenräume, Geteilte Hallen)
+- Vorschau der enthaltenen Anlagen mit Farbpills
+- Monats-/Jahresauswahl
+- Generiert Kalender-Grid mit farbigen Buchungsblöcken + Legende
+- Nutzt jsPDF (on-demand CDN-Load)
 
-**Zweck:** Vereine, Abteilungen, Mannschaften und Trainer-Zuordnungen verwalten (Daten aus Supabase)
+### 3.8 Admin: Benutzerverwaltung (UserManagement)
 
-### 3.8 Anlagen (FacilityManagement)
+**Route:** `/admin/benutzer` (nur `kannAdministrieren`)
 
-**Zweck:** Physische Standorte, Ressourcengruppen und Ressourcen verwalten (Daten aus Supabase)
+- Benutzer einladen (E-Mail + Rolle → Supabase Auth Invite)
+- Rollen ändern
+- Trainer-Status verwalten
+- **Genehmiger-Ressourcen zuweisen**: Bei Rolle `genehmiger` erscheint eine Ressourcen-Liste mit Checkboxen zum Aktivieren/Deaktivieren einzelner Ressourcen
 
-### 3.9 E-Mail-Log (EmailLog)
+### 3.9 Admin: Anlagenverwaltung (FacilityManagement)
 
-**Zweck:** Übersicht aller versendeten E-Mail-Benachrichtigungen (Demo/Mock)
+**Route:** `/admin/anlagen` (nur `kannAdministrieren`)
 
-### 3.10 Monatsplan PDF (PDFExportPage)
+- Facilities, ResourceGroups, Resources CRUD
+- Slot-Verwaltung für `sharedScheduling`-Gruppen (Zahnrad-Icon)
+- Splittable-Ressourcen verwalten
 
-**Zweck:** PDF-Export des Buchungsplans für einen Monat
+### 3.10 Admin: Organisation (OrganizationManagement)
+
+**Route:** `/admin/organisation` (nur `kannAdministrieren`)
+
+- Vereine, Abteilungen, Mannschaften CRUD
+- Trainer-Zuordnungen (Primary/Co) mit Benutzer-Dropdown
+- Erlaubte Terminarten pro Mannschaft
+
+### 3.11 Shared UI-Komponenten
+
+| Komponente | Datei | Beschreibung |
+|-----------|-------|-------------|
+| `Badge` | `ui/Badge.js` | Status-Badges (success, warning, error, info, neutral) |
+| `Button` | `ui/Button.js` | Einheitliche Buttons (primary, secondary, danger, ghost) |
+| `Card` | `ui/Card.js` | Content-Container mit optionalem Header/Footer |
+| `ConfirmDialog` | `ui/ConfirmDialog.js` | Modal-basierter `window.confirm()`-Ersatz (via `useConfirm`) |
+| `EmptyState` | `ui/EmptyState.js` | Platzhalter für leere Listen |
+| `FormField` | `ui/FormField.js` | Label + Input-Wrapper mit Fehlertext |
+| `InfoBanner` | `ui/InfoBanner.js` | Farbige Hinweisbox (info, warning, error) |
+| `LoadingSpinner` | `ui/LoadingSpinner.js` | Lade-Animation |
+| `Modal` | `ui/Modal.js` | Overlay-Dialog mit Backdrop |
+| `SectionHeader` | `ui/SectionHeader.js` | Sektions-Überschrift mit optionalem Action-Button |
+| `TabBar` | `ui/TabBar.js` | Wiederverwendbare Tab-Navigation |
 
 ---
 
-## 4. Legacy-Kompatibilität
+## 4. Routing
 
-### 4.1 buildLegacyResources()
-
-Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das hierarchische Ressourcenmodell (aus `useFacilities()` / DB) in das flache Format, das bestehende Komponenten erwarten:
-
-- `resource.bookingMode === 'slotOnly'` → `type: 'limited'`
-- `resource.bookingMode === 'free'` → `type: 'regular'`
-- `resource.splittable + subResources` → `isComposite: true` + `includes[]` + separate Einträge mit `partOf`
-
-> **Status:** Kann noch nicht entfernt werden. 6 Komponenten (CalendarView, BookingRequest, MyBookings, Approvals, PDFExportPage) und `helpers.checkBookingConflicts()` nutzen das flache Format mit `type`, `isComposite`, `includes[]`, `partOf`. Perspektivisch: Komponenten auf hierarchisches Format umstellen.
-
-### 4.2 constants.js – Auflösung (abgeschlossen)
-
-`constants.js` wurde von ~160 Zeilen / 8 Exports auf ~20 Zeilen / 3 Exports reduziert:
-
-| Bisheriger Inhalt | Status | Verbleib |
-|-------------------|--------|----------|
-| `RESOURCES` | ✅ Entfernt | DB `resources` via `useFacilities()` |
-| `BOOKING_TYPES` | ✅ Entfernt | → `EVENT_TYPES` in `organizationConfig.js` (Single Source of Truth) |
-| `ROLES` | ✅ Bleibt | Frontend-Konstante in `constants.js` |
-| `DEMO_USERS` | ✅ Entfernt | DB `profiles` via `useUsers()` |
-| `DEMO_BOOKINGS` | ✅ Entfernt | DB `bookings` via `useBookings()` |
-| `DEMO_SLOTS` | ✅ Entfernt | Inline-Fallback in `App.js` |
-| `DAYS` / `DAYS_FULL` | ✅ Bleibt | Reine Frontend-Anzeigelogik in `constants.js` |
+| Route | Komponente | Guard | Sichtbarkeit |
+|-------|-----------|-------|-------------|
+| `/login` | LoginPage | – | Nur unauthentifiziert |
+| `/` | CalendarView | ProtectedRoute | Alle |
+| `/meine-buchungen` | MyBookings | ProtectedRoute | Alle |
+| `/buchen` | BookingRequest | PermissionRoute(kannBuchen) | Alle eingeloggten |
+| `/export` | PDFExportPage | ProtectedRoute | Alle |
+| `/genehmigungen` | Approvals | PermissionRoute(kannGenehmigen) | Admin + Genehmiger |
+| `/admin/benutzer` | UserManagement | PermissionRoute(kannAdministrieren) | Admin |
+| `/admin/anlagen` | FacilityManagement | PermissionRoute(kannAdministrieren) | Admin |
+| `/admin/organisation` | OrganizationManagement | PermissionRoute(kannAdministrieren) | Admin |
+| `/admin/emails` | EmailLog | PermissionRoute(kannAdministrieren) | Admin |
+| `*` | → Redirect `/` | – | Fallback |
 
 ---
 
@@ -521,20 +586,18 @@ Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das hie
 ### 5.1 Buchungsregeln
 
 1. Slot-basierte Ressourcen können **nur** innerhalb zugewiesener Zeitfenster gebucht werden
-2. Bei Buchung einer teilbaren Ressource ("komplett") werden **automatisch** alle Unterressourcen mitgebucht (gleiche `seriesId`, `parentBooking: true`)
-3. Wenn eine Unterressource belegt ist, kann das übergeordnete "Ganze" **nicht** gebucht werden
-4. Termine vom Typ `training` sind **typischerweise Terminserien** (wöchentlich wiederkehrend)
-5. Termine vom Typ `match` und `event` sind **typischerweise Einzeltermine**
-6. Der Titel wird **automatisch vorgeschlagen**: "{Mannschaft} {Terminart}"
-7. Buchungen von `extern`-Benutzern erfordern **Admin-Genehmigung**
-8. Genehmigung/Ablehnung **cascaded** auf alle Bookings mit derselber `seriesId`
-9. `parentBooking`-Einträge erscheinen **nicht** in der Genehmigungsansicht
-10. Überlappungskonflikte sind nur **Warnungen** (statt Fehler) wenn beide Terminarten `allowOverlap: true` haben
+2. Bei Buchung einer teilbaren Ressource ("komplett") werden **automatisch** alle Unterressourcen mitgebucht (`parentBooking: true`, gleiche `seriesId`)
+3. Wenn eine Unterressource belegt ist, kann das "Ganze" **nicht** gebucht werden
+4. Titel wird **automatisch vorgeschlagen**: "{Mannschaft} {Terminart}"
+5. Buchungen von `extern`-Benutzern erfordern **Genehmigung**
+6. Genehmigung/Ablehnung **cascaded** auf alle Bookings mit derselben `seriesId`
+7. `parentBooking`-Einträge erscheinen **nicht** in der Genehmigungsansicht
+8. Überlappungskonflikte sind nur **Warnungen** wenn beide Terminarten `allowOverlap: true` haben
 
 ### 5.2 Löschregeln
 
 1. Einzeltermin löschen: Nur dieser eine Termin
-2. Serie löschen: Alle Termine mit derselben `seriesId`
+2. Serie löschen: Alle Termine mit derselber `seriesId`
 3. Ressource löschen: Zugehörige Slots werden mitgelöscht (CASCADE)
 4. Gruppe löschen: Alle Ressourcen und Slots werden mitgelöscht (CASCADE)
 5. Anlage löschen: Alles darunter wird mitgelöscht (CASCADE)
@@ -546,11 +609,13 @@ Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das hie
 3. Eine Mannschaft kann **mehrere** Trainer haben (Haupt + Co)
 4. Buchung erfordert einen **zugeordneten Trainer** (userId wird aus Primary Trainer aufgelöst)
 
-### 5.4 Betreiber-Regeln
+### 5.4 Benutzer- und Rollen-Regeln
 
-1. Betreiber und Verein (Organisation) sind **getrennte Entitäten**
-2. Admins müssen einem **Betreiber** zugeordnet sein (nicht einem Verein)
-3. Ein Betreiber verwaltet eine oder mehrere **Anlagen**
+1. Benutzer werden ausschließlich per **Admin-Einladung** angelegt (kein Self-Service-Signup)
+2. Admins müssen einem **Betreiber** zugeordnet sein
+3. **Genehmiger** sehen nur Anfragen für Ressourcen, die ihnen von einem Admin zugewiesen wurden
+4. **Admins** sehen und genehmigen alle Anfragen
+5. Betreiber und Verein sind **getrennte Entitäten**
 
 ---
 
@@ -558,37 +623,94 @@ Die Funktion `buildLegacyResources()` in `facilityConfig.js` konvertiert das hie
 
 ```
 src/
-├── App.js                          # Hauptkomponente, State-Management, Routing
-├── index.js                        # React Entry Point
-├── index.css                       # Globale Styles + Tailwind
+├── App.js                              # Root: Provider-Hierarchie + Routing (AppLayout)
+├── index.js                            # BrowserRouter + AuthProvider
+├── index.css                           # Projekt-spezifische Styles (Body, Reset)
+│
 ├── lib/
-│   └── supabase.js                 # Supabase-Client Konfiguration
+│   └── supabase.js                     # Supabase-Client Konfiguration
+│
+├── contexts/
+│   ├── AuthContext.js                   # Login, Session, Profil, Rollen-Checks
+│   ├── FacilityContext.js              # Anlagen, Gruppen, Ressourcen, Slots, RESOURCES
+│   ├── OrganizationContext.js          # Vereine, Abteilungen, Mannschaften + CRUD
+│   ├── BookingContext.js               # Buchungen laden, erstellen, Status-Updates
+│   └── UserContext.js                  # User-Profile, Einladungen, Genehmiger-Zuweisungen
+│
 ├── hooks/
-│   └── useSupabase.js              # Alle Supabase-Hooks (useUsers, useFacilities, useOrganization, useBookings)
-├── config/
-│   ├── constants.js                # Nur noch ROLES, DAYS, DAYS_FULL (alles andere entfernt/migriert)
-│   ├── facilityConfig.js           # Demo-Fallback Daten + buildLegacyResources()
-│   └── organizationConfig.js       # EVENT_TYPES (Single Source of Truth) + Demo-Fallback Daten
+│   ├── useBookingActions.js            # Buchen, Genehmigen, Ablehnen, Löschen
+│   └── useConfirm.js                   # Promise-basierter ConfirmDialog
+│
+├── routes/
+│   ├── ProtectedRoute.js               # Auth-Guard (→ /login wenn nicht eingeloggt)
+│   └── PermissionRoute.js              # Rollen-Guard (→ / wenn keine Berechtigung)
+│
 ├── components/
-│   ├── Sidebar.js                  # Navigation
-│   ├── CalendarView.js             # ✅ Refactored: groupId-FK, EVENT_TYPES, JSDoc
-│   ├── BookingRequest.js           # ✅ Refactored: groupId-FK, EVENT_TYPES, userId-Validierung, JSDoc
-│   ├── MyBookings.js               # ✅ Refactored: dynamische Group-Tabs, EVENT_TYPES, JSDoc
-│   ├── PDFExportPage.js            # PDF-Export
-│   ├── PDFExportDialog.js          # PDF-Export-Dialog
-│   ├── ui/
-│   │   └── Badge.js                # Badge + Button Komponenten
-│   └── admin/
-│       ├── Approvals.js            # ✅ Refactored: parentBooking-Filter, EVENT_TYPES, Cascade-Info, JSDoc
-│       ├── UserManagement.js       # Personen-Verwaltung
-│       ├── OrganizationManagement.js # ✅ Refactored: Unused vars entfernt
-│       ├── FacilityManagement.js   # ✅ Refactored: Unused vars entfernt
-│       ├── SlotManagement.js       # ✅ Gelöscht (Deprecation-Kommentar verbleibt, durch FacilityManagement ersetzt)
-│       └── EmailLog.js             # E-Mail-Protokoll
+│   ├── ui/                             # Shared UI-Komponenten
+│   │   ├── Badge.js                    #   Status-Badges + Legacy Button-Reexport
+│   │   ├── Button.js                   #   Einheitliche Buttons
+│   │   ├── Card.js                     #   Content-Container
+│   │   ├── ConfirmDialog.js            #   Modal-Confirm (via useConfirm)
+│   │   ├── EmptyState.js              #   Platzhalter leere Listen
+│   │   ├── FormField.js               #   Label + Input-Wrapper
+│   │   ├── InfoBanner.js              #   Farbige Hinweisboxen
+│   │   ├── LoadingSpinner.js          #   Lade-Animation
+│   │   ├── Modal.js                   #   Overlay-Dialog
+│   │   ├── SectionHeader.js           #   Sektions-Überschrift
+│   │   └── TabBar.js                  #   Wiederverwendbare Tabs
+│   │
+│   ├── admin/
+│   │   ├── facilities/                 #   Anlagenverwaltung
+│   │   │   ├── index.js               #     Barrel Export
+│   │   │   ├── FacilitySection.js     #     Anlagen CRUD
+│   │   │   ├── ResourceGroupSection.js#     Gruppen CRUD
+│   │   │   ├── ResourceSection.js     #     Ressourcen CRUD
+│   │   │   ├── SlotSection.js         #     Slot-Verwaltung
+│   │   │   ├── ResourceForm.js        #     Ressourcen-Formular
+│   │   │   └── SlotForm.js            #     Slot-Formular
+│   │   │
+│   │   ├── organization/               #   Organisationsverwaltung
+│   │   │   ├── index.js               #     Barrel Export
+│   │   │   ├── ClubSection.js         #     Vereine CRUD
+│   │   │   ├── DepartmentSection.js   #     Abteilungen CRUD
+│   │   │   ├── TeamSection.js         #     Mannschaften CRUD
+│   │   │   └── TrainerSection.js      #     Trainer-Zuordnungen
+│   │   │
+│   │   ├── users/                      #   Benutzerverwaltung
+│   │   │   ├── index.js               #     Barrel Export
+│   │   │   ├── UserTable.js           #     Benutzerliste
+│   │   │   ├── UserForm.js            #     Benutzerformular
+│   │   │   ├── InviteForm.js          #     Einladungsformular
+│   │   │   ├── GenehmigerResources.js #     Genehmiger-Ressourcen-Zuweisung
+│   │   │   └── TrainerInfo.js         #     Trainer-Details
+│   │   │
+│   │   ├── Approvals.js               #   Genehmigungen
+│   │   ├── EmailLog.js                 #   E-Mail-Protokoll
+│   │   ├── FacilityManagement.js       #   Container für facilities/
+│   │   ├── OrganizationManagement.js   #   Container für organization/
+│   │   └── UserManagement.js           #   Container für users/
+│   │
+│   ├── CalendarView.js                 #   Wochenkalender
+│   ├── BookingRequest.js               #   Buchungsformular
+│   ├── MyBookings.js                   #   Meine Buchungen
+│   ├── PDFExportPage.js                #   PDF-Export
+│   ├── PDFExportDialog.js              #   PDF-Export-Dialog (Legacy)
+│   ├── Sidebar.js                      #   Navigation mit Rollen-abhängigen Links
+│   ├── LoginPage.js                    #   Login-Formular
+│   └── UserMenu.js                     #   Benutzer-Menü (Name, Rollen, Logout)
+│
+├── config/
+│   ├── constants.js                    # ROLES, DAYS, DAYS_FULL
+│   └── organizationConfig.js           # EVENT_TYPES (Single Source of Truth)
+│
 ├── services/
-│   └── emailService.js             # E-Mail-Service (Mock)
+│   └── emailService.js                 # E-Mail-Service (Mock)
+│
 └── utils/
-    └── helpers.js                  # ✅ Refactored: EVENT_TYPES, Hilfsfunktionen (Datum, Konflikte, etc.)
+    └── helpers.js                      # Datum, Format, Kalender, Konflikterkennung
+
+public/
+└── index.html                          # Tailwind CDN Script + Meta-Tags
 
 supabase/
 └── migrations/
@@ -603,51 +725,60 @@ supabase/
 
 ---
 
-## 7. Entscheidungen für die weitere Entwicklung
+## 7. Legacy-Kompatibilität
 
-### 7.1 Getroffene Entscheidungen
+### 7.1 buildLegacyResources()
+
+Die Funktion in `FacilityContext` konvertiert das hierarchische Ressourcenmodell in das flache Format für Komponenten:
+
+- `bookingMode === 'slotOnly'` → `type: 'limited'`
+- `bookingMode === 'free'` → `type: 'regular'`
+- `splittable + subResources` → `isComposite: true` + `includes[]` + separate Einträge mit `partOf`
+
+> **Status:** Wird noch von CalendarView, BookingRequest, MyBookings, Approvals, PDFExportPage und `helpers.checkBookingConflicts()` genutzt. Perspektivisch auf hierarchisches Format umstellen.
+
+### 7.2 Badge.js Button-Reexport
+
+`Badge.js` re-exportiert `Button` aus `./Button.js` für Abwärtskompatibilität. Neue Imports sollten direkt `from './ui/Button'` verwenden.
+
+---
+
+## 8. Entscheidungen und Roadmap
+
+### 8.1 Getroffene Entscheidungen
 
 | Frage | Entscheidung | Begründung |
 |-------|-------------|------------|
 | Betreiber = Verein? | **Nein, getrennte Tabellen** | Betreiber kann auch Kommune sein |
-| Multi-Tenancy | Betreiber ist eigene Organisation; Admins dem Betreiber zugeordnet | Flexible Betreibermodelle |
-| Sub-Resources | **In `resources` mit `parent_resource_id`** (Migration 006) | Sub-Resources müssen als FK-Ziel für Bookings gültig sein |
-| sub_resources-Tabelle | **Gedroppt** (Migration 007) | Daten wurden in Migration 006 nach `resources` kopiert |
-| Composite Approve/Reject | **Cascade via `seriesId`** | Ganzes Feld + Teilflächen als Einheit behandeln |
-| Resource-Filterung | **`groupId`-FK statt `category`-String** | Konsistent, bruchsicher, DB-nativ |
-| Event-/Buchungstypen | **`EVENT_TYPES` in `organizationConfig.js`** (Single Source of Truth) | Alte Duplikate `BOOKING_TYPES` in constants.js entfernt |
-| constants.js | **Aufgelöst** – nur ROLES, DAYS, DAYS_FULL verblieben | Alle Daten in DB oder organizationConfig migriert |
-| Historische Buchungen | Soft-Delete via Status | Daten bleiben erhalten |
+| Authentifizierung | **Supabase Auth, einladungsbasiert** | Internes System, kein Self-Signup |
+| Genehmiger-Rolle | **Eigene Rolle mit Ressourcen-Zuweisung** | Granulare Kontrolle pro Ressource |
+| Sub-Resources | **In `resources` mit `parent_resource_id`** | Müssen als FK-Ziel für Bookings gültig sein |
+| Composite Approve/Reject | **Cascade via `seriesId`** | Ganzes Feld + Teilflächen als Einheit |
+| Resource-Filterung | **`groupId`-FK statt `category`-String** | Konsistent, DB-nativ |
+| Event-Types | **`EVENT_TYPES` in `organizationConfig.js`** | Single Source of Truth |
+| State Management | **React Contexts** (5 Provider) | Prop-Drilling eliminiert, klare Zuständigkeiten |
+| Styling | **Tailwind CSS via CDN** | Keine Build-Konfiguration nötig |
+| Routing | **React Router v6** mit Auth-/Permission-Guards | Deklarativ, geschützte Routen |
+| Confirm-Dialoge | **useConfirm Hook + ConfirmDialog** | Ersetzt `window.confirm()` |
 
-### 7.2 Fehlende Features (Roadmap)
+### 8.2 Offene Features (Roadmap)
 
 | Priorität | Feature | Beschreibung |
 |-----------|---------|-------------|
-| 🔴 Hoch | Authentifizierung | Login-System mit E-Mail/Passwort oder SSO |
-| 🔴 Hoch | Echte E-Mail-Versendung | Aktuell nur Mock – Anbindung an E-Mail-Service |
+| 🔴 Hoch | Echte E-Mail-Versendung | Aktuell nur Mock – Supabase Edge Functions oder Resend |
 | 🟡 Mittel | Buchungs-Bearbeitung | Aktuell nur Löschen möglich |
-| 🟡 Mittel | Tagesansicht Kalender | Detaillierte Tagesansicht |
-| 🟡 Mittel | Mobile-Optimierung | Responsive Layouts |
-| 🟢 Niedrig | Benutzer-Selbstregistrierung | Neue Benutzer können sich selbst anmelden |
+| 🟡 Mittel | Mobile-Optimierung | Responsive Layouts für Smartphone |
+| 🟡 Mittel | Tagesansicht Kalender | Detaillierte Tagesansicht als Alternative |
 | 🟢 Niedrig | Audit-Log | Änderungshistorie für alle Entitäten |
 | 🟢 Niedrig | iCal-Export | Buchungen als Kalender-Abonnement |
+| 🟢 Niedrig | Benachrichtigungen | Push/E-Mail bei Statusänderungen |
 
-### 7.3 Technische Schulden
+### 8.3 Technische Schulden
 
-| Datei/Komponente | Status | Aktion |
-|-----------------|--------|--------|
-| `SlotManagement.js` | ✅ Erledigt | Gelöscht (durch FacilityManagement ersetzt) |
-| `constants.js` → `BOOKING_TYPES` | ✅ Erledigt | Durch `EVENT_TYPES` aus organizationConfig ersetzt |
-| `constants.js` → `RESOURCES`, `DEMO_*` | ✅ Erledigt | Entfernt (Daten in DB / Hooks) |
-| `helpers.js` → `BOOKING_TYPES` Import | ✅ Erledigt | Umgestellt auf `EVENT_TYPES` |
-| `sub_resources`-Tabelle | ✅ Erledigt | Gedroppt (Migration 007) |
-| `buildLegacyResources()` | 🟡 Bleibt vorerst | 6 Komponenten + checkBookingConflicts nutzen das flache Format. Entfernung erfordert Refactoring aller Consumer. |
-| `facilityConfig.js` Demo-Daten | 🟡 Fallback | Seed-Daten in DB, Config bleibt als Fallback |
-| `organizationConfig.js` Demo-Daten | 🟡 Fallback | Seed-Daten in DB, Config bleibt als Fallback |
-| CalendarView | ✅ Refactored | groupId-FK, EVENT_TYPES, JSDoc |
-| MyBookings | ✅ Refactored | Dynamic group tabs, groupId-FK, EVENT_TYPES, JSDoc |
-| BookingRequest | ✅ Refactored | groupId-FK, EVENT_TYPES, userId validation, JSDoc |
-| Approvals | ✅ Refactored | parentBooking filter, EVENT_TYPES, cascade info, JSDoc |
-| helpers.js | ✅ Refactored | EVENT_TYPES, JSDoc |
-| FacilityManagement | ✅ Cleaned | Unused vars removed |
-| OrganizationManagement | ✅ Cleaned | Unused vars removed |
+| Item | Status | Aktion |
+|------|--------|--------|
+| `buildLegacyResources()` | 🟡 Bleibt vorerst | 5 Komponenten + checkBookingConflicts nutzen das flache Format |
+| `emailService.js` | 🟡 Mock | Muss durch echten E-Mail-Service ersetzt werden |
+| `PDFExportDialog.js` | 🟡 Legacy | Ältere Version, PDFExportPage ist der aktive Export |
+| `BookingRequest.js` | 🟡 Groß | 24KB, nutzt noch `window.alert()` statt Toast/InfoBanner |
+| Badge.js Button-Reexport | 🟢 Gering | Entfernen wenn alle Imports auf `./ui/Button` umgestellt |
