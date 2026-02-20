@@ -4,8 +4,7 @@
  * Hierarchy: Club \u2192 Department \u2192 Team \u2192 TrainerAssignment[]
  *
  * EVENT_TYPES is the single source of truth for booking/event type
- * definitions. Previously there was a duplicate BOOKING_TYPES in
- * constants.js which has been removed.
+ * definitions.
  */
 
 // ---- Event Types (single source of truth) ----
@@ -15,9 +14,6 @@ export const EVENT_TYPES = [
   { id: 'event', label: 'Event/Wettkampf', icon: '\uD83C\uDF89', color: '#8b5cf6', description: 'Turnier, Wettkampf, Sonderveranstaltung', allowOverlap: false },
   { id: 'other', label: 'Sonstiges', icon: '\uD83D\uDCCB', color: '#6b7280', description: 'Besprechung, Wartung, etc.', allowOverlap: true },
 ];
-
-/** @deprecated Use EVENT_TYPES instead. Alias kept for backward compatibility. */
-export const BOOKING_TYPES = EVENT_TYPES;
 
 // ---- Default Demo Data ----
 export const DEFAULT_CLUBS = [

@@ -2,8 +2,6 @@
  * constants.js – Zentrale Konstanten für die gesamte Anwendung.
  */
 
-export { EVENT_TYPES as BOOKING_TYPES } from './organizationConfig';
-
 export const ROLES = [
   { id: 'admin',      label: 'Administrator', color: '#dc2626', description: 'Volle Rechte: Buchungen, Genehmigungen, Benutzerverwaltung' },
   { id: 'genehmiger', label: 'Genehmiger',    color: '#7c3aed', description: 'Buchungen erstellen + zugewiesene Ressourcen genehmigen' },

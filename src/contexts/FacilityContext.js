@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useFacilities as useFacilitiesHook } from '../hooks/useSupabase';
-import { DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildLegacyResources } from '../config/facilityConfig';
+import { DEFAULT_FACILITIES, DEFAULT_RESOURCE_GROUPS, DEFAULT_RESOURCES, buildBookableResources } from '../config/facilityConfig';
 
 const DEMO_SLOTS = [
   { id: 1, resourceId: 'halle-gross', dayOfWeek: 1, startTime: '17:00', endTime: '21:00', validFrom: '2026-01-01', validUntil: '2026-06-30' },
@@ -32,9 +32,9 @@ export function FacilityProvider({ children }) {
   const setConfigResources = isDemo ? () => {} : setDbResources;
   const setSlots           = isDemo ? () => {} : setDbSlots;
 
-  // Flaches Legacy-Resource-Array für Kalender/Buchung
+  // Flaches Array buchbarer Ressourcen für Kalender/Buchung
   const RESOURCES = useMemo(
-    () => buildLegacyResources(resourceGroups, configResources),
+    () => buildBookableResources(resourceGroups, configResources),
     [resourceGroups, configResources]
   );
 

@@ -43,9 +43,6 @@ export const getWeekStart = (date) => {
   return d;
 };
 
-/** @deprecated Use getWeekStart() instead. Kept for backward compat. */
-export const getMondayForDate = getWeekStart;
-
 /**
  * Return an array of 7 Dates (Mon\u2013Sun) for the week containing `date`.
  *

@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 // Conversion helpers
 // ============================================================
 
-function profileToLegacyUser(profile) {
+function mapProfile(profile) {
   return {
     id:                 profile.id,
     firstName:          profile.first_name,
@@ -26,7 +26,7 @@ function profileToLegacyUser(profile) {
   };
 }
 
-function legacyUserToProfile(user) {
+function mapUserToDb(user) {
   return {
     first_name:          user.firstName,
     last_name:           user.lastName,
@@ -41,10 +41,10 @@ function legacyUserToProfile(user) {
   };
 }
 
-function dbFacilityToLegacy(f) {
+function mapFacility(f) {
   return { id: f.id, name: f.name, street: f.street || '', houseNumber: f.house_number || '', zip: f.zip || '', city: f.city || '', sortOrder: f.sort_order };
 }
-function dbResourceGroupToLegacy(g) {
+function mapResourceGroup(g) {
   return { id: g.id, facilityId: g.facility_id, name: g.name, icon: g.icon, sortOrder: g.sort_order, sharedScheduling: g.shared_scheduling };
 }
 function buildConfigResources(allDbResources) {
@@ -59,7 +59,7 @@ function buildConfigResources(allDbResources) {
       .map(c => ({ id: c.id, name: c.name, color: c.color })),
   }));
 }
-function dbSlotToLegacy(s) {
+function mapSlot(s) {
   return {
     id: s.id, resourceId: s.resource_id, dayOfWeek: s.day_of_week,
     startTime: s.start_time?.substring(0, 5) || s.start_time,
@@ -67,11 +67,11 @@ function dbSlotToLegacy(s) {
     validFrom: s.valid_from, validUntil: s.valid_until,
   };
 }
-function dbClubToLegacy(c)       { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
-function dbDepartmentToLegacy(d) { return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
-function dbTeamToLegacy(t)       { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
-function dbTrainerAssignmentToLegacy(ta) { return { id: ta.id, userId: ta.user_id, teamId: ta.team_id, isPrimary: ta.is_primary }; }
-function dbBookingToLegacy(b) {
+function mapClub(c)       { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
+function mapDepartment(d) { return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
+function mapTeam(t)       { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
+function mapTrainerAssignment(ta) { return { id: ta.id, userId: ta.user_id, teamId: ta.team_id, isPrimary: ta.is_primary }; }
+function mapBooking(b) {
   return {
     id: b.id, resourceId: b.resource_id, date: b.date,
     startTime: b.start_time?.substring(0, 5) || b.start_time,
@@ -82,7 +82,7 @@ function dbBookingToLegacy(b) {
     parentBooking: b.parent_booking || false,
   };
 }
-function legacyBookingToDb(b) {
+function mapBookingToDb(b) {
   return {
     resource_id: b.resourceId, date: b.date,
     start_time: b.startTime, end_time: b.endTime,
@@ -107,7 +107,7 @@ export function useUsers() {
     try {
       const { data, error: e } = await supabase.from('profiles').select('*').order('last_name');
       if (e) throw e;
-      setUsersState((data || []).map(profileToLegacyUser));
+      setUsersState((data || []).map(mapProfile));
       setIsDemo(false);
     } catch (err) { setUsersState([]); setIsDemo(true); setError(err.message); }
     setLoading(false);
@@ -116,9 +116,9 @@ export function useUsers() {
 
   const createUser = useCallback(async (userData) => {
     try {
-      const { data, error: e } = await supabase.from('profiles').insert(legacyUserToProfile(userData)).select().single();
+      const { data, error: e } = await supabase.from('profiles').insert(mapUserToDb(userData)).select().single();
       if (e) throw e;
-      const u = profileToLegacyUser(data);
+      const u = mapProfile(data);
       setUsersState(p => [...p, u]);
       return { data: u, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -126,9 +126,9 @@ export function useUsers() {
 
   const updateUser = useCallback(async (userId, userData) => {
     try {
-      const { data, error: e } = await supabase.from('profiles').update(legacyUserToProfile(userData)).eq('id', userId).select().single();
+      const { data, error: e } = await supabase.from('profiles').update(mapUserToDb(userData)).eq('id', userId).select().single();
       if (e) throw e;
-      const u = profileToLegacyUser(data);
+      const u = mapProfile(data);
       setUsersState(p => p.map(x => x.id === userId ? u : x));
       return { data: u, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -214,10 +214,10 @@ export function useFacilities() {
       if (resR.error) throw resR.error;
       if (slotR.error) throw slotR.error;
       if ((facR.data || []).length > 0) {
-        setFacilitiesState(facR.data.map(dbFacilityToLegacy));
-        setResourceGroupsState(grpR.data.map(dbResourceGroupToLegacy));
+        setFacilitiesState(facR.data.map(mapFacility));
+        setResourceGroupsState(grpR.data.map(mapResourceGroup));
         setResourcesState(buildConfigResources(resR.data || []));
-        setSlotsState(slotR.data.map(dbSlotToLegacy));
+        setSlotsState(slotR.data.map(mapSlot));
         setIsDemo(false);
       } else { setIsDemo(true); }
     } catch (err) { console.warn('Facilities nicht geladen:', err.message); setIsDemo(true); }
@@ -258,10 +258,10 @@ export function useOrganization() {
       if (teamR.error) throw teamR.error;
       if (taR.error)   throw taR.error;
       if ((clubR.data || []).length > 0) {
-        setClubsState(clubR.data.map(dbClubToLegacy));
-        setDepartmentsState(deptR.data.map(dbDepartmentToLegacy));
-        setTeamsState(teamR.data.map(dbTeamToLegacy));
-        setTrainerAssignmentsState(taR.data.map(dbTrainerAssignmentToLegacy));
+        setClubsState(clubR.data.map(mapClub));
+        setDepartmentsState(deptR.data.map(mapDepartment));
+        setTeamsState(teamR.data.map(mapTeam));
+        setTrainerAssignmentsState(taR.data.map(mapTrainerAssignment));
         setIsDemo(false);
       } else { setIsDemo(true); }
     } catch (err) { console.warn('Organization nicht geladen:', err.message); setIsDemo(true); }
@@ -277,7 +277,7 @@ export function useOrganization() {
         color: clubData.color || '#3b82f6', is_home_club: clubData.isHomeClub || false,
       }).select().single();
       if (error) throw error;
-      const c = dbClubToLegacy(data);
+      const c = mapClub(data);
       setClubsState(p => [...p, c]);
       return { data: c, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -290,7 +290,7 @@ export function useOrganization() {
         color: club.color, is_home_club: club.isHomeClub || false,
       }).eq('id', club.id).select().single();
       if (error) throw error;
-      const c = dbClubToLegacy(data);
+      const c = mapClub(data);
       setClubsState(p => p.map(x => x.id === c.id ? c : x));
       return { data: c, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -313,7 +313,7 @@ export function useOrganization() {
         icon: deptData.icon || null, sort_order: deptData.sortOrder || 0,
       }).select().single();
       if (error) throw error;
-      const d = dbDepartmentToLegacy(data);
+      const d = mapDepartment(data);
       setDepartmentsState(p => [...p, d]);
       return { data: d, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -325,7 +325,7 @@ export function useOrganization() {
         name: dept.name, icon: dept.icon || null, sort_order: dept.sortOrder || 0,
       }).eq('id', dept.id).select().single();
       if (error) throw error;
-      const d = dbDepartmentToLegacy(data);
+      const d = mapDepartment(data);
       setDepartmentsState(p => p.map(x => x.id === d.id ? d : x));
       return { data: d, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -349,7 +349,7 @@ export function useOrganization() {
         sort_order: teamData.sortOrder || 0, event_types: teamData.eventTypes || ['training'],
       }).select().single();
       if (error) throw error;
-      const t = dbTeamToLegacy(data);
+      const t = mapTeam(data);
       setTeamsState(p => [...p, t]);
       return { data: t, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -363,7 +363,7 @@ export function useOrganization() {
         event_types: team.eventTypes || ['training'],
       }).eq('id', team.id).select().single();
       if (error) throw error;
-      const t = dbTeamToLegacy(data);
+      const t = mapTeam(data);
       setTeamsState(p => p.map(x => x.id === t.id ? t : x));
       return { data: t, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -385,7 +385,7 @@ export function useOrganization() {
         user_id: userId, team_id: teamId, is_primary: isPrimary,
       }).select().single();
       if (error) throw error;
-      const ta = dbTrainerAssignmentToLegacy(data);
+      const ta = mapTrainerAssignment(data);
       setTrainerAssignmentsState(p => [...p, ta]);
       return { data: ta, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -397,7 +397,7 @@ export function useOrganization() {
         is_primary: assignment.isPrimary,
       }).eq('id', assignment.id).select().single();
       if (error) throw error;
-      const ta = dbTrainerAssignmentToLegacy(data);
+      const ta = mapTrainerAssignment(data);
       setTrainerAssignmentsState(p => p.map(x => x.id === ta.id ? ta : x));
       return { data: ta, error: null };
     } catch (err) { return { data: null, error: err.message }; }
@@ -412,7 +412,7 @@ export function useOrganization() {
     } catch (err) { return { error: err.message }; }
   }, []);
 
-  // Legacy setters (für Demo-Fallback in App.js)
+  // Setter (für Demo-Fallback in App.js)
   const setClubs              = useCallback((v) => setClubsState(v),              []);
   const setDepartments        = useCallback((v) => setDepartmentsState(v),        []);
   const setTeams              = useCallback((v) => setTeamsState(v),              []);
@@ -442,7 +442,7 @@ export function useBookings() {
     try {
       const { data, error } = await supabase.from('bookings').select('*').order('date');
       if (error) throw error;
-      setBookingsState((data || []).map(dbBookingToLegacy));
+      setBookingsState((data || []).map(mapBooking));
       setIsDemo(false);
     } catch (err) {
       console.warn('Bookings nicht geladen:', err.message);
@@ -455,21 +455,21 @@ export function useBookings() {
 
   const createBooking = useCallback(async (bookingData) => {
     try {
-      const { data, error } = await supabase.from('bookings').insert(legacyBookingToDb(bookingData)).select().single();
+      const { data, error } = await supabase.from('bookings').insert(mapBookingToDb(bookingData)).select().single();
       if (error) throw error;
-      const legacy = dbBookingToLegacy(data);
-      setBookingsState(prev => [...prev, legacy]);
-      return { data: legacy, error: null };
+      const mapped = mapBooking(data);
+      setBookingsState(prev => [...prev, mapped]);
+      return { data: mapped, error: null };
     } catch (err) { return { data: null, error: err.message }; }
   }, []);
 
   const createBookings = useCallback(async (bookingsArray) => {
     try {
-      const { data, error } = await supabase.from('bookings').insert(bookingsArray.map(legacyBookingToDb)).select();
+      const { data, error } = await supabase.from('bookings').insert(bookingsArray.map(mapBookingToDb)).select();
       if (error) throw error;
-      const legacyArray = (data || []).map(dbBookingToLegacy);
-      setBookingsState(prev => [...prev, ...legacyArray]);
-      return { data: legacyArray, error: null };
+      const mappedArray = (data || []).map(mapBooking);
+      setBookingsState(prev => [...prev, ...mappedArray]);
+      return { data: mappedArray, error: null };
     } catch (err) { return { data: null, error: err.message }; }
   }, []);
 
@@ -477,9 +477,9 @@ export function useBookings() {
     try {
       const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select().single();
       if (error) throw error;
-      const legacy = dbBookingToLegacy(data);
-      setBookingsState(prev => prev.map(b => b.id === bookingId ? legacy : b));
-      return { data: legacy, error: null };
+      const mapped = mapBooking(data);
+      setBookingsState(prev => prev.map(b => b.id === bookingId ? mapped : b));
+      return { data: mapped, error: null };
     } catch (err) { return { data: null, error: err.message }; }
   }, []);
 
@@ -487,10 +487,10 @@ export function useBookings() {
     try {
       const { data, error } = await supabase.from('bookings').update({ status }).eq('series_id', seriesId).select();
       if (error) throw error;
-      const legacyArray = (data || []).map(dbBookingToLegacy);
-      const updatedIds  = new Set(legacyArray.map(b => b.id));
-      setBookingsState(prev => prev.map(b => updatedIds.has(b.id) ? legacyArray.find(u => u.id === b.id) : b));
-      return { data: legacyArray, error: null };
+      const mappedArray = (data || []).map(mapBooking);
+      const updatedIds  = new Set(mappedArray.map(b => b.id));
+      setBookingsState(prev => prev.map(b => updatedIds.has(b.id) ? mappedArray.find(u => u.id === b.id) : b));
+      return { data: mappedArray, error: null };
     } catch (err) { return { data: null, error: err.message }; }
   }, []);
 
@@ -575,4 +575,100 @@ export function useGenehmigerResources() {
   }, []);
 
   return { assignments, loading, getResourcesForUser, getUsersForResource, addAssignment, removeAssignment, refresh: fetchAll };
+}
+
+// ============================================================
+// useHolidays  –  Ferien & Feiertage (Hessen)
+// ============================================================
+function mapHoliday(h) {
+  return { id: h.id, name: h.name, type: h.type, startDate: h.start_date, endDate: h.end_date, year: h.year };
+}
+
+export function useHolidays() {
+  const [holidays, setHolidaysState] = useState([]);
+  const [loading, setLoading]        = useState(true);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('holidays').select('*').order('start_date');
+      if (error) throw error;
+      setHolidaysState((data || []).map(mapHoliday));
+    } catch (err) { console.warn('Holidays nicht geladen:', err.message); setHolidaysState([]); }
+    setLoading(false);
+  }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const createHoliday = useCallback(async (holidayData) => {
+    try {
+      const { data, error } = await supabase.from('holidays').insert({
+        name: holidayData.name, type: holidayData.type,
+        start_date: holidayData.startDate, end_date: holidayData.endDate,
+        year: holidayData.year,
+      }).select().single();
+      if (error) throw error;
+      const h = mapHoliday(data);
+      setHolidaysState(p => [...p, h].sort((a, b) => a.startDate.localeCompare(b.startDate)));
+      return { data: h, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const createHolidaysBulk = useCallback(async (holidaysArray) => {
+    try {
+      const { data, error } = await supabase.from('holidays').insert(
+        holidaysArray.map(h => ({
+          name: h.name, type: h.type,
+          start_date: h.startDate, end_date: h.endDate,
+          year: h.year,
+        }))
+      ).select();
+      if (error) throw error;
+      const mapped = (data || []).map(mapHoliday);
+      setHolidaysState(p => [...p, ...mapped].sort((a, b) => a.startDate.localeCompare(b.startDate)));
+      return { data: mapped, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateHoliday = useCallback(async (holiday) => {
+    try {
+      const { data, error } = await supabase.from('holidays').update({
+        name: holiday.name, type: holiday.type,
+        start_date: holiday.startDate, end_date: holiday.endDate,
+        year: holiday.year,
+      }).eq('id', holiday.id).select().single();
+      if (error) throw error;
+      const h = mapHoliday(data);
+      setHolidaysState(p => p.map(x => x.id === h.id ? h : x));
+      return { data: h, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteHoliday = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('holidays').delete().eq('id', id);
+      if (error) throw error;
+      setHolidaysState(p => p.filter(h => h.id !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  const deleteHolidaysByYear = useCallback(async (year, type) => {
+    try {
+      let query = supabase.from('holidays').delete().eq('year', year);
+      if (type) query = query.eq('type', type);
+      const { error } = await query;
+      if (error) throw error;
+      setHolidaysState(p => p.filter(h => !(h.year === year && (!type || h.type === type))));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  const setHolidays = useCallback((v) => setHolidaysState(v), []);
+
+  return {
+    holidays, setHolidays, loading,
+    createHoliday, createHolidaysBulk, updateHoliday,
+    deleteHoliday, deleteHolidaysByYear,
+    refreshHolidays: fetchAll,
+  };
 }

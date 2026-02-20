@@ -2,10 +2,10 @@
  * BookingRequest – Multi-step form for creating new booking requests.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Calendar, Clock, Users, Plus, Shield, Repeat, Maximize,
-  Building2, Building, Star, CalendarDays, CalendarRange,
+  Building2, Building, Star, CalendarDays, CalendarRange, AlertCircle, X,
 } from 'lucide-react';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
@@ -36,6 +36,12 @@ const BookingRequest = ({
     startTime: '16:00', endTime: '18:00',
     title: '', description: '',
   });
+  const [submitError, setSubmitError] = useState(null);
+
+  useEffect(() => { setSubmitError(null); }, [
+    formData.resourceId, formData.teamId, formData.startTime, formData.endTime,
+    formData.singleDate, formData.startDate, formData.endDate, formData.dayOfWeek,
+  ]);
 
   const facilityGroupsList = useMemo(() => {
     if (!resourceGroups || !formData.facilityId) return [];
@@ -130,19 +136,20 @@ const BookingRequest = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (conflictAnalysis.hasErrors) { window.alert('Es gibt Konflikte, die eine Buchung unmöglich machen.'); return; }
-    if (!formData.resourceId) { window.alert('Bitte Ressource auswählen.'); return; }
-    if (previewDates.length === 0) { window.alert('Bitte Termin(e) angeben.'); return; }
-    if (isLimited && availableSlots.length === 0) { window.alert(`Am ${DAYS_FULL[formData.dayOfWeek]} ist kein Slot verfügbar!`); return; }
+    if (conflictAnalysis.hasErrors) { setSubmitError('Es gibt Konflikte, die eine Buchung unmöglich machen.'); return; }
+    if (!formData.resourceId) { setSubmitError('Bitte Ressource auswählen.'); return; }
+    if (previewDates.length === 0) { setSubmitError('Bitte Termin(e) angeben.'); return; }
+    if (isLimited && availableSlots.length === 0) { setSubmitError(`Am ${DAYS_FULL[formData.dayOfWeek]} ist kein Slot verfügbar!`); return; }
     if (isLimited && availableSlots.length > 0) {
       const slot = availableSlots[0];
       if (timeToMinutes(formData.startTime) < timeToMinutes(slot.startTime) || timeToMinutes(formData.endTime) > timeToMinutes(slot.endTime)) {
-        window.alert(`Zeit außerhalb des Slots (${slot.startTime} – ${slot.endTime})!`); return;
+        setSubmitError(`Zeit außerhalb des Slots (${slot.startTime} – ${slot.endTime})!`); return;
       }
     }
     const primaryTrainer = teamTrainers.find(t => t.isPrimary) || teamTrainers[0];
-    if (!primaryTrainer?.id) { window.alert('Kein Trainer für die ausgewählte Mannschaft gefunden.'); return; }
+    if (!primaryTrainer?.id) { setSubmitError('Kein Trainer für die ausgewählte Mannschaft gefunden.'); return; }
 
+    setSubmitError(null);
     onSubmit({
       resourceId: formData.resourceId, dates: previewDates,
       startTime: formData.startTime, endTime: formData.endTime,
@@ -415,6 +422,15 @@ const BookingRequest = ({
         </div>
 
         {/* 8. Submit */}
+        {submitError && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <span className="text-sm text-red-700 flex-1">{submitError}</span>
+            <button type="button" onClick={() => setSubmitError(null)} className="text-red-400 hover:text-red-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <button type="submit"
           disabled={previewDates.length === 0 || !formData.resourceId || conflictAnalysis.hasErrors}
           className={`w-full py-3 px-6 rounded-lg text-[15px] font-bold border-none flex items-center justify-center gap-2 transition-colors ${

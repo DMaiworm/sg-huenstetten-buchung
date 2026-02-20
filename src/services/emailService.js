@@ -1,4 +1,5 @@
-import { BOOKING_TYPES } from '../config/constants';
+import { EVENT_TYPES } from '../config/organizationConfig';
+import { supabase } from '../lib/supabase';
 
 // E-Mail-Template-System
 export const EMAIL_TEMPLATES = {
@@ -18,7 +19,7 @@ export const EMAIL_TEMPLATES = {
               <p style="margin: 5px 0;"><strong>Ressource:</strong> ${resource.name}</p>
               <p style="margin: 5px 0;"><strong>Datum:</strong> ${new Date(booking.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</p>
               <p style="margin: 5px 0;"><strong>Uhrzeit:</strong> ${booking.startTime} - ${booking.endTime} Uhr</p>
-              ${booking.bookingType ? `<p style="margin: 5px 0;"><strong>Art:</strong> ${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon} ${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.label}</p>` : ''}
+              ${booking.bookingType ? `<p style="margin: 5px 0;"><strong>Art:</strong> ${EVENT_TYPES.find(t => t.id === booking.bookingType)?.icon} ${EVENT_TYPES.find(t => t.id === booking.bookingType)?.label}</p>` : ''}
               ${booking.seriesId ? `<p style="margin: 5px 0;"><strong>Serie:</strong> Wiederkehrende Buchung</p>` : ''}
             </div>
           </div>
@@ -70,7 +71,7 @@ export const EMAIL_TEMPLATES = {
               <p style="margin: 5px 0;"><strong>Ressource:</strong> ${resource.name}</p>
               <p style="margin: 5px 0;"><strong>Datum:</strong> ${new Date(booking.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</p>
               <p style="margin: 5px 0;"><strong>Uhrzeit:</strong> ${booking.startTime} - ${booking.endTime} Uhr</p>
-              ${booking.bookingType ? `<p style="margin: 5px 0;"><strong>Art:</strong> ${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon} ${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.label}</p>` : ''}
+              ${booking.bookingType ? `<p style="margin: 5px 0;"><strong>Art:</strong> ${EVENT_TYPES.find(t => t.id === booking.bookingType)?.icon} ${EVENT_TYPES.find(t => t.id === booking.bookingType)?.label}</p>` : ''}
             </div>
           </div>
           <div style="background-color: #f0f9ff; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
@@ -138,7 +139,7 @@ export const EMAIL_TEMPLATES = {
               <p style="margin: 5px 0;"><strong>Ressource:</strong> ${resource.name}</p>
               <p style="margin: 5px 0;"><strong>Datum:</strong> ${new Date(booking.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</p>
               <p style="margin: 5px 0;"><strong>Uhrzeit:</strong> ${booking.startTime} - ${booking.endTime} Uhr</p>
-              ${booking.bookingType ? `<p style="margin: 5px 0;"><strong>Art:</strong> ${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.icon} ${BOOKING_TYPES.find(t => t.id === booking.bookingType)?.label}</p>` : ''}
+              ${booking.bookingType ? `<p style="margin: 5px 0;"><strong>Art:</strong> ${EVENT_TYPES.find(t => t.id === booking.bookingType)?.icon} ${EVENT_TYPES.find(t => t.id === booking.bookingType)?.label}</p>` : ''}
               ${booking.seriesId ? `<p style="margin: 5px 0;"><strong>Serie:</strong> Wiederkehrende Buchung</p>` : ''}
             </div>
           </div>
@@ -168,30 +169,71 @@ export const EMAIL_TEMPLATES = {
   })
 };
 
-// E-Mail-Service (Mock fuer Prototyp)
+// E-Mail-Service (Resend via Supabase Edge Function)
 export class EmailService {
   constructor() {
-    this.sentEmails = [];
+    this._cache = null;
   }
 
   async send(emailData) {
-    const email = {
-      id: Date.now(),
-      ...emailData,
-      sentAt: new Date().toISOString(),
-      status: 'sent'
-    };
-    this.sentEmails.push(email);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    console.log('E-Mail versendet:', email.subject, 'an', email.to);
-    return email;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          to: emailData.to,
+          subject: emailData.subject,
+          html: emailData.html,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        console.error('E-Mail-Versand fehlgeschlagen:', result);
+      }
+
+      this._cache = null;
+      return { ...emailData, status: result.status || 'sent', sentAt: new Date().toISOString() };
+    } catch (err) {
+      console.error('E-Mail-Versand Fehler:', err);
+      return { ...emailData, status: 'failed', sentAt: new Date().toISOString() };
+    }
   }
 
-  getSentEmails() {
-    return this.sentEmails;
+  async getSentEmails() {
+    try {
+      const { data, error } = await supabase
+        .from('sent_emails')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data || []).map(e => ({
+        id: e.id,
+        to: e.recipient,
+        subject: e.subject,
+        html: e.html_body,
+        status: e.status,
+        sentAt: e.created_at,
+        errorMessage: e.error_message,
+      }));
+    } catch (err) {
+      console.warn('E-Mail-Log nicht geladen:', err.message);
+      return [];
+    }
   }
 
-  clearEmails() {
-    this.sentEmails = [];
+  async clearEmails() {
+    try {
+      await supabase.from('sent_emails').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (err) {
+      console.warn('E-Mail-Log leeren fehlgeschlagen:', err.message);
+    }
   }
 }

@@ -75,7 +75,7 @@ clubs
 genehmiger_resource_assignments (user_id → profiles.id, resource_id → resources.id)
 ```
 
-> **Alle IDs sind UUIDs** (gen_random_uuid()). Die Legacy-Funktion `buildLegacyResources()` konvertiert zwischen DB-Format (snake_case) und dem flachen Frontend-Format (camelCase).
+> **Alle IDs sind UUIDs** (gen_random_uuid()). Die Funktion `buildBookableResources()` flacht die hierarchische Ressourcen-Struktur in ein buchbares Array. Die DB→App-Mapper in `useSupabase.js` konvertieren snake_case (PostgreSQL) → camelCase (JavaScript).
 
 ### 2.2 State-Architektur (React Contexts)
 
@@ -94,7 +94,7 @@ BrowserRouter (index.js)
 | Context | Datei | Verantwortung |
 |---------|-------|---------------|
 | `AuthContext` | `contexts/AuthContext.js` | Supabase Auth Session, Login/Logout, Profil-Laden, Rollen-Checks (`kannBuchen`, `kannGenehmigen`, `kannAdministrieren`, `isAdmin`) |
-| `FacilityContext` | `contexts/FacilityContext.js` | Facilities, ResourceGroups, Resources (Config + Legacy), Slots, `RESOURCES` (flaches Array via `buildLegacyResources()`) |
+| `FacilityContext` | `contexts/FacilityContext.js` | Facilities, ResourceGroups, Resources (Config), Slots, `RESOURCES` (flaches Array via `buildBookableResources()`) |
 | `OrganizationContext` | `contexts/OrganizationContext.js` | Clubs, Departments, Teams, TrainerAssignments + CRUD |
 | `BookingContext` | `contexts/BookingContext.js` | Bookings laden, erstellen, Status-Updates, Löschen |
 | `UserContext` | `contexts/UserContext.js` | User-Profile, Einladungen, Genehmiger-Zuweisungen (`genehmiger_resource_assignments`) |
@@ -694,7 +694,6 @@ src/
 │   ├── BookingRequest.js               #   Buchungsformular
 │   ├── MyBookings.js                   #   Meine Buchungen
 │   ├── PDFExportPage.js                #   PDF-Export
-│   ├── PDFExportDialog.js              #   PDF-Export-Dialog (Legacy)
 │   ├── Sidebar.js                      #   Navigation mit Rollen-abhängigen Links
 │   ├── LoginPage.js                    #   Login-Formular
 │   └── UserMenu.js                     #   Benutzer-Menü (Name, Rollen, Logout)
@@ -720,26 +719,24 @@ supabase/
     ├── 004_organization.sql
     ├── 005_bookings.sql
     ├── 006_fix_sub_resources_as_bookable.sql
-    └── 007_drop_deprecated_sub_resources.sql
+    ├── 007_drop_deprecated_sub_resources.sql
+    ├── 008_holidays.sql
+    └── 009_sent_emails.sql
 ```
 
 ---
 
-## 7. Legacy-Kompatibilität
+## 7. Daten-Transformation
 
-### 7.1 buildLegacyResources()
+### 7.1 buildBookableResources()
 
-Die Funktion in `FacilityContext` konvertiert das hierarchische Ressourcenmodell in das flache Format für Komponenten:
+Die Funktion in `facilityConfig.js` flacht das hierarchische Ressourcenmodell in ein Array buchbarer Ressourcen:
 
 - `bookingMode === 'slotOnly'` → `type: 'limited'`
 - `bookingMode === 'free'` → `type: 'regular'`
-- `splittable + subResources` → `isComposite: true` + `includes[]` + separate Einträge mit `partOf`
+- `splittable + subResources` → `isComposite: true` + `includes[]` + separate Eintraege mit `partOf`
 
-> **Status:** Wird noch von CalendarView, BookingRequest, MyBookings, Approvals, PDFExportPage und `helpers.checkBookingConflicts()` genutzt. Perspektivisch auf hierarchisches Format umstellen.
-
-### 7.2 Badge.js Button-Reexport
-
-`Badge.js` re-exportiert `Button` aus `./Button.js` für Abwärtskompatibilität. Neue Imports sollten direkt `from './ui/Button'` verwenden.
+Wird in `FacilityContext` per `useMemo` aufgerufen und als `RESOURCES` an alle Komponenten weitergegeben.
 
 ---
 
@@ -765,7 +762,7 @@ Die Funktion in `FacilityContext` konvertiert das hierarchische Ressourcenmodell
 
 | Priorität | Feature | Beschreibung |
 |-----------|---------|-------------|
-| 🔴 Hoch | Echte E-Mail-Versendung | Aktuell nur Mock – Supabase Edge Functions oder Resend |
+| ~~🔴 Hoch~~ | ~~Echte E-Mail-Versendung~~ | Implementiert via Supabase Edge Function + Resend (`send-email`) |
 | 🟡 Mittel | Buchungs-Bearbeitung | Aktuell nur Löschen möglich |
 | 🟡 Mittel | Mobile-Optimierung | Responsive Layouts für Smartphone |
 | 🟡 Mittel | Tagesansicht Kalender | Detaillierte Tagesansicht als Alternative |
@@ -777,8 +774,7 @@ Die Funktion in `FacilityContext` konvertiert das hierarchische Ressourcenmodell
 
 | Item | Status | Aktion |
 |------|--------|--------|
-| `buildLegacyResources()` | 🟡 Bleibt vorerst | 5 Komponenten + checkBookingConflicts nutzen das flache Format |
-| `emailService.js` | 🟡 Mock | Muss durch echten E-Mail-Service ersetzt werden |
-| `PDFExportDialog.js` | 🟡 Legacy | Ältere Version, PDFExportPage ist der aktive Export |
-| `BookingRequest.js` | 🟡 Groß | 24KB, nutzt noch `window.alert()` statt Toast/InfoBanner |
-| Badge.js Button-Reexport | 🟢 Gering | Entfernen wenn alle Imports auf `./ui/Button` umgestellt |
+| ~~`buildLegacyResources()`~~ | Erledigt | Umbenannt zu `buildBookableResources()` – ist die offizielle Transformation |
+| ~~`emailService.js` Mock~~ | Erledigt | Echte Implementierung via Supabase Edge Function + Resend |
+| ~~`BOOKING_TYPES` Alias~~ | Erledigt | Entfernt, nur noch `EVENT_TYPES` |
+| ~~`getMondayForDate` Alias~~ | Erledigt | Entfernt, nur noch `getWeekStart()` |
