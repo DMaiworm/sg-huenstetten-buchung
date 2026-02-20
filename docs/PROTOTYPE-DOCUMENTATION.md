@@ -762,7 +762,6 @@ Wird in `FacilityContext` per `useMemo` aufgerufen und als `RESOURCES` an alle K
 
 | Priorität | Feature | Beschreibung |
 |-----------|---------|-------------|
-| ~~🔴 Hoch~~ | ~~Echte E-Mail-Versendung~~ | Implementiert via Supabase Edge Function + Resend (`send-email`) |
 | 🟡 Mittel | Buchungs-Bearbeitung | Aktuell nur Löschen möglich |
 | 🟡 Mittel | Mobile-Optimierung | Responsive Layouts für Smartphone |
 | 🟡 Mittel | Tagesansicht Kalender | Detaillierte Tagesansicht als Alternative |
@@ -775,6 +774,4 @@ Wird in `FacilityContext` per `useMemo` aufgerufen und als `RESOURCES` an alle K
 | Item | Status | Aktion |
 |------|--------|--------|
 | ~~`buildLegacyResources()`~~ | Erledigt | Umbenannt zu `buildBookableResources()` – ist die offizielle Transformation |
-| ~~`emailService.js` Mock~~ | Erledigt | Echte Implementierung via Supabase Edge Function + Resend |
-| ~~`BOOKING_TYPES` Alias~~ | Erledigt | Entfernt, nur noch `EVENT_TYPES` |
-| ~~`getMondayForDate` Alias~~ | Erledigt | Entfernt, nur noch `getWeekStart()` |
+
