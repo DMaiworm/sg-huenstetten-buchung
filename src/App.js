@@ -99,7 +99,7 @@ function AppLayout() {
             <Route path="/buchen" element={
               <PermissionRoute permission="kannBuchen">
                 <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking}
-                  users={users} resources={RESOURCES} {...facilityProps} {...orgProps} />
+                  users={users} resources={RESOURCES} holidays={holiday.holidays} {...facilityProps} {...orgProps} />
               </PermissionRoute>
             } />
 

@@ -95,6 +95,36 @@ export const generateSeriesDates = (dayOfWeek, startDate, endDate) => {
 };
 
 // ────────────────────────────────────────────────
+//  Holiday / vacation checks
+// ────────────────────────────────────────────────
+
+/**
+ * Check whether a date falls on a public holiday or within school vacations.
+ *
+ * @param {string} dateStr   - ISO date string "YYYY-MM-DD"
+ * @param {Array}  holidays  - Array of holiday objects from DB
+ *                             { id, name, type ('feiertag'|'schulferien'), start_date, end_date }
+ * @returns {{ feiertag: string|null, schulferien: string|null }}
+ */
+export const getDateHolidayInfo = (dateStr, holidays) => {
+  if (!holidays || holidays.length === 0) return { feiertag: null, schulferien: null };
+
+  let feiertag = null;
+  let schulferien = null;
+
+  for (const h of holidays) {
+    const start = h.start_date || h.startDate;
+    const end = h.end_date || h.endDate;
+    if (dateStr >= start && dateStr <= end) {
+      if (h.type === 'feiertag') feiertag = h.name;
+      if (h.type === 'schulferien') schulferien = h.name;
+    }
+  }
+
+  return { feiertag, schulferien };
+};
+
+// ────────────────────────────────────────────────
 //  Conflict detection
 // ────────────────────────────────────────────────
 
