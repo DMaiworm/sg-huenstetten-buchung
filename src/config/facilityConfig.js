@@ -4,8 +4,8 @@
  * Hierarchical multi-facility model:
  *   Operator → Facility[] → ResourceGroup[] → Resource[] → SubResource[]
  *
- * The buildLegacyResources() converter flattens this hierarchy into a
- * flat array that existing calendar/booking components can consume.
+ * buildBookableResources() flattens this hierarchy into a flat array
+ * of individually bookable resources for calendar/booking components.
  */
 
 const UMLAUT_A = String.fromCharCode(228);
@@ -142,9 +142,9 @@ export const DEFAULT_RESOURCES = [
 ];
 
 /**
- * Convert the hierarchical resource model into a flat "legacy" array.
+ * Flatten the hierarchical resource model into a bookable-resource array.
  *
- * Each legacy resource carries:
+ * Each bookable resource carries:
  *   - id, name, color, type ('regular' | 'limited'), category (group icon)
  *   - groupId   (FK back to the ResourceGroup – used for filtering)
  *   - isComposite / includes[]  (splittable parent)
@@ -152,10 +152,10 @@ export const DEFAULT_RESOURCES = [
  *
  * @param {Array} resourceGroups - All ResourceGroup objects
  * @param {Array} resources      - All Resource objects (with nested subResources)
- * @returns {Array} Flat array of legacy resource objects
+ * @returns {Array} Flat array of bookable resource objects
  */
-export function buildLegacyResources(resourceGroups, resources) {
-  const legacy = [];
+export function buildBookableResources(resourceGroups, resources) {
+  const result = [];
   const groupMap = {};
   resourceGroups.forEach(g => {
     groupMap[g.id] = g;
@@ -168,7 +168,7 @@ export function buildLegacyResources(resourceGroups, resources) {
 
     if (res.splittable && res.subResources && res.subResources.length > 0) {
       // Composite parent (e.g. "Sportplatz komplett")
-      legacy.push({
+      result.push({
         id: res.id,
         name: res.name,
         type,
@@ -180,7 +180,7 @@ export function buildLegacyResources(resourceGroups, resources) {
       });
       // Sub-resources (e.g. "Sportplatz links / rechts")
       res.subResources.forEach(sr => {
-        legacy.push({
+        result.push({
           id: sr.id,
           name: sr.name,
           type,
@@ -191,7 +191,7 @@ export function buildLegacyResources(resourceGroups, resources) {
         });
       });
     } else {
-      legacy.push({
+      result.push({
         id: res.id,
         name: res.name,
         type,
@@ -202,7 +202,7 @@ export function buildLegacyResources(resourceGroups, resources) {
     }
   });
 
-  return legacy;
+  return result;
 }
 
 /** Generate a unique ID with a human-readable prefix. */
