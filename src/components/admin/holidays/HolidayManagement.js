@@ -76,9 +76,9 @@ const HolidayManagement = ({
 
   const handleImportDone = async (importedHolidays) => {
     if (createHolidaysBulk && importedHolidays.length > 0) {
-      await createHolidaysBulk(importedHolidays);
+      const result = await createHolidaysBulk(importedHolidays);
+      if (result?.error) throw new Error(result.error);
     }
-    setShowImport(false);
   };
 
   return (
