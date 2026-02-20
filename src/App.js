@@ -6,6 +6,7 @@ import { FacilityProvider, useFacility } from './contexts/FacilityContext';
 import { OrganizationProvider, useOrg } from './contexts/OrganizationContext';
 import { BookingProvider, useBookingContext } from './contexts/BookingContext';
 import { UserProvider, useUserContext } from './contexts/UserContext';
+import { HolidayProvider, useHolidayContext } from './contexts/HolidayContext';
 import { useBookingActions } from './hooks/useBookingActions';
 
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -20,6 +21,7 @@ import EmailLog from './components/admin/EmailLog';
 import PDFExportPage from './components/PDFExportPage';
 import FacilityManagement from './components/admin/FacilityManagement';
 import OrganizationManagement from './components/admin/OrganizationManagement';
+import HolidayManagement from './components/admin/HolidayManagement';
 import LoginPage from './components/LoginPage';
 
 import { registerLocale } from 'react-datepicker';
@@ -37,6 +39,7 @@ function AppLayout() {
   const { bookings, loading: bookingsLoading } = useBookingContext();
   const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
   const { handleNewBooking, handleApprove, handleReject, handleDeleteBooking } = useBookingActions();
+  const holiday = useHolidayContext();
 
   const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate]           = useState(new Date());
@@ -53,7 +56,7 @@ function AppLayout() {
   }).length;
 
   // Daten-Ladebildschirm
-  if (usersLoading || facilitiesLoading || bookingsLoading || org.loading) {
+  if (usersLoading || facilitiesLoading || bookingsLoading || org.loading || holiday.loading) {
     return (
       <div className="flex h-screen bg-gray-50 items-center justify-center">
         <div className="text-center">
@@ -147,6 +150,18 @@ function AppLayout() {
                 />
               </PermissionRoute>
             } />
+            <Route path="/admin/ferien-feiertage" element={
+              <PermissionRoute permission="kannAdministrieren">
+                <HolidayManagement
+                  holidays={holiday.holidays}
+                  createHoliday={holiday.createHoliday}
+                  createHolidaysBulk={holiday.createHolidaysBulk}
+                  updateHoliday={holiday.updateHoliday}
+                  deleteHoliday={holiday.deleteHoliday}
+                  deleteHolidaysByYear={holiday.deleteHolidaysByYear}
+                />
+              </PermissionRoute>
+            } />
             <Route path="/admin/emails" element={
               <PermissionRoute permission="kannAdministrieren">
                 <EmailLog emailService={emailService} />
@@ -172,7 +187,8 @@ function AppLayout() {
  *         → OrganizationProvider
  *           → BookingProvider
  *             → UserProvider
- *               → Routes
+ *               → HolidayProvider
+ *                 → Routes
  */
 export default function App() {
   return (
@@ -180,14 +196,16 @@ export default function App() {
       <OrganizationProvider>
         <BookingProvider>
           <UserProvider>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/*" element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              } />
-            </Routes>
+            <HolidayProvider>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/*" element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </HolidayProvider>
           </UserProvider>
         </BookingProvider>
       </OrganizationProvider>
