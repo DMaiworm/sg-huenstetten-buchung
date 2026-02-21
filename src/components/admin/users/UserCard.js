@@ -56,24 +56,24 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
             {user.phone && <p className="text-sm text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{user.phone}</p>}
             <PermBadges user={user} />
           </div>
-        </div>
 
-        {sortedGroups.length > 0 && (
-          <div className="flex-shrink-0 min-w-[200px] max-w-[280px] space-y-1.5">
-            {sortedGroups.map((g, i) => (
-              <div key={i}>
-                <p className="text-xs font-semibold text-gray-500">
-                  {[g.club?.name, g.dept?.name].filter(Boolean).join(', ')}
-                </p>
-                {g.teams.map(t => (
-                  <p key={t.id} className="text-sm text-gray-700 pl-2">
-                    {t.name}
+          {sortedGroups.length > 0 && (
+            <div className="flex-shrink-0 ml-4 space-y-1.5">
+              {sortedGroups.map((g, i) => (
+                <div key={i}>
+                  <p className="text-sm font-semibold text-gray-500">
+                    {[g.club?.name, g.dept?.name].filter(Boolean).join(', ')}
                   </p>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
+                  {g.teams.map(t => (
+                    <p key={t.id} className="text-sm text-gray-700">
+                      {t.name}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
           {showResourceButton && (
