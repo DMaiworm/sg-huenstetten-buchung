@@ -17,7 +17,7 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
     : '#9ca3af';
 
   // Build team assignments grouped by club + department
-  const userAssignments = (trainerAssignments || []).filter(ta => ta.userId === user.id);
+  const userAssignments = (trainerAssignments || []).filter(ta => String(ta.userId) === String(user.id));
   const assignmentGroups = {};
   for (const ta of userAssignments) {
     const team = (teams || []).find(t => t.id === ta.teamId);
