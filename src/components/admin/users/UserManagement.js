@@ -24,10 +24,10 @@ const UserManagement = ({
   const andereUsers = users.filter(u => !u.istTrainer);
   const displayUsers = filterTab === 'trainer' ? trainerUsers : andereUsers;
 
-  const statusOrder = { aktiv: 0, eingeladen: 1, passiv: 2, null: 3 };
-  const sortedDisplay = filterTab === 'trainer'
-    ? [...displayUsers].sort((a, b) => (statusOrder[trainerStatus(a)] ?? 3) - (statusOrder[trainerStatus(b)] ?? 3))
-    : displayUsers;
+  const sortedDisplay = [...displayUsers].sort((a, b) =>
+    (a.lastName || '').localeCompare(b.lastName || '', 'de') ||
+    (a.firstName || '').localeCompare(b.firstName || '', 'de')
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
