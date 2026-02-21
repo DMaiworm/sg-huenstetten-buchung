@@ -124,6 +124,8 @@ function AppLayout() {
                   genehmigerAssignments={genehmigerAssignments}
                   addGenehmigerResource={addGenehmigerResource}
                   removeGenehmigerResource={removeGenehmigerResource}
+                  trainerAssignments={org.trainerAssignments}
+                  teams={org.teams} departments={org.departments} clubs={org.clubs}
                 />
               </PermissionRoute>
             } />

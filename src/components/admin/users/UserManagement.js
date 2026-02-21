@@ -10,6 +10,7 @@ const UserManagement = ({
   operators,
   resources, resourceGroups, facilities,
   genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource,
+  trainerAssignments, teams, departments, clubs,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -140,6 +141,8 @@ const UserManagement = ({
               onToggleExpand={() => setExpandedUser(expandedUser === user.id ? null : user.id)}
               onToggleResource={handleToggleResource}
               showResourceButton={user.kannGenehmigen && !user.isPassive && !!addGenehmigerResource}
+              trainerAssignments={trainerAssignments}
+              teams={teams} departments={departments} clubs={clubs}
             />
           ))}
 

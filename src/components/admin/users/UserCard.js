@@ -6,7 +6,8 @@ import StatusBadge from './StatusBadge';
 import ResourceAssignment from './ResourceAssignment';
 
 const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
-  onEdit, onDelete, onInvite, onToggleExpand, onToggleResource, showResourceButton }) => {
+  onEdit, onDelete, onInvite, onToggleExpand, onToggleResource, showResourceButton,
+  trainerAssignments, teams, departments, clubs }) => {
   const status = trainerStatus(user);
   const initials = `${(user.firstName || '?')[0]}${(user.lastName || '?')[0]}`.toUpperCase();
   const avatarColor = user.kannAdministrieren ? '#dc2626'
@@ -15,10 +16,31 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
     : status === 'eingeladen' ? '#d97706'
     : '#9ca3af';
 
+  // Build team assignments grouped by club + department
+  const userAssignments = (trainerAssignments || []).filter(ta => ta.userId === user.id);
+  const assignmentGroups = {};
+  for (const ta of userAssignments) {
+    const team = (teams || []).find(t => t.id === ta.teamId);
+    if (!team) continue;
+    const dept = (departments || []).find(d => d.id === team.departmentId);
+    const club = dept ? (clubs || []).find(c => c.id === dept.clubId) : null;
+    const key = `${club?.id || ''}-${dept?.id || ''}`;
+    if (!assignmentGroups[key]) {
+      assignmentGroups[key] = { club, dept, teams: [] };
+    }
+    assignmentGroups[key].teams.push(team);
+  }
+  // Sort groups by club then dept name, teams alphabetically within
+  const sortedGroups = Object.values(assignmentGroups)
+    .sort((a, b) => (a.club?.name || '').localeCompare(b.club?.name || '', 'de') || (a.dept?.name || '').localeCompare(b.dept?.name || '', 'de'));
+  for (const g of sortedGroups) {
+    g.teams.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4 min-w-0">
+        <div className="flex items-start gap-4 min-w-0 flex-1">
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0"
             style={{ backgroundColor: avatarColor }}>
             {initials}
@@ -35,6 +57,23 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
             <PermBadges user={user} />
           </div>
         </div>
+
+        {sortedGroups.length > 0 && (
+          <div className="flex-shrink-0 min-w-[200px] max-w-[280px] space-y-1.5">
+            {sortedGroups.map((g, i) => (
+              <div key={i}>
+                <p className="text-xs font-semibold text-gray-500">
+                  {[g.club?.name, g.dept?.name].filter(Boolean).join(', ')}
+                </p>
+                {g.teams.map(t => (
+                  <p key={t.id} className="text-sm text-gray-700 pl-2">
+                    {t.name}
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
           {showResourceButton && (
