@@ -45,7 +45,7 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
             style={{ backgroundColor: avatarColor }}>
             {initials}
           </div>
-          <div className="min-w-0 w-64">
+          <div className="min-w-0 w-72">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-gray-800">{user.firstName} {user.lastName}</h3>
               {status && <StatusBadge user={user} />}
