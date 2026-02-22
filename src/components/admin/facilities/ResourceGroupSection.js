@@ -4,7 +4,7 @@ import { GROUP_ICONS } from '../../../config/constants';
 import ResourceCard from './ResourceCard';
 import AddButton from '../../ui/AddButton';
 
-const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, onUpdateResource, onDeleteResource, onAddResource, slots, setSlots }) => {
+const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, onUpdateResource, onDeleteResource, onAddResource, slots, onAddSlot, onDeleteSlot }) => {
   const [expanded, setExpanded] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const groupIcon = GROUP_ICONS.find(g => g.id === group.icon);
@@ -42,7 +42,7 @@ const ResourceGroupSection = ({ group, resources, onUpdateGroup, onDeleteGroup, 
               onUpdate={(updated) => onUpdateResource(res.id, updated)}
               onDelete={() => onDeleteResource(res.id)}
               showSlots={group.sharedScheduling}
-              slots={slots} setSlots={setSlots} />
+              slots={slots} onAddSlot={onAddSlot} onDeleteSlot={onDeleteSlot} />
           ))}
           <AddButton label="Neue Ressource" onClick={() => onAddResource(group.id)} />
         </div>

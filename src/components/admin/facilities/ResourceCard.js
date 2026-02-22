@@ -5,7 +5,7 @@ import { generateId } from '../../../config/facilityConfig';
 import SubResourceRow from './SubResourceRow';
 import SlotPanel from './SlotPanel';
 
-const ResourceCard = ({ resource, onUpdate, onDelete, showSlots, slots, setSlots }) => {
+const ResourceCard = ({ resource, onUpdate, onDelete, showSlots, slots, onAddSlot, onDeleteSlot }) => {
   const [expanded, setExpanded] = useState(false);
   const [slotsOpen, setSlotsOpen] = useState(false);
   const slotCount = slots ? slots.filter(s => s.resourceId === resource.id).length : 0;
@@ -65,9 +65,9 @@ const ResourceCard = ({ resource, onUpdate, onDelete, showSlots, slots, setSlots
         <button onClick={onDelete} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
       </div>
 
-      {showSlots && slotsOpen && slots && setSlots && (
+      {showSlots && slotsOpen && slots && (
         <div className="px-3 pb-3">
-          <SlotPanel resourceId={resource.id} slots={slots} setSlots={setSlots} />
+          <SlotPanel resourceId={resource.id} slots={slots} onAddSlot={onAddSlot} onDeleteSlot={onDeleteSlot} />
         </div>
       )}
 

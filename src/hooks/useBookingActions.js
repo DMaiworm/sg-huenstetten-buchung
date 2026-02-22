@@ -23,21 +23,21 @@ export function useBookingActions() {
     return (u?.kannGenehmigen || u?.kannAdministrieren) ? 'approved' : 'pending';
   }, [users]);
 
-  /** Buchung oder Serie genehmigen. */
-  const handleApprove = useCallback(async (id) => {
+  /** Buchung oder Serie genehmigen. singleOnly=true → nur diesen Einzeltermin. */
+  const handleApprove = useCallback(async (id, { singleOnly = false } = {}) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    const result = booking.seriesId
+    const result = (booking.seriesId && !singleOnly)
       ? await updateSeriesStatus(booking.seriesId, 'approved')
       : await updateBookingStatus(id, 'approved');
     if (result.error) window.alert('Fehler: ' + result.error);
   }, [bookings, updateBookingStatus, updateSeriesStatus]);
 
-  /** Buchung oder Serie ablehnen. */
-  const handleReject = useCallback(async (id) => {
+  /** Buchung oder Serie ablehnen. singleOnly=true → nur diesen Einzeltermin. */
+  const handleReject = useCallback(async (id, { singleOnly = false } = {}) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
-    const result = booking.seriesId
+    const result = (booking.seriesId && !singleOnly)
       ? await updateSeriesStatus(booking.seriesId, 'rejected')
       : await updateBookingStatus(id, 'rejected');
     if (result.error) window.alert('Fehler: ' + result.error);

@@ -1,6 +1,6 @@
 # SG Hünstetten – Ressourcen-Buchungssystem
 
-## Systemdokumentation (Stand: 20.02.2026)
+## Systemdokumentation (Stand: 22.02.2026)
 
 > **Zweck dieses Dokuments:** Vollständige Beschreibung des Systems als "Source of Truth" für die weitere Entwicklung. Alle Entitäten, Beziehungen, Geschäftsregeln und UI-Seiten sind hier dokumentiert.
 
@@ -103,7 +103,7 @@ BrowserRouter (index.js)
 
 | Hook | Datei | Verantwortung |
 |------|-------|---------------|
-| `useBookingActions` | `hooks/useBookingActions.js` | Orchestriert Buchen, Genehmigen, Ablehnen, Löschen (nutzt BookingContext + AuthContext) |
+| `useBookingActions` | `hooks/useBookingActions.js` | Orchestriert Buchen, Genehmigen, Ablehnen, Löschen. Unterstützt `{ singleOnly: true }` für Einzeltermin-Aktionen innerhalb einer Serie. |
 | `useConfirm` | `hooks/useConfirm.js` | Promise-basierter Ersatz für `window.confirm()` → rendert `ConfirmDialog` |
 
 ---
@@ -404,11 +404,13 @@ const pendingCount = bookings.filter(b => {
 Neue Buchung erstellt
     ├── User.role = admin/trainer/genehmiger → status = 'approved' (sofort)
     └── User.role = extern → status = 'pending'
-         ├── Admin/Genehmiger genehmigt → status = 'approved' (+ alle mit gleicher seriesId)
-         └── Admin/Genehmiger lehnt ab → status = 'rejected' (+ alle mit gleicher seriesId)
+         ├── Admin/Genehmiger genehmigt Serie → status = 'approved' (alle mit gleicher seriesId)
+         ├── Admin/Genehmiger lehnt Serie ab → status = 'rejected' (alle mit gleicher seriesId)
+         └── Bei Zeitkonflikten: Einzeltermin separat genehmigen/ablehnen (singleOnly)
 ```
 
 > **Genehmiger sehen nur Anfragen für ihre zugewiesenen Ressourcen.** Admins sehen alle.
+> **Serien werden als aufklappbare Container dargestellt.** Einzeltermin-Aktionen nur bei Zeitkonflikten.
 
 #### 2.6.3 Konflikterkennung
 
@@ -419,6 +421,10 @@ Neue Buchung erstellt
 | `parent_blocked` | error/warning | Ganzes Feld gebucht → Teilfeld nicht buchbar |
 | `no_slot` | error | Kein verfügbarer Slot an diesem Tag (nur slot-basiert) |
 | `outside_slot` | error | Gewünschte Zeit liegt außerhalb des Slots |
+
+**Konflikterkennung in Serien-Containern:**
+
+`findConflicts()` in `helpers.js` prüft für jeden Einzeltermin einer Serie, ob er mit einer anderen genehmigten oder ausstehenden Buchung auf derselben Ressource zeitlich kollidiert. Bookings innerhalb derselben Serie werden dabei ausgeschlossen. Das Ergebnis wird in MyBookings und Approvals als "frei"/"Konflikt" Badge angezeigt.
 
 ---
 
@@ -481,6 +487,16 @@ Supabase Auth Login-Formular (E-Mail + Passwort). Nach erfolgreicher Anmeldung R
    - Col 3: Buchungstyp + Organisations-Hierarchie (Verein → Abteilung → Mannschaft)
    - Col 4: Status-Badge (Genehmigt/Ausstehend/Abgelehnt) + Lösch-Aktionen (Admin: 1 Termin / Serie)
 
+**Serien-Container (aufklappbar):**
+Terminserien werden als einzelner Container dargestellt statt als viele Einzelkarten:
+- **Zusammenfassung**: Serien-Badge (Nx), Konfliktstatus-Badges ("X frei", "Y Konflikte")
+- **Aufklapp-Button** (Chevron): Zeigt alle Einzeltermine mit:
+  - Datum, Wochentag, Uhrzeit
+  - Status-Badge pro Termin
+  - Konfliktdetails (welche andere Buchung kollidiert)
+  - Frei-Termine mit grünem CheckCircle, Konflikte mit amber AlertTriangle
+- Konflikterkennung via `findConflicts()` aus `helpers.js`
+
 ### 3.5 Neue Anfrage (BookingRequest)
 
 **Route:** `/buchen` (nur `kannBuchen`)
@@ -505,16 +521,23 @@ Supabase Auth Login-Formular (E-Mail + Passwort). Nach erfolgreicher Anmeldung R
 - Filtert `status === 'pending' && !parentBooking`
 - **Genehmiger** sehen nur Anfragen für ihre zugewiesenen Ressourcen
 - **Admins** sehen alle ausstehenden Anfragen
-- Info-Banner: "Genehmigung gilt auch für X verknüpfte Buchungen"
-- Approve/Reject cascaded via `seriesId`
 - Optionaler Kommentar bei Ablehnung
+
+**Serien-Container (aufklappbar):**
+Terminserien werden als ein aufklappbarer Container dargestellt:
+- **Header**: Titel, Ressource, Zeitraum, Serien-Badge (Nx), Konfliktstatus ("X frei", "Y Konflikte")
+- **Serien-Aktionen**: "Alle genehmigen" / "Alle ablehnen" Buttons (wirkt auf die gesamte Serie via `seriesId`)
+- **Aufklapp-Ansicht**: Einzeltermine mit Datum, Uhrzeit und Konfliktstatus
+- **Einzeltermin-Aktionen bei Konflikten**: Termine mit Zeitkonflikten erhalten eigene "Genehmigen"/"Ablehnen" Buttons (`singleOnly: true` → nur dieser eine Termin wird aktualisiert)
+- **Konflikterkennung**: `findConflicts()` prüft Überschneidungen mit anderen genehmigten/ausstehenden Buchungen auf derselben Ressource
+- **Zähler**: Header zeigt Anzahl der Anfragen (gruppiert), nicht Einzeltermine
 
 ### 3.7 PDF-Export (PDFExportPage)
 
 **Route:** `/export`
 
 Export des Buchungsplans als PDF (Querformat A4):
-- Kategorie-Auswahl (Außenanlagen, Innenräume, Geteilte Hallen)
+- **Kategorie-Auswahl**: Dynamisch aus tatsächlichen `resourceGroups` aufgebaut (nicht mehr hardcoded). Erhält `resourceGroups` als Prop und baut Kategorien per `groupId` auf. Gruppen ohne Ressourcen werden ausgeblendet.
 - Vorschau der enthaltenen Anlagen mit Farbpills
 - Monats-/Jahresauswahl
 - Generiert Kalender-Grid mit farbigen Buchungsblöcken + Legende
@@ -590,9 +613,10 @@ Export des Buchungsplans als PDF (Querformat A4):
 3. Wenn eine Unterressource belegt ist, kann das "Ganze" **nicht** gebucht werden
 4. Titel wird **automatisch vorgeschlagen**: "{Mannschaft} {Terminart}"
 5. Buchungen von `extern`-Benutzern erfordern **Genehmigung**
-6. Genehmigung/Ablehnung **cascaded** auf alle Bookings mit derselben `seriesId`
-7. `parentBooking`-Einträge erscheinen **nicht** in der Genehmigungsansicht
-8. Überlappungskonflikte sind nur **Warnungen** wenn beide Terminarten `allowOverlap: true` haben
+6. Genehmigung/Ablehnung **cascaded** auf alle Bookings mit derselben `seriesId` (Standard-Verhalten)
+7. Bei **Zeitkonflikten** innerhalb einer Serie können Einzeltermine separat genehmigt/abgelehnt werden (`singleOnly: true`)
+8. `parentBooking`-Einträge erscheinen **nicht** in der Genehmigungsansicht
+9. Überlappungskonflikte sind nur **Warnungen** wenn beide Terminarten `allowOverlap: true` haben
 
 ### 5.2 Löschregeln
 

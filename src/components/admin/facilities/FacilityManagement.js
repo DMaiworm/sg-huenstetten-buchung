@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Building2, Plus } from 'lucide-react';
 import { COLOR_PRESETS } from '../../../config/constants';
-import { generateId } from '../../../config/facilityConfig';
 import { useConfirm } from '../../../hooks/useConfirm';
 import { Button } from '../../ui/Button';
 import PageHeader from '../../ui/PageHeader';
@@ -9,16 +8,26 @@ import EmptyState from '../../ui/EmptyState';
 import FacilityEditor from './FacilityEditor';
 import FacilitySection from './FacilitySection';
 
-const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setResourceGroups, resources, setResources, slots, setSlots }) => {
+const FacilityManagement = ({
+  facilities, resourceGroups, resources, slots,
+  createFacility, updateFacility, deleteFacility,
+  createResourceGroup, updateResourceGroup, deleteResourceGroup,
+  createResource, updateResource, deleteResource,
+  createSlot, updateSlot, deleteSlot,
+}) => {
   const [addingFacility, setAddingFacility] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
 
-  const handleAddFacility = (form) => {
-    setFacilities([...facilities, { ...form, id: generateId('fac'), sortOrder: facilities.length + 1 }]);
+  const handleAddFacility = async (form) => {
+    const { error } = await createFacility({ ...form, sortOrder: facilities.length + 1 });
+    if (error) { console.error('Anlage erstellen fehlgeschlagen:', error); return; }
     setAddingFacility(false);
   };
 
-  const handleUpdateFacility = (updated) => setFacilities(facilities.map(f => f.id === updated.id ? updated : f));
+  const handleUpdateFacility = async (updated) => {
+    const { error } = await updateFacility(updated);
+    if (error) console.error('Anlage aktualisieren fehlgeschlagen:', error);
+  };
 
   const handleDeleteFacility = async (id) => {
     const facGroups = resourceGroups.filter(g => g.facilityId === id);
@@ -31,19 +40,24 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
       });
       if (!ok) return;
     }
-    const groupIds = facGroups.map(g => g.id);
-    setResources(resources.filter(r => !groupIds.includes(r.groupId)));
-    setResourceGroups(resourceGroups.filter(g => g.facilityId !== id));
-    setFacilities(facilities.filter(f => f.id !== id));
+    const { error } = await deleteFacility(id);
+    if (error) console.error('Anlage löschen fehlgeschlagen:', error);
   };
 
-  const handleAddGroup = (facilityId) => {
-    setResourceGroups([...resourceGroups, {
-      id: generateId('group'), facilityId, name: 'Neue Gruppe',
-      icon: 'outdoor', sortOrder: resourceGroups.filter(g => g.facilityId === facilityId).length + 1, sharedScheduling: false,
-    }]);
+  const handleAddGroup = async (facilityId) => {
+    const { error } = await createResourceGroup({
+      facilityId, name: 'Neue Gruppe', icon: 'outdoor',
+      sortOrder: resourceGroups.filter(g => g.facilityId === facilityId).length + 1,
+      sharedScheduling: false,
+    });
+    if (error) console.error('Gruppe erstellen fehlgeschlagen:', error);
   };
-  const handleUpdateGroup = (updated) => setResourceGroups(resourceGroups.map(g => g.id === updated.id ? updated : g));
+
+  const handleUpdateGroup = async (updated) => {
+    const { error } = await updateResourceGroup(updated);
+    if (error) console.error('Gruppe aktualisieren fehlgeschlagen:', error);
+  };
+
   const handleDeleteGroup = async (groupId) => {
     const groupRes = resources.filter(r => r.groupId === groupId);
     if (groupRes.length > 0) {
@@ -54,21 +68,37 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
       });
       if (!ok) return;
     }
-    setResourceGroups(resourceGroups.filter(g => g.id !== groupId));
-    setResources(resources.filter(r => r.groupId !== groupId));
+    const { error } = await deleteResourceGroup(groupId);
+    if (error) console.error('Gruppe löschen fehlgeschlagen:', error);
   };
 
-  const handleAddResource = (groupId) => {
-    setResources([...resources, {
-      id: generateId('res'), groupId, name: 'Neue Ressource',
+  const handleAddResource = async (groupId) => {
+    const { error } = await createResource({
+      groupId, name: 'Neue Ressource',
       color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)],
-      splittable: false, bookingMode: 'free', subResources: [],
-    }]);
+      splittable: false, bookingMode: 'free',
+    });
+    if (error) console.error('Ressource erstellen fehlgeschlagen:', error);
   };
-  const handleUpdateResource = (id, updated) => setResources(resources.map(r => r.id === id ? updated : r));
-  const handleDeleteResource = (id) => {
-    if (slots && setSlots) setSlots(slots.filter(s => s.resourceId !== id));
-    setResources(resources.filter(r => r.id !== id));
+
+  const handleUpdateResource = async (id, updated) => {
+    const { error } = await updateResource({ ...updated, id });
+    if (error) console.error('Ressource aktualisieren fehlgeschlagen:', error);
+  };
+
+  const handleDeleteResource = async (id) => {
+    const { error } = await deleteResource(id);
+    if (error) console.error('Ressource löschen fehlgeschlagen:', error);
+  };
+
+  const handleAddSlot = async (slotData) => {
+    const { error } = await createSlot(slotData);
+    if (error) console.error('Slot erstellen fehlgeschlagen:', error);
+  };
+
+  const handleDeleteSlot = async (id) => {
+    const { error } = await deleteSlot(id);
+    if (error) console.error('Slot löschen fehlgeschlagen:', error);
   };
 
   const totalResources = resources.length;
@@ -106,7 +136,7 @@ const FacilityManagement = ({ facilities, setFacilities, resourceGroups, setReso
             onUpdateFacility={handleUpdateFacility} onDeleteFacility={handleDeleteFacility}
             onUpdateGroup={handleUpdateGroup} onDeleteGroup={handleDeleteGroup} onAddGroup={handleAddGroup}
             onUpdateResource={handleUpdateResource} onDeleteResource={handleDeleteResource} onAddResource={handleAddResource}
-            slots={slots} setSlots={setSlots} />
+            slots={slots} onAddSlot={handleAddSlot} onDeleteSlot={handleDeleteSlot} />
         ))
       )}
 

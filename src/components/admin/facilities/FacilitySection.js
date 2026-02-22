@@ -5,7 +5,7 @@ import FacilityEditor from './FacilityEditor';
 import ResourceGroupSection from './ResourceGroupSection';
 import AddButton from '../../ui/AddButton';
 
-const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDeleteFacility, onUpdateGroup, onDeleteGroup, onAddGroup, onUpdateResource, onDeleteResource, onAddResource, slots, setSlots }) => {
+const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDeleteFacility, onUpdateGroup, onDeleteGroup, onAddGroup, onUpdateResource, onDeleteResource, onAddResource, slots, onAddSlot, onDeleteSlot }) => {
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const facilityGroups = groups.filter(g => g.facilityId === facility.id).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -44,7 +44,7 @@ const FacilitySection = ({ facility, groups, resources, onUpdateFacility, onDele
             <ResourceGroupSection key={group.id} group={group} resources={resources}
               onUpdateGroup={onUpdateGroup} onDeleteGroup={() => onDeleteGroup(group.id)}
               onUpdateResource={onUpdateResource} onDeleteResource={onDeleteResource} onAddResource={onAddResource}
-              slots={slots} setSlots={setSlots} />
+              slots={slots} onAddSlot={onAddSlot} onDeleteSlot={onDeleteSlot} />
           ))}
           <AddButton label="Neue Ressourcengruppe" onClick={() => onAddGroup(facility.id)} size="md" />
         </div>

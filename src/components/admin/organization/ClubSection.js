@@ -11,7 +11,7 @@ const ClubSection = ({ club, departments, teams, users, trainerAssignments,
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...club });
-  const clubDepts = departments.filter(d => d.clubId === club.id).sort((a, b) => a.sortOrder - b.sortOrder);
+  const clubDepts = departments.filter(d => d.clubId === club.id).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
   const clubTeamCount = teams.filter(t => clubDepts.some(d => d.id === t.departmentId)).length;
 
   const handleSave = () => { onUpdateClub(form); setEditing(false); };

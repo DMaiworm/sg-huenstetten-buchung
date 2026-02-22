@@ -3,20 +3,22 @@ import { Clock, Plus, X } from 'lucide-react';
 import { DAYS_FULL } from '../../../config/constants';
 import { Badge } from '../../ui/Badge';
 
-const SlotPanel = ({ resourceId, slots, setSlots }) => {
+const SlotPanel = ({ resourceId, slots, onAddSlot, onDeleteSlot }) => {
   const [adding, setAdding] = useState(false);
   const [newSlot, setNewSlot] = useState({ dayOfWeek: 1, startTime: '17:00', endTime: '21:00', validFrom: '', validUntil: '' });
 
   const resourceSlots = slots.filter(s => s.resourceId === resourceId);
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
-    setSlots([...slots, { ...newSlot, resourceId, id: Date.now() }]);
+    await onAddSlot({ ...newSlot, resourceId });
     setAdding(false);
     setNewSlot({ dayOfWeek: 1, startTime: '17:00', endTime: '21:00', validFrom: '', validUntil: '' });
   };
 
-  const handleDelete = (id) => setSlots(slots.filter(s => s.id !== id));
+  const handleDelete = async (id) => {
+    await onDeleteSlot(id);
+  };
 
   return (
     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">

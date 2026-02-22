@@ -10,6 +10,7 @@ const UserManagement = ({
   operators,
   resources, resourceGroups, facilities,
   genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource,
+  trainerAssignments, teams, departments, clubs,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -24,10 +25,10 @@ const UserManagement = ({
   const andereUsers = users.filter(u => !u.istTrainer);
   const displayUsers = filterTab === 'trainer' ? trainerUsers : andereUsers;
 
-  const statusOrder = { aktiv: 0, eingeladen: 1, passiv: 2, null: 3 };
-  const sortedDisplay = filterTab === 'trainer'
-    ? [...displayUsers].sort((a, b) => (statusOrder[trainerStatus(a)] ?? 3) - (statusOrder[trainerStatus(b)] ?? 3))
-    : displayUsers;
+  const sortedDisplay = [...displayUsers].sort((a, b) =>
+    (a.lastName || '').localeCompare(b.lastName || '', 'de') ||
+    (a.firstName || '').localeCompare(b.firstName || '', 'de')
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -140,6 +141,8 @@ const UserManagement = ({
               onToggleExpand={() => setExpandedUser(expandedUser === user.id ? null : user.id)}
               onToggleResource={handleToggleResource}
               showResourceButton={user.kannGenehmigen && !user.isPassive && !!addGenehmigerResource}
+              trainerAssignments={trainerAssignments}
+              teams={teams} departments={departments} clubs={clubs}
             />
           ))}
 

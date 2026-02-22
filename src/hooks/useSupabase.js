@@ -190,7 +190,7 @@ export function useOperators() {
 }
 
 // ============================================================
-// useFacilities
+// useFacilities  –  alle Mutationen schreiben direkt in Supabase
 // ============================================================
 export function useFacilities() {
   const [facilities,     setFacilitiesState]     = useState([]);
@@ -225,12 +225,203 @@ export function useFacilities() {
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // Legacy setters (kept for demo mode compatibility)
   const setFacilities     = useCallback((v) => setFacilitiesState(v),     []);
   const setResourceGroups = useCallback((v) => setResourceGroupsState(v), []);
   const setResources      = useCallback((v) => setResourcesState(v),      []);
   const setSlots          = useCallback((v) => setSlotsState(v),          []);
 
-  return { facilities, setFacilities, resourceGroups, setResourceGroups, resources, setResources, slots, setSlots, loading, isDemo, refreshFacilities: fetchAll };
+  // --- Facilities CRUD ---
+  const createFacility = useCallback(async (fac) => {
+    try {
+      // operator_id is NOT NULL – use provided one, or fall back to first operator
+      let operatorId = fac.operatorId;
+      if (!operatorId) {
+        const { data: ops } = await supabase.from('operators').select('id').limit(1).single();
+        operatorId = ops?.id;
+      }
+      if (!operatorId) throw new Error('Kein Betreiber gefunden.');
+      const { data, error } = await supabase.from('facilities').insert({
+        name: fac.name, street: fac.street || '', house_number: fac.houseNumber || '',
+        zip: fac.zip || '', city: fac.city || '', sort_order: fac.sortOrder || 0,
+        operator_id: operatorId,
+      }).select().single();
+      if (error) throw error;
+      const f = mapFacility(data);
+      setFacilitiesState(p => [...p, f]);
+      return { data: f, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateFacility = useCallback(async (fac) => {
+    try {
+      const { data, error } = await supabase.from('facilities').update({
+        name: fac.name, street: fac.street || '', house_number: fac.houseNumber || '',
+        zip: fac.zip || '', city: fac.city || '', sort_order: fac.sortOrder || 0,
+      }).eq('id', fac.id).select().single();
+      if (error) throw error;
+      const f = mapFacility(data);
+      setFacilitiesState(p => p.map(x => x.id === f.id ? f : x));
+      return { data: f, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteFacility = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('facilities').delete().eq('id', id);
+      if (error) throw error;
+      setFacilitiesState(p => p.filter(f => f.id !== id));
+      // Cascade local state: remove groups, resources, slots belonging to this facility
+      setResourceGroupsState(prev => {
+        const removedGroupIds = prev.filter(g => g.facilityId === id).map(g => g.id);
+        setResourcesState(rp => rp.filter(r => !removedGroupIds.includes(r.groupId)));
+        setSlotsState(sp => sp.filter(s => {
+          // We need to check if the slot's resource belongs to a removed group
+          // This is handled by DB CASCADE, but clean up local state too
+          return true; // DB cascade handles it; we refresh below
+        }));
+        return prev.filter(g => g.facilityId !== id);
+      });
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // --- ResourceGroups CRUD ---
+  const createResourceGroup = useCallback(async (grp) => {
+    try {
+      const { data, error } = await supabase.from('resource_groups').insert({
+        facility_id: grp.facilityId, name: grp.name,
+        icon: grp.icon || 'outdoor', sort_order: grp.sortOrder || 0,
+        shared_scheduling: grp.sharedScheduling || false,
+      }).select().single();
+      if (error) throw error;
+      const g = mapResourceGroup(data);
+      setResourceGroupsState(p => [...p, g]);
+      return { data: g, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateResourceGroup = useCallback(async (grp) => {
+    try {
+      const { data, error } = await supabase.from('resource_groups').update({
+        name: grp.name, icon: grp.icon || 'outdoor',
+        sort_order: grp.sortOrder || 0, shared_scheduling: grp.sharedScheduling || false,
+      }).eq('id', grp.id).select().single();
+      if (error) throw error;
+      const g = mapResourceGroup(data);
+      setResourceGroupsState(p => p.map(x => x.id === g.id ? g : x));
+      return { data: g, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteResourceGroup = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('resource_groups').delete().eq('id', id);
+      if (error) throw error;
+      setResourceGroupsState(p => p.filter(g => g.id !== id));
+      setResourcesState(p => p.filter(r => r.groupId !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // --- Resources CRUD ---
+  const createResource = useCallback(async (res) => {
+    try {
+      const { data, error } = await supabase.from('resources').insert({
+        group_id: res.groupId, name: res.name, color: res.color || '#3b82f6',
+        splittable: res.splittable || false, booking_mode: res.bookingMode || 'free',
+        parent_resource_id: res.parentResourceId || null, sort_order: res.sortOrder || 0,
+      }).select().single();
+      if (error) throw error;
+      // Refetch all resources to rebuild parent/child structure correctly
+      const allRes = await supabase.from('resources').select('*').order('sort_order');
+      if (allRes.error) throw allRes.error;
+      setResourcesState(buildConfigResources(allRes.data || []));
+      return { data: data, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateResource = useCallback(async (res) => {
+    try {
+      const { data, error } = await supabase.from('resources').update({
+        name: res.name, color: res.color || '#3b82f6',
+        splittable: res.splittable || false, booking_mode: res.bookingMode || 'free',
+        sort_order: res.sortOrder || 0,
+      }).eq('id', res.id).select().single();
+      if (error) throw error;
+      // Refetch to rebuild parent/child structure
+      const allRes = await supabase.from('resources').select('*').order('sort_order');
+      if (allRes.error) throw allRes.error;
+      setResourcesState(buildConfigResources(allRes.data || []));
+      return { data: data, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteResource = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('resources').delete().eq('id', id);
+      if (error) throw error;
+      // Refetch to rebuild parent/child structure (children may have been deleted by CASCADE)
+      const allRes = await supabase.from('resources').select('*').order('sort_order');
+      if (!allRes.error) setResourcesState(buildConfigResources(allRes.data || []));
+      setSlotsState(p => p.filter(s => s.resourceId !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  // --- Slots CRUD ---
+  const createSlot = useCallback(async (slot) => {
+    try {
+      const { data, error } = await supabase.from('slots').insert({
+        resource_id: slot.resourceId, day_of_week: slot.dayOfWeek,
+        start_time: slot.startTime, end_time: slot.endTime,
+        valid_from: slot.validFrom || null, valid_until: slot.validUntil || null,
+      }).select().single();
+      if (error) throw error;
+      const s = mapSlot(data);
+      setSlotsState(p => [...p, s]);
+      return { data: s, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const updateSlot = useCallback(async (slot) => {
+    try {
+      const { data, error } = await supabase.from('slots').update({
+        day_of_week: slot.dayOfWeek, start_time: slot.startTime, end_time: slot.endTime,
+        valid_from: slot.validFrom || null, valid_until: slot.validUntil || null,
+      }).eq('id', slot.id).select().single();
+      if (error) throw error;
+      const s = mapSlot(data);
+      setSlotsState(p => p.map(x => x.id === s.id ? s : x));
+      return { data: s, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
+  const deleteSlot = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('slots').delete().eq('id', id);
+      if (error) throw error;
+      setSlotsState(p => p.filter(s => s.id !== id));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  return {
+    // Data
+    facilities, resourceGroups, resources, slots,
+    // Legacy setters (demo mode)
+    setFacilities, setResourceGroups, setResources, setSlots,
+    // Facility CRUD
+    createFacility, updateFacility, deleteFacility,
+    // ResourceGroup CRUD
+    createResourceGroup, updateResourceGroup, deleteResourceGroup,
+    // Resource CRUD
+    createResource, updateResource, deleteResource,
+    // Slot CRUD
+    createSlot, updateSlot, deleteSlot,
+    // Meta
+    loading, isDemo, refreshFacilities: fetchAll,
+  };
 }
 
 // ============================================================

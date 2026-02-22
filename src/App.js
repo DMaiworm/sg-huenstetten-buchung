@@ -34,7 +34,8 @@ registerLocale('de', de);
  */
 function AppLayout() {
   const { profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin } = useAuth();
-  const { facilities, resourceGroups, configResources, slots, setFacilities, setResourceGroups, setConfigResources, setSlots, RESOURCES, loading: facilitiesLoading } = useFacility();
+  const facility = useFacility();
+  const { facilities, resourceGroups, configResources, slots, RESOURCES, loading: facilitiesLoading } = facility;
   const org = useOrg();
   const { bookings, loading: bookingsLoading } = useBookingContext();
   const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
@@ -92,14 +93,14 @@ function AppLayout() {
                 users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
             } />
             <Route path="/export" element={
-              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} />
+              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} />
             } />
 
             {/* Buchen */}
             <Route path="/buchen" element={
               <PermissionRoute permission="kannBuchen">
                 <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking}
-                  users={users} resources={RESOURCES} {...facilityProps} {...orgProps} />
+                  users={users} resources={RESOURCES} holidays={holiday.holidays} {...facilityProps} {...orgProps} />
               </PermissionRoute>
             } />
 
@@ -123,15 +124,19 @@ function AppLayout() {
                   genehmigerAssignments={genehmigerAssignments}
                   addGenehmigerResource={addGenehmigerResource}
                   removeGenehmigerResource={removeGenehmigerResource}
+                  trainerAssignments={org.trainerAssignments}
+                  teams={org.teams} departments={org.departments} clubs={org.clubs}
                 />
               </PermissionRoute>
             } />
             <Route path="/admin/anlagen" element={
               <PermissionRoute permission="kannAdministrieren">
-                <FacilityManagement facilities={facilities} setFacilities={setFacilities}
-                  resourceGroups={resourceGroups} setResourceGroups={setResourceGroups}
-                  resources={configResources} setResources={setConfigResources}
-                  slots={slots} setSlots={setSlots} />
+                <FacilityManagement facilities={facilities} resourceGroups={resourceGroups}
+                  resources={configResources} slots={slots}
+                  createFacility={facility.createFacility} updateFacility={facility.updateFacility} deleteFacility={facility.deleteFacility}
+                  createResourceGroup={facility.createResourceGroup} updateResourceGroup={facility.updateResourceGroup} deleteResourceGroup={facility.deleteResourceGroup}
+                  createResource={facility.createResource} updateResource={facility.updateResource} deleteResource={facility.deleteResource}
+                  createSlot={facility.createSlot} updateSlot={facility.updateSlot} deleteSlot={facility.deleteSlot} />
               </PermissionRoute>
             } />
             <Route path="/admin/organisation" element={

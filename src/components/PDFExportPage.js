@@ -3,19 +3,28 @@ import { FileDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
 
-const PDFExportPage = ({ bookings, users, resources }) => {
+const PDFExportPage = ({ bookings, users, resources, resourceGroups }) => {
   const navigate = useNavigate();
   const RESOURCES = resources;
-  const [selectedCategory, setSelectedCategory] = useState('outdoor');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const categories = [
-    { id: 'outdoor', label: 'Außenanlagen', resources: RESOURCES.filter(r => r.category === 'outdoor' && !r.isComposite) },
-    { id: 'indoor', label: 'Innenräume', resources: RESOURCES.filter(r => r.category === 'indoor') },
-    { id: 'shared', label: 'Geteilte Hallen', resources: RESOURCES.filter(r => r.category === 'shared') },
-  ];
+  // Build categories dynamically from actual resource groups
+  const categories = (resourceGroups || [])
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    .map(g => ({
+      id: g.id,
+      label: g.name,
+      resources: RESOURCES.filter(r => r.groupId === g.id && !r.isComposite),
+    }))
+    .filter(c => c.resources.length > 0);
+
+  const [selectedCategory, setSelectedCategory] = useState('');
+  // Fall back to first category if current selection is invalid
+  const effectiveCategory = categories.find(c => c.id === selectedCategory)
+    ? selectedCategory
+    : categories[0]?.id || '';
 
   const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
   const years = [2025, 2026, 2027];
@@ -41,7 +50,7 @@ const PDFExportPage = ({ bookings, users, resources }) => {
         await new Promise((resolve, reject) => { script.onload = resolve; script.onerror = reject; });
       }
       const { jsPDF } = window.jspdf;
-      const category = categories.find(c => c.id === selectedCategory);
+      const category = categories.find(c => c.id === effectiveCategory);
       const catResources = category.resources;
       const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
       const firstDay = getFirstDayOfMonth(selectedYear, selectedMonth);
@@ -162,17 +171,17 @@ const PDFExportPage = ({ bookings, users, resources }) => {
       <div className="max-w-lg space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
-          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <select value={effectiveCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             {categories.map(cat => (<option key={cat.id} value={cat.id}>{cat.label} ({cat.resources.length} Anlagen)</option>))}
           </select>
         </div>
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-sm text-gray-600 mb-2">Enthaltene Anlagen:</p>
           <div className="flex flex-wrap gap-2">
-            {categories.find(c => c.id === selectedCategory)?.resources.map(res => (
+            {categories.find(c => c.id === effectiveCategory)?.resources.map(res => (
               <span key={res.id} className="px-2 py-1 text-xs text-white rounded" style={{ backgroundColor: res.color }}>{res.name}</span>
             ))}
-            {categories.find(c => c.id === selectedCategory)?.resources.length === 0 && (
+            {categories.find(c => c.id === effectiveCategory)?.resources.length === 0 && (
               <span className="text-sm text-gray-400">Keine Anlagen in dieser Kategorie</span>
             )}
           </div>

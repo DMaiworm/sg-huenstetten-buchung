@@ -9,7 +9,8 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
   const [expanded, setExpanded] = useState(false);
   const teamAssignments = trainerAssignments.filter(ta => ta.teamId === team.id);
   const assignedUserIds = teamAssignments.map(ta => ta.userId);
-  const availableTrainers = users.filter(u => u.istTrainer && !assignedUserIds.includes(u.id));
+  const availableTrainers = users.filter(u => u.istTrainer && !assignedUserIds.includes(u.id))
+    .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '', 'de') || (a.firstName || '').localeCompare(b.firstName || '', 'de'));
 
   return (
     <div className="border border-gray-200 rounded-lg bg-white mb-2 overflow-hidden">

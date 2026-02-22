@@ -95,6 +95,36 @@ export const generateSeriesDates = (dayOfWeek, startDate, endDate) => {
 };
 
 // ────────────────────────────────────────────────
+//  Holiday / vacation checks
+// ────────────────────────────────────────────────
+
+/**
+ * Check whether a date falls on a public holiday or within school vacations.
+ *
+ * @param {string} dateStr   - ISO date string "YYYY-MM-DD"
+ * @param {Array}  holidays  - Array of holiday objects from DB
+ *                             { id, name, type ('feiertag'|'schulferien'), start_date, end_date }
+ * @returns {{ feiertag: string|null, schulferien: string|null }}
+ */
+export const getDateHolidayInfo = (dateStr, holidays) => {
+  if (!holidays || holidays.length === 0) return { feiertag: null, schulferien: null };
+
+  let feiertag = null;
+  let schulferien = null;
+
+  for (const h of holidays) {
+    const start = h.start_date || h.startDate;
+    const end = h.end_date || h.endDate;
+    if (dateStr >= start && dateStr <= end) {
+      if (h.type === 'feiertag') feiertag = h.name;
+      if (h.type === 'schulferien') schulferien = h.name;
+    }
+  }
+
+  return { feiertag, schulferien };
+};
+
+// ────────────────────────────────────────────────
 //  Conflict detection
 // ────────────────────────────────────────────────
 
@@ -103,6 +133,25 @@ export const hasTimeOverlap = (start1, end1, start2, end2) => {
   const s1 = timeToMinutes(start1); const e1 = timeToMinutes(end1);
   const s2 = timeToMinutes(start2); const e2 = timeToMinutes(end2);
   return s1 < e2 && s2 < e1;
+};
+
+/**
+ * Find approved/pending bookings that conflict with a given booking.
+ * Used in MyBookings and Approvals to show conflict status per series date.
+ *
+ * @param {Object} booking     - The booking to check
+ * @param {Array}  allBookings - All bookings in the system
+ * @returns {Array} Conflicting bookings (empty if none)
+ */
+export const findConflicts = (booking, allBookings) => {
+  return allBookings.filter(other =>
+    other.id !== booking.id &&
+    other.resourceId === booking.resourceId &&
+    other.date === booking.date &&
+    (other.status === 'approved' || other.status === 'pending') &&
+    other.seriesId !== booking.seriesId &&
+    hasTimeOverlap(booking.startTime, booking.endTime, other.startTime, other.endTime)
+  );
 };
 
 /**

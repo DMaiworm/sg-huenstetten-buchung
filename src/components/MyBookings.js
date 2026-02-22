@@ -5,13 +5,14 @@
  *   1. Title
  *   2. Resource group filter tabs (dynamically derived from resourceGroups)
  *   3. Resource sub-filter     (when a specific group is selected)
- *   4. Booking cards           (series grouped)
+ *   4. Booking cards           (series grouped as expandable containers)
  */
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, X, List, Repeat } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
+import { findConflicts } from '../utils/helpers';
 
 // ──────────────────────────────────────────────
 //  Sub-components
@@ -56,6 +57,10 @@ const MyBookings = ({
   const [selectedGroupId, setSelectedGroupId]   = useState('all');
   const [selectedResource, setSelectedResource] = useState('all');
   const [deleteConfirm, setDeleteConfirm]       = useState(null);
+  const [expandedSeries, setExpandedSeries]     = useState({});
+
+  const toggleSeries = (seriesId) =>
+    setExpandedSeries(prev => ({ ...prev, [seriesId]: !prev[seriesId] }));
 
   // ── Dynamic group tabs ──
   const groupTabs = useMemo(() => {
@@ -86,23 +91,30 @@ const MyBookings = ({
     return filtered;
   }, [bookings, selectedGroupId, selectedResource, resources]);
 
-  // ── Group series bookings together ──
+  // ── Group series bookings together with conflict info ──
   const groupedBookings = useMemo(() => {
     const seriesMap = {};
     const singles = [];
     filteredBookings.forEach(b => {
       if (b.seriesId) {
         if (!seriesMap[b.seriesId]) {
-          seriesMap[b.seriesId] = { ...b, dates: [] };
+          seriesMap[b.seriesId] = { ...b, seriesBookings: [] };
         }
-        seriesMap[b.seriesId].dates.push(b.date);
+        const conflicts = findConflicts(b, bookings);
+        seriesMap[b.seriesId].seriesBookings.push({ ...b, conflicts });
       } else {
         singles.push(b);
       }
     });
-    Object.values(seriesMap).forEach(s => s.dates.sort());
+    // Sort each series' bookings by date
+    Object.values(seriesMap).forEach(s => {
+      s.seriesBookings.sort((a, b) => a.date.localeCompare(b.date));
+      s.totalCount = s.seriesBookings.length;
+      s.freeCount = s.seriesBookings.filter(sb => sb.conflicts.length === 0).length;
+      s.blockedCount = s.seriesBookings.filter(sb => sb.conflicts.length > 0).length;
+    });
     return [...Object.values(seriesMap), ...singles];
-  }, [filteredBookings]);
+  }, [filteredBookings, bookings]);
 
   // ── Tab change handler ──
   const handleGroupChange = (groupId) => {
@@ -151,21 +163,24 @@ const MyBookings = ({
   };
 
   // ── Date / weekday display helpers ──
+  const fmtDate = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fmtDateShort = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+
   const getWeekday = (booking) => {
-    const isSeries = booking.dates && booking.dates.length > 1;
-    const dateStr = isSeries ? booking.dates[0] : booking.date;
+    const isSeries = booking.seriesBookings && booking.seriesBookings.length > 1;
+    const dateStr = isSeries ? booking.seriesBookings[0].date : booking.date;
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return isSeries ? ('Jeden ' + DAYS_FULL[d.getDay()]) : DAYS_FULL[d.getDay()];
   };
 
   const getDateDisplay = (booking) => {
-    const fmt = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const isSeries = booking.dates && booking.dates.length > 1;
+    const isSeries = booking.seriesBookings && booking.seriesBookings.length > 1;
     if (isSeries) {
-      return fmt(booking.dates[0]) + ' – ' + fmt(booking.dates[booking.dates.length - 1]);
+      const dates = booking.seriesBookings;
+      return fmtDate(dates[0].date) + ' – ' + fmtDate(dates[dates.length - 1].date);
     }
-    return booking.date ? fmt(booking.date) : '';
+    return booking.date ? fmtDate(booking.date) : '';
   };
 
   // ══════════════════════════════════════════
@@ -259,12 +274,13 @@ const MyBookings = ({
         <div className="flex flex-col gap-3">
           {groupedBookings.map((booking, idx) => {
             const resource      = resources.find(r => r.id === booking.resourceId);
-            const isSeries      = booking.dates && booking.dates.length > 1;
+            const isSeries      = booking.seriesBookings && booking.seriesBookings.length > 1;
             const bookingType   = EVENT_TYPES.find(t => t.id === booking.bookingType);
             const orgInfos      = getOrgInfo(booking.userId);
             const primaryOrg    = orgInfos && orgInfos.length > 0 ? orgInfos[0] : null;
             const teamTrainers  = primaryOrg ? getTeamTrainers(primaryOrg.team.id) : [];
             const userName      = getUserName(booking.userId);
+            const isExpanded    = isSeries && expandedSeries[booking.seriesId];
 
             return (
               <div key={booking.seriesId || booking.id || idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -277,12 +293,24 @@ const MyBookings = ({
                     {/* Col 1: Booking info */}
                     <div className="flex-[2] p-3 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
+                        {/* Expand/collapse toggle for series */}
+                        {isSeries && (
+                          <button
+                            onClick={() => toggleSeries(booking.seriesId)}
+                            className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            {isExpanded
+                              ? <ChevronDown className="w-4 h-4" />
+                              : <ChevronRight className="w-4 h-4" />
+                            }
+                          </button>
+                        )}
                         <span className="font-bold text-[15px] text-gray-900 truncate">
                           "{booking.title}"
                         </span>
                         {isSeries && (
                           <span className="text-[11px] text-blue-600 font-semibold flex-shrink-0 inline-flex items-center gap-0.5">
-                            <Repeat className="w-3 h-3" />{booking.dates.length}x
+                            <Repeat className="w-3 h-3" />{booking.totalCount}x
                           </span>
                         )}
                       </div>
@@ -292,6 +320,19 @@ const MyBookings = ({
                         <IconRow icon={<Clock className="w-3.5 h-3.5" />} bold>{booking.startTime} - {booking.endTime}</IconRow>
                         <IconRow icon={<Calendar className="w-3.5 h-3.5" />} muted>{getDateDisplay(booking)}</IconRow>
                       </div>
+                      {/* Conflict summary for series */}
+                      {isSeries && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                            <CheckCircle className="w-3 h-3" />{booking.freeCount} frei
+                          </span>
+                          {booking.blockedCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                              <AlertTriangle className="w-3 h-3" />{booking.blockedCount} Konflikt{booking.blockedCount !== 1 ? 'e' : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Col 2: Trainers */}
@@ -387,6 +428,45 @@ const MyBookings = ({
                     )}
                   </div>
                 </div>
+
+                {/* ── Expanded series detail rows ── */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 bg-gray-50">
+                    <div className="px-4 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                        Einzeltermine ({booking.totalCount})
+                      </div>
+                      <div className="space-y-1">
+                        {booking.seriesBookings.map(sb => {
+                          const hasConflict = sb.conflicts.length > 0;
+                          const dayName = DAYS_FULL[new Date(sb.date).getDay()];
+                          return (
+                            <div
+                              key={sb.id}
+                              className={`flex items-center gap-3 px-3 py-1.5 rounded text-[13px] ${
+                                hasConflict ? 'bg-amber-50 border border-amber-200' : 'bg-white border border-gray-100'
+                              }`}
+                            >
+                              {hasConflict
+                                ? <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                : <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                              }
+                              <span className="text-gray-500 w-6">{dayName.substring(0, 2)}</span>
+                              <span className="font-medium text-gray-800">{fmtDateShort(sb.date)}</span>
+                              <span className="text-gray-500">{sb.startTime} - {sb.endTime}</span>
+                              <StatusBadge status={sb.status} />
+                              {hasConflict && (
+                                <span className="text-[11px] text-amber-700 ml-auto truncate">
+                                  {sb.conflicts.map(c => `"${c.title}" ${c.startTime}-${c.endTime}`).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

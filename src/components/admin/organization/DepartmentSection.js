@@ -8,7 +8,7 @@ const DepartmentSection = ({ department, teams, users, trainerAssignments,
   onAddTrainer, onUpdateAssignment, onRemoveTrainer }) => {
   const [expanded, setExpanded] = useState(true);
   const [editingName, setEditingName] = useState(false);
-  const deptTeams = teams.filter(t => t.departmentId === department.id).sort((a, b) => a.sortOrder - b.sortOrder);
+  const deptTeams = teams.filter(t => t.departmentId === department.id).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
 
   return (
     <div className="mb-3">

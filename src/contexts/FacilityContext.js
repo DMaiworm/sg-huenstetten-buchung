@@ -13,13 +13,18 @@ const DEMO_SLOTS = [
 const FacilityContext = createContext(null);
 
 export function FacilityProvider({ children }) {
+  const hook = useFacilitiesHook();
   const {
     facilities: dbFacilities, setFacilities: setDbFacilities,
     resourceGroups: dbResourceGroups, setResourceGroups: setDbResourceGroups,
     resources: dbResources, setResources: setDbResources,
     slots: dbSlots, setSlots: setDbSlots,
+    createFacility, updateFacility, deleteFacility,
+    createResourceGroup, updateResourceGroup, deleteResourceGroup,
+    createResource, updateResource, deleteResource,
+    createSlot, updateSlot, deleteSlot,
     loading, isDemo,
-  } = useFacilitiesHook();
+  } = hook;
 
   // Demo-Fallback
   const facilities      = isDemo ? DEFAULT_FACILITIES      : dbFacilities;
@@ -38,11 +43,29 @@ export function FacilityProvider({ children }) {
     [resourceGroups, configResources]
   );
 
+  const noop = async () => ({ error: 'Demo-Modus' });
+
   const value = {
     // Roh-Daten
     facilities, resourceGroups, configResources, slots,
-    // Setter
+    // Legacy Setter (demo mode)
     setFacilities, setResourceGroups, setConfigResources, setSlots,
+    // Facility CRUD
+    createFacility: isDemo ? noop : createFacility,
+    updateFacility: isDemo ? noop : updateFacility,
+    deleteFacility: isDemo ? noop : deleteFacility,
+    // ResourceGroup CRUD
+    createResourceGroup: isDemo ? noop : createResourceGroup,
+    updateResourceGroup: isDemo ? noop : updateResourceGroup,
+    deleteResourceGroup: isDemo ? noop : deleteResourceGroup,
+    // Resource CRUD
+    createResource: isDemo ? noop : createResource,
+    updateResource: isDemo ? noop : updateResource,
+    deleteResource: isDemo ? noop : deleteResource,
+    // Slot CRUD
+    createSlot: isDemo ? noop : createSlot,
+    updateSlot: isDemo ? noop : updateSlot,
+    deleteSlot: isDemo ? noop : deleteSlot,
     // Abgeleitete Daten
     RESOURCES,
     // Meta
