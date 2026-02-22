@@ -136,6 +136,25 @@ export const hasTimeOverlap = (start1, end1, start2, end2) => {
 };
 
 /**
+ * Find approved/pending bookings that conflict with a given booking.
+ * Used in MyBookings and Approvals to show conflict status per series date.
+ *
+ * @param {Object} booking     - The booking to check
+ * @param {Array}  allBookings - All bookings in the system
+ * @returns {Array} Conflicting bookings (empty if none)
+ */
+export const findConflicts = (booking, allBookings) => {
+  return allBookings.filter(other =>
+    other.id !== booking.id &&
+    other.resourceId === booking.resourceId &&
+    other.date === booking.date &&
+    (other.status === 'approved' || other.status === 'pending') &&
+    other.seriesId !== booking.seriesId &&
+    hasTimeOverlap(booking.startTime, booking.endTime, other.startTime, other.endTime)
+  );
+};
+
+/**
  * Full conflict check for a booking request.
  *
  * Checks:
