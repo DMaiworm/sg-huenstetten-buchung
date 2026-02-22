@@ -303,7 +303,7 @@ const CalendarView = ({
       {/* ── 5. Calendar grid ── */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-[400px]">
         {/* Day header row */}
-        <div className="grid grid-cols-8 min-w-[800px] flex-shrink-0">
+        <div className="grid min-w-[800px] flex-shrink-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
           <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
           {weekDates.map((date, i) => (
             <div key={i} className="bg-gray-50 border-b border-gray-200 p-2 text-center">
