@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Pencil } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
@@ -293,25 +293,23 @@ const MyBookings = ({
                     {/* Col 1: Booking info */}
                     <div className="flex-[2] p-3 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
-                        {/* Expand/collapse toggle for series */}
-                        {isSeries && (
-                          <button
-                            onClick={() => toggleSeries(booking.seriesId)}
-                            className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            {isExpanded
-                              ? <ChevronDown className="w-4 h-4" />
-                              : <ChevronRight className="w-4 h-4" />
-                            }
-                          </button>
-                        )}
                         <span className="font-bold text-[15px] text-gray-900 truncate">
-                          "{booking.title}"
+                          {booking.title}
                         </span>
                         {isSeries && (
-                          <span className="text-[11px] text-blue-600 font-semibold flex-shrink-0 inline-flex items-center gap-0.5">
-                            <Repeat className="w-3 h-3" />{booking.totalCount}x
-                          </span>
+                          <>
+                            <span className="text-[11px] text-blue-600 font-semibold flex-shrink-0 inline-flex items-center gap-0.5">
+                              <Repeat className="w-3 h-3" />{booking.totalCount}x
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full flex-shrink-0">
+                              <CheckCircle className="w-3 h-3" />{booking.freeCount} frei
+                            </span>
+                            {booking.blockedCount > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full flex-shrink-0">
+                                <AlertTriangle className="w-3 h-3" />{booking.blockedCount} Konflikt{booking.blockedCount !== 1 ? 'e' : ''}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -320,50 +318,48 @@ const MyBookings = ({
                         <IconRow icon={<Clock className="w-3.5 h-3.5" />} bold>{booking.startTime} - {booking.endTime}</IconRow>
                         <IconRow icon={<Calendar className="w-3.5 h-3.5" />} muted>{getDateDisplay(booking)}</IconRow>
                       </div>
-                      {/* Conflict summary for series */}
+                      {/* Termine expand/collapse for series */}
                       {isSeries && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                            <CheckCircle className="w-3 h-3" />{booking.freeCount} frei
-                          </span>
-                          {booking.blockedCount > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                              <AlertTriangle className="w-3 h-3" />{booking.blockedCount} Konflikt{booking.blockedCount !== 1 ? 'e' : ''}
-                            </span>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => toggleSeries(booking.seriesId)}
+                          className="flex items-center gap-1 mt-2 text-[12px] text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          {isExpanded
+                            ? <ChevronDown className="w-3.5 h-3.5" />
+                            : <ChevronRight className="w-3.5 h-3.5" />
+                          }
+                          Termine
+                        </button>
                       )}
                     </div>
 
                     {/* Col 2: Trainers */}
-                    <div className="flex-[1.2] p-3 border-l border-gray-100 min-w-0 flex flex-col">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                    <div className="flex-[1.2] p-3 border-l border-gray-100 min-w-0 flex flex-col justify-center">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
                         Trainer / Übungsleiter
                       </div>
-                      <div className="flex-1 flex flex-col justify-center">
-                        {teamTrainers.length > 0 ? (
-                          teamTrainers.map(t => (
-                            <div key={t.id} className="text-[13px] text-gray-700 leading-7">
-                              {t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-[13px] text-gray-500">{userName}</div>
-                        )}
-                      </div>
+                      {teamTrainers.length > 0 ? (
+                        teamTrainers.map(t => (
+                          <div key={t.id} className="text-[13px] text-gray-700 leading-5">
+                            {t.firstName} {t.lastName}{!t.isPrimary ? ' (Co)' : ''}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-[13px] text-gray-500">{userName}</div>
+                      )}
                     </div>
 
                     {/* Col 3: Org + booking type */}
                     <div className="flex-[1.2] p-3 border-l border-gray-100 min-w-0 flex flex-col justify-center">
                       {bookingType && (
                         <div className="text-[13px] font-semibold text-gray-700 mb-1.5">
-                          {bookingType.icon} {bookingType.label}
+                          {bookingType.label}
                         </div>
                       )}
                       {primaryOrg ? (
                         <div className="text-[13px] leading-relaxed">
                           <div className="font-bold text-gray-800">{primaryOrg.club?.name}</div>
-                          <div className="text-gray-500">{primaryOrg.dept?.icon} {primaryOrg.dept?.name}</div>
+                          <div className="text-gray-500">{primaryOrg.dept?.name}</div>
                           <div className="text-gray-700">{primaryOrg.team?.name}</div>
                         </div>
                       ) : (
@@ -382,7 +378,7 @@ const MyBookings = ({
                         onClick={() => onEdit(booking)}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
                       >
-                        <Pencil className="w-3 h-3" />Bearbeiten
+                        Bearbeiten
                       </button>
                     )}
 
@@ -410,20 +406,12 @@ const MyBookings = ({
                         ) : (
                           <div className="flex flex-col gap-1">
                             {isSeries ? (
-                              <>
-                                <button
-                                  onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })}
-                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
-                                >
-                                  <X className="w-3 h-3" />1 Termin
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })}
-                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer"
-                                >
-                                  <X className="w-3 h-3" />Serie
-                                </button>
-                              </>
+                              <button
+                                onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer"
+                              >
+                                <X className="w-3 h-3" />Serie
+                              </button>
                             ) : (
                               <button
                                 onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })}
@@ -466,9 +454,31 @@ const MyBookings = ({
                               <span className="text-gray-500">{sb.startTime} - {sb.endTime}</span>
                               <StatusBadge status={sb.status} />
                               {hasConflict && (
-                                <span className="text-[11px] text-amber-700 ml-auto truncate">
+                                <span className="text-[11px] text-amber-700 truncate">
                                   {sb.conflicts.map(c => `"${c.title}" ${c.startTime}-${c.endTime}`).join(', ')}
                                 </span>
+                              )}
+                              {isAdmin && (
+                                deleteConfirm?.id === sb.id ? (
+                                  <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+                                    <button
+                                      onClick={() => { onDelete(sb.id, 'single', null); setDeleteConfirm(null); }}
+                                      className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
+                                    >Ja</button>
+                                    <button
+                                      onClick={() => setDeleteConfirm(null)}
+                                      className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors cursor-pointer"
+                                    >Nein</button>
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirm({ id: sb.id, type: 'single' })}
+                                    className="ml-auto flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                                    title="Einzeltermin löschen"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )
                               )}
                             </div>
                           );
