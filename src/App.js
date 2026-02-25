@@ -23,6 +23,7 @@ import FacilityManagement from './components/admin/FacilityManagement';
 import OrganizationManagement from './components/admin/OrganizationManagement';
 import HolidayManagement from './components/admin/HolidayManagement';
 import BookingEditModal from './components/BookingEditModal';
+import TeamOverview from './components/TeamOverview';
 import LoginPage from './components/LoginPage';
 
 import { registerLocale } from 'react-datepicker';
@@ -98,6 +99,9 @@ function AppLayout() {
             } />
             <Route path="/export" element={
               <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} />
+            } />
+            <Route path="/teams" element={
+              <TeamOverview {...orgProps} bookings={bookings} users={users} resources={RESOURCES} />
             } />
 
             {/* Buchen */}

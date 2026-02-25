@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Calendar, CalendarDays, ClipboardList, Settings, Building2, Users, FileText, FileDown, Shield } from 'lucide-react';
+import { Calendar, CalendarDays, ClipboardList, Settings, Building2, Users, Users2, FileText, FileDown, Shield } from 'lucide-react';
 import UserMenu from './UserMenu';
 
 const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren }) => {
@@ -49,6 +49,7 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren 
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Allgemein</p>
         {navItem('/', <Calendar className="w-5 h-5" />, 'Kalender')}
         {navItem('/meine-buchungen', <ClipboardList className="w-5 h-5" />, 'Meine Buchungen')}
+        {navItem('/teams', <Users2 className="w-5 h-5" />, 'Teamübersicht')}
         {kannBuchen && navItem('/buchen', <FileText className="w-5 h-5" />, 'Neue Anfrage')}
         {navItem('/export', <FileDown className="w-5 h-5" />, 'PDF-Export')}
 
