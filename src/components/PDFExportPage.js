@@ -140,11 +140,13 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   (b.resourceId === res.id || (compositeParentId && b.resourceId === compositeParentId)))
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
-              const blockHeight = 5.5;
+              const blockHeight = 7;
               const colX = cellX + resIndex * resourceColWidth;
+              const rightEdge = colX + resourceColWidth - 1.5;
               dayBookings.forEach(booking => {
                 if (yOffset + blockHeight <= weekHeight - 1) {
                   const org = getBookingOrgInfo(booking);
+                  const clubLabel = org?.club?.shortName || '';
                   // Prefer full team name, fall back to shortName if too wide
                   const teamFull = org?.team?.name || '';
                   const teamShort = org?.team?.shortName || teamFull;
@@ -152,7 +154,7 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   doc.setFont('helvetica', 'bold');
                   const maxTextWidth = resourceColWidth - 2;
                   const teamLabel = doc.getTextWidth(teamFull) <= maxTextWidth ? teamFull : teamShort;
-                  const typeShort = EVENT_TYPES.find(t => t.id === booking.bookingType)?.short || '';
+                  const typeLabel = EVENT_TYPES.find(t => t.id === booking.bookingType)?.label || '';
                   const timeLabel = booking.startTime.substring(0, 5) + '–' + booking.endTime.substring(0, 5);
 
                   const rgb = hexToRgb(org?.team?.color || res.color);
@@ -160,15 +162,21 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   doc.roundedRect(colX + 0.5, cellY + yOffset, resourceColWidth - 1, blockHeight, 0.5, 0.5, 'F');
                   doc.setTextColor(255, 255, 255);
 
-                  // Line 1: Team (bold)
-                  doc.setFontSize(3.5);
-                  doc.setFont('helvetica', 'bold');
-                  doc.text(teamLabel, colX + 1, cellY + yOffset + 2.5);
-
-                  // Line 2: Time + Type (normal)
+                  // Line 1: Club (left) + Type (right)
                   doc.setFontSize(3);
                   doc.setFont('helvetica', 'normal');
-                  doc.text(timeLabel + ' ' + typeShort, colX + 1, cellY + yOffset + 4.8);
+                  doc.text(clubLabel, colX + 1, cellY + yOffset + 2.2);
+                  doc.text(typeLabel, rightEdge, cellY + yOffset + 2.2, { align: 'right' });
+
+                  // Line 2: Team (bold)
+                  doc.setFontSize(3.5);
+                  doc.setFont('helvetica', 'bold');
+                  doc.text(teamLabel, colX + 1, cellY + yOffset + 4.5);
+
+                  // Line 3: Time
+                  doc.setFontSize(3);
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(timeLabel, colX + 1, cellY + yOffset + 6.5);
 
                   yOffset += blockHeight + 0.5;
                 }
