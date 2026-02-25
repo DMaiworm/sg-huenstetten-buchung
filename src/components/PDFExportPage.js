@@ -140,20 +140,19 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   (b.resourceId === res.id || (compositeParentId && b.resourceId === compositeParentId)))
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
-              const blockHeight = 10;
+              const blockHeight = 5.5;
               const colX = cellX + resIndex * resourceColWidth;
               dayBookings.forEach(booking => {
                 if (yOffset + blockHeight <= weekHeight - 1) {
                   const org = getBookingOrgInfo(booking);
-                  const clubLabel = org?.club?.shortName || '';
                   // Prefer full team name, fall back to shortName if too wide
                   const teamFull = org?.team?.name || '';
                   const teamShort = org?.team?.shortName || teamFull;
-                  doc.setFontSize(4);
+                  doc.setFontSize(3.5);
                   doc.setFont('helvetica', 'bold');
                   const maxTextWidth = resourceColWidth - 2;
                   const teamLabel = doc.getTextWidth(teamFull) <= maxTextWidth ? teamFull : teamShort;
-                  const typeLabel = EVENT_TYPES.find(t => t.id === booking.bookingType)?.label || '';
+                  const typeShort = EVENT_TYPES.find(t => t.id === booking.bookingType)?.short || '';
                   const timeLabel = booking.startTime.substring(0, 5) + '–' + booking.endTime.substring(0, 5);
 
                   const rgb = hexToRgb(org?.team?.color || res.color);
@@ -161,27 +160,17 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   doc.roundedRect(colX + 0.5, cellY + yOffset, resourceColWidth - 1, blockHeight, 0.5, 0.5, 'F');
                   doc.setTextColor(255, 255, 255);
 
-                  // Line 1: Club (normal)
-                  doc.setFontSize(3.5);
-                  doc.setFont('helvetica', 'normal');
-                  doc.text(clubLabel, colX + 1, cellY + yOffset + 2.5);
-
-                  // Line 2: Team (bold)
-                  doc.setFontSize(4);
-                  doc.setFont('helvetica', 'bold');
-                  doc.text(teamLabel, colX + 1, cellY + yOffset + 5);
-
-                  // Line 3: Event type (normal)
-                  doc.setFontSize(3.5);
-                  doc.setFont('helvetica', 'normal');
-                  doc.text(typeLabel, colX + 1, cellY + yOffset + 7);
-
-                  // Line 4: Start–End time (bold)
+                  // Line 1: Team (bold)
                   doc.setFontSize(3.5);
                   doc.setFont('helvetica', 'bold');
-                  doc.text(timeLabel, colX + 1, cellY + yOffset + 9.5);
+                  doc.text(teamLabel, colX + 1, cellY + yOffset + 2.5);
 
-                  yOffset += blockHeight + 1;
+                  // Line 2: Time + Type (normal)
+                  doc.setFontSize(3);
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(timeLabel + ' ' + typeShort, colX + 1, cellY + yOffset + 4.8);
+
+                  yOffset += blockHeight + 0.5;
                 }
               });
             });
