@@ -7,7 +7,7 @@ export function BookingProvider({ children }) {
   const {
     bookings, setBookings,
     createBooking, createBookings,
-    updateBookingStatus, updateSeriesStatus,
+    updateBooking, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
     loading, isDemo,
   } = useBookingsHook();
@@ -15,7 +15,7 @@ export function BookingProvider({ children }) {
   const value = {
     bookings, setBookings,
     createBooking, createBookings,
-    updateBookingStatus, updateSeriesStatus,
+    updateBooking, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
     loading, isDemo,
   };

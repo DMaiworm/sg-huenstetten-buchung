@@ -22,6 +22,7 @@ import PDFExportPage from './components/PDFExportPage';
 import FacilityManagement from './components/admin/FacilityManagement';
 import OrganizationManagement from './components/admin/OrganizationManagement';
 import HolidayManagement from './components/admin/HolidayManagement';
+import BookingEditModal from './components/BookingEditModal';
 import LoginPage from './components/LoginPage';
 
 import { registerLocale } from 'react-datepicker';
@@ -39,12 +40,13 @@ function AppLayout() {
   const org = useOrg();
   const { bookings, loading: bookingsLoading } = useBookingContext();
   const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
-  const { handleNewBooking, handleApprove, handleReject, handleDeleteBooking } = useBookingActions();
+  const { handleNewBooking, handleEditBooking, handleApprove, handleReject, handleDeleteBooking } = useBookingActions();
   const holiday = useHolidayContext();
 
   const [selectedResource, setSelectedResource] = useState(null);
   const [currentDate, setCurrentDate]           = useState(new Date());
   const [emailService]                          = useState(() => new EmailService());
+  const [editingBooking, setEditingBooking]     = useState(null);
 
   const effectiveSelectedResource = selectedResource || (RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id || null);
 
@@ -86,10 +88,12 @@ function AppLayout() {
               <CalendarView bookings={bookings} slots={slots}
                 selectedResource={effectiveSelectedResource} setSelectedResource={setSelectedResource}
                 currentDate={currentDate} setCurrentDate={setCurrentDate}
-                users={users} resources={RESOURCES} {...facilityProps} />
+                users={users} resources={RESOURCES} {...facilityProps}
+                onBookingClick={setEditingBooking} />
             } />
             <Route path="/meine-buchungen" element={
               <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking}
+                onEdit={setEditingBooking}
                 users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
             } />
             <Route path="/export" element={
@@ -178,6 +182,16 @@ function AppLayout() {
           </Routes>
         </div>
       </main>
+
+      {/* Booking Edit Modal (global, accessible from Calendar + MyBookings) */}
+      <BookingEditModal
+        booking={editingBooking}
+        open={!!editingBooking}
+        onClose={() => setEditingBooking(null)}
+        onSave={handleEditBooking}
+        resources={RESOURCES}
+        users={users}
+      />
     </div>
   );
 }

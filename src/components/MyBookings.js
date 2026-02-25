@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Pencil } from 'lucide-react';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
@@ -50,7 +50,7 @@ const StatusBadge = ({ status }) => {
 // ──────────────────────────────────────────────
 
 const MyBookings = ({
-  bookings, isAdmin, onDelete, users, resources, resourceGroups,
+  bookings, isAdmin, onDelete, onEdit, users, resources, resourceGroups,
   clubs, departments, teams, trainerAssignments,
 }) => {
   // ── Local state ────────────────────────────
@@ -372,9 +372,19 @@ const MyBookings = ({
                     </div>
                   </div>
 
-                  {/* Col 4: Status + delete actions */}
+                  {/* Col 4: Status + edit/delete actions */}
                   <div className="p-3 flex flex-col items-end gap-2 flex-shrink-0 border-l border-gray-100">
                     <StatusBadge status={booking.status} />
+
+                    {/* Edit button */}
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(booking)}
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3" />Bearbeiten
+                      </button>
+                    )}
 
                     {/* Delete actions (admin only) */}
                     {isAdmin && (

@@ -37,6 +37,7 @@ const CalendarView = ({
   bookings, slots, selectedResource, setSelectedResource,
   currentDate, setCurrentDate, users, adminCheckbox,
   resources, facilities, resourceGroups,
+  onBookingClick,
 }) => {
   // ── Local state ────────────────────────────
   const [selectedFacilityId, setSelectedFacilityId] = useState(facilities?.[0]?.id || '');
@@ -398,13 +399,14 @@ const CalendarView = ({
                     return (
                       <div
                         key={`${booking.id}-${isBlocking ? 'block' : 'own'}`}
-                        className="absolute left-1 right-1 rounded overflow-hidden text-[11px] leading-tight px-1.5 py-0.5"
+                        className={`absolute left-1 right-1 rounded overflow-hidden text-[11px] leading-tight px-1.5 py-0.5${!isBlocking && onBookingClick ? ' cursor-pointer hover:brightness-95 transition-all' : ''}`}
                         style={{
                           top: `${topPx}px`,
                           height: `${heightPx - 2}px`,
                           backgroundColor: bgColor, color: textColor, border: borderStyle,
                           zIndex: isBlocking ? 5 : 10,
                         }}
+                        onClick={!isBlocking && onBookingClick ? () => onBookingClick(booking) : undefined}
                         title={[
                           bookingType ? `${bookingType.icon} ${bookingType.label}` : '',
                           booking.title, userName,

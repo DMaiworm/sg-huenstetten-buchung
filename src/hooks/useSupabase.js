@@ -664,6 +664,25 @@ export function useBookings() {
     } catch (err) { return { data: null, error: err.message }; }
   }, []);
 
+  const updateBooking = useCallback(async (bookingId, updates) => {
+    try {
+      const dbUpdates = {};
+      if (updates.title !== undefined)       dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description || null;
+      if (updates.bookingType !== undefined) dbUpdates.booking_type = updates.bookingType;
+      if (updates.date !== undefined)        dbUpdates.date = updates.date;
+      if (updates.startTime !== undefined)   dbUpdates.start_time = updates.startTime;
+      if (updates.endTime !== undefined)     dbUpdates.end_time = updates.endTime;
+      if (updates.resourceId !== undefined)  dbUpdates.resource_id = updates.resourceId;
+      if (updates.status !== undefined)      dbUpdates.status = updates.status;
+      const { data, error } = await supabase.from('bookings').update(dbUpdates).eq('id', bookingId).select().single();
+      if (error) throw error;
+      const mapped = mapBooking(data);
+      setBookingsState(prev => prev.map(b => b.id === bookingId ? mapped : b));
+      return { data: mapped, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
   const updateBookingStatus = useCallback(async (bookingId, status) => {
     try {
       const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select().single();
@@ -708,7 +727,7 @@ export function useBookings() {
   return {
     bookings, setBookings, loading, isDemo,
     createBooking, createBookings,
-    updateBookingStatus, updateSeriesStatus,
+    updateBooking, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
     refreshBookings: fetchBookings,
   };
