@@ -117,15 +117,41 @@ Vorlage in `.env.example`. Niemals `.env` committen.
 
 ## Bekannte Einschränkungen
 
-- **Keine Tests vorhanden** – `npm test` hat keine Testdateien
+- **Tests:** Basis-Tests für `utils/helpers.js` vorhanden (46 Tests). `npm test` ausführen nach Änderungen an Helfer-/Logik-Funktionen
 - **Tailwind via CDN** – kein Purging, keine Build-Time-Optimierung
 - **Keine TypeScript** – reines JavaScript
 - **Kein Linting-Setup** – nur Standard react-app ESLint-Config
 
+## Workflow: Visuelle Änderungen (UI, PDF, Layout)
+
+Claude kann keine gerenderten Ergebnisse sehen. Bei visuellen Aufgaben diesen Ablauf einhalten:
+
+1. **Vorher:** User liefert Screenshot des aktuellen Zustands
+2. **Akzeptanzkriterien definieren** bevor Code geschrieben wird, z.B.:
+   - "4 Zeilen pro Tag, max 5mm Blockhöhe, Schrift lesbar ab 2.5pt"
+   - "Mobile: Sidebar eingeklappt, Kalender scrollbar"
+   - "Farbe X für Status Y, Abstand Z zwischen Elementen"
+3. **Umsetzung** basierend auf konkreten Zahlenwerten, nicht auf vagen Beschreibungen
+4. **Nachher:** User liefert Screenshot → Vergleich mit Akzeptanzkriterien
+5. **Korrekturen** nur mit erneutem Screenshot und konkreter Beschreibung ("Abstand zu groß" → "Abstand soll 4px statt 12px sein")
+
+**Warum:** Ohne diesen Ablauf entstehen viele Iterationsschleifen, weil Claude blind an Pixel-Werten arbeitet.
+
+## Workflow: Aufgaben strukturiert angehen
+
+Vor Beginn jeder größeren Aufgabe:
+
+1. **Scope klären** – Was genau soll sich ändern? Welche Dateien sind betroffen?
+2. **Akzeptanzkriterien festlegen** – Wann ist die Aufgabe fertig?
+3. **Bestehenden Code lesen** – Nie Code ändern, ohne ihn vorher gelesen zu haben
+4. **Plan erstellen** – Bei Tasks >3 Schritte: TodoWrite nutzen oder Plan-Agent verwenden
+5. **Testen** – Nach Änderungen: `npm run build` prüfen, Tests laufen lassen (wenn vorhanden)
+
 ## Hinweise für Claude Code Sessions
 
-- Bei UI/Layout-Änderungen (besonders PDF-Export): **Screenshots vom User anfordern**, da visuelle Ergebnisse nicht direkt prüfbar sind
 - `useSupabase.js` ist die zentrale Datei für alle DB-Operationen (887 Zeilen) – bei DB-Änderungen immer dort prüfen
 - Tailwind-Klassen direkt in JSX, keine CSS-Dateien anlegen
 - Bestehende UI-Komponenten aus `components/ui/` wiederverwenden (Button, Modal, Badge, etc.)
 - Dokumentation in `docs/PROTOTYPE-DOCUMENTATION.md` (37KB) enthält ER-Diagramme, API-Details, Berechtigungsmatrix
+- Bei Supabase-Queries: snake_case verwenden, Mapper in useSupabase.js konvertieren zu camelCase
+- Neue Komponenten immer in den passenden Unterordner legen und im jeweiligen `index.js` exportieren
