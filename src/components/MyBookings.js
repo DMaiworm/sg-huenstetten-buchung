@@ -80,16 +80,22 @@ const MyBookings = ({
     return resources.filter(r => r.groupId === selectedGroupId);
   }, [selectedGroupId, resources]);
 
+  // ── Visible bookings (exclude auto-generated sub-resource blockers) ──
+  const visibleBookings = useMemo(() =>
+    bookings.filter(b => !b.parentBooking),
+    [bookings]
+  );
+
   // ── Filtered bookings ──
   const filteredBookings = useMemo(() => {
-    if (selectedGroupId === 'all') return bookings;
+    if (selectedGroupId === 'all') return visibleBookings;
     const groupResIds = resources.filter(r => r.groupId === selectedGroupId).map(r => r.id);
-    let filtered = bookings.filter(b => groupResIds.includes(b.resourceId));
+    let filtered = visibleBookings.filter(b => groupResIds.includes(b.resourceId));
     if (selectedResource !== 'all') {
       filtered = filtered.filter(b => b.resourceId === selectedResource);
     }
     return filtered;
-  }, [bookings, selectedGroupId, selectedResource, resources]);
+  }, [visibleBookings, selectedGroupId, selectedResource, resources]);
 
   // ── Group series bookings together with conflict info ──
   const groupedBookings = useMemo(() => {
@@ -122,14 +128,14 @@ const MyBookings = ({
     setSelectedResource('all');
   };
 
-  // ── Booking count helpers ──
+  // ── Booking count helpers (use visibleBookings to exclude blockers) ──
   const getBookingCountForGroup = (groupId) => {
     const resIds = resources.filter(r => r.groupId === groupId).map(r => r.id);
-    return bookings.filter(b => resIds.includes(b.resourceId)).length;
+    return visibleBookings.filter(b => resIds.includes(b.resourceId)).length;
   };
 
   const getBookingCountForResource = (resId) =>
-    bookings.filter(b => b.resourceId === resId).length;
+    visibleBookings.filter(b => b.resourceId === resId).length;
 
   // ── Organisation / trainer lookup helpers ──
   const getOrgInfo = (booking) => {
@@ -217,7 +223,7 @@ const MyBookings = ({
             <span className={`px-2 py-0.5 text-xs rounded-full ${
               selectedGroupId === 'all' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
             }`}>
-              {bookings.length}
+              {visibleBookings.length}
             </span>
           </button>
 
