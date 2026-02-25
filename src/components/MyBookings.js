@@ -132,9 +132,20 @@ const MyBookings = ({
     bookings.filter(b => b.resourceId === resId).length;
 
   // ── Organisation / trainer lookup helpers ──
-  const getOrgInfo = (userId) => {
-    if (!trainerAssignments || !teams || !departments || !clubs) return null;
-    const assignments = trainerAssignments.filter(ta => ta.userId === userId);
+  const getOrgInfo = (booking) => {
+    if (!teams || !departments || !clubs) return null;
+    // Prefer teamId stored directly on the booking
+    if (booking.teamId) {
+      const team = teams.find(t => t.id === booking.teamId);
+      if (team) {
+        const dept = departments.find(d => d.id === team.departmentId);
+        const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+        return [{ team, dept, club }];
+      }
+    }
+    // Fallback for legacy bookings without teamId: lookup via trainer assignments
+    if (!trainerAssignments) return null;
+    const assignments = trainerAssignments.filter(ta => ta.userId === booking.userId);
     if (assignments.length === 0) return null;
     return assignments.map(ta => {
       const team = teams.find(t => t.id === ta.teamId);
@@ -276,7 +287,7 @@ const MyBookings = ({
             const resource      = resources.find(r => r.id === booking.resourceId);
             const isSeries      = booking.seriesBookings && booking.seriesBookings.length > 1;
             const bookingType   = EVENT_TYPES.find(t => t.id === booking.bookingType);
-            const orgInfos      = getOrgInfo(booking.userId);
+            const orgInfos      = getOrgInfo(booking);
             const primaryOrg    = orgInfos && orgInfos.length > 0 ? orgInfos[0] : null;
             const teamTrainers  = primaryOrg ? getTeamTrainers(primaryOrg.team.id) : [];
             const userName      = getUserName(booking.userId);

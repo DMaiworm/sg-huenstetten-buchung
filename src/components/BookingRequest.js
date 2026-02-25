@@ -208,6 +208,7 @@ const BookingRequest = ({
       startTime: formData.startTime, endTime: formData.endTime,
       title: formData.title || suggestedTitle, description: formData.description,
       bookingType: formData.eventType, userId: primaryTrainer.id,
+      teamId: formData.teamId,
       isComposite, includedResources: isComposite ? resource.includes : null,
     });
     setFormData(p => ({ ...p, title: '', description: '', singleDate: '', startDate: '', endDate: '' }));

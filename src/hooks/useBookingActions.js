@@ -58,6 +58,7 @@ export function useBookingActions() {
       startTime: data.startTime, endTime: data.endTime,
       title: data.title, description: data.description,
       bookingType: data.bookingType, userId: data.userId,
+      teamId: data.teamId || null,
       status: bookingStatus, seriesId,
     }));
 
@@ -69,7 +70,8 @@ export function useBookingActions() {
             startTime: data.startTime, endTime: data.endTime,
             title: data.title + ' (Ganzes Feld)',
             bookingType: data.bookingType,
-            userId: data.userId, status: bookingStatus,
+            userId: data.userId, teamId: data.teamId || null,
+            status: bookingStatus,
             seriesId, parentBooking: true,
           });
         });
