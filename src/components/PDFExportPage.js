@@ -2,10 +2,32 @@ import React, { useState } from 'react';
 import { FileDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
+import { EVENT_TYPES } from '../config/organizationConfig';
 
-const PDFExportPage = ({ bookings, users, resources, resourceGroups }) => {
+const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, departments, teams, trainerAssignments }) => {
   const navigate = useNavigate();
   const RESOURCES = resources;
+
+  // Lookup org info for a booking (team → department → club)
+  const getBookingOrgInfo = (booking) => {
+    if (!teams || !departments || !clubs) return null;
+    if (booking.teamId) {
+      const team = teams.find(t => t.id === booking.teamId);
+      if (team) {
+        const dept = departments.find(d => d.id === team.departmentId);
+        const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+        return { team, dept, club };
+      }
+    }
+    if (!trainerAssignments) return null;
+    const assignment = trainerAssignments.find(ta => ta.userId === booking.userId);
+    if (!assignment) return null;
+    const team = teams.find(t => t.id === assignment.teamId);
+    if (!team) return null;
+    const dept = departments.find(d => d.id === team.departmentId);
+    const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+    return { team, dept, club };
+  };
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -110,21 +132,46 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups }) => {
             });
             const dateStr = selectedYear + '-' + String(selectedMonth + 1).padStart(2, '0') + '-' + String(currentDay).padStart(2, '0');
             catResources.forEach((res, resIndex) => {
-              const dayBookings = bookings.filter(b => b.date === dateStr && b.resourceId === res.id && b.status === 'approved')
+              const dayBookings = bookings
+                .filter(b => b.date === dateStr && b.resourceId === res.id && b.status === 'approved' && !b.parentBooking)
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
+              const blockHeight = 10;
+              const colX = cellX + resIndex * resourceColWidth;
               dayBookings.forEach(booking => {
-                if (yOffset < weekHeight - 3) {
-                  doc.setFontSize(4);
-                  doc.setFont('helvetica', 'normal');
-                  const rgb = hexToRgb(res.color);
+                if (yOffset + blockHeight <= weekHeight - 1) {
+                  const org = getBookingOrgInfo(booking);
+                  const clubLabel = org?.club?.shortName || '';
+                  const teamLabel = org?.team?.shortName || org?.team?.name || '';
+                  const typeLabel = EVENT_TYPES.find(t => t.id === booking.bookingType)?.label || '';
+                  const timeLabel = booking.startTime.substring(0, 5) + '–' + booking.endTime.substring(0, 5);
+
+                  const rgb = hexToRgb(org?.team?.color || res.color);
                   doc.setFillColor(rgb.r, rgb.g, rgb.b);
-                  doc.roundedRect(cellX + resIndex * resourceColWidth + 0.5, cellY + yOffset, resourceColWidth - 1, 6, 0.5, 0.5, 'F');
+                  doc.roundedRect(colX + 0.5, cellY + yOffset, resourceColWidth - 1, blockHeight, 0.5, 0.5, 'F');
                   doc.setTextColor(255, 255, 255);
-                  doc.text(booking.startTime.substring(0, 5), cellX + resIndex * resourceColWidth + 1, cellY + yOffset + 2.5);
+
+                  // Line 1: Club (normal)
                   doc.setFontSize(3.5);
-                  doc.text(booking.title.substring(0, 10), cellX + resIndex * resourceColWidth + 1, cellY + yOffset + 5);
-                  yOffset += 7;
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(clubLabel, colX + 1, cellY + yOffset + 2.5);
+
+                  // Line 2: Team (bold)
+                  doc.setFontSize(4);
+                  doc.setFont('helvetica', 'bold');
+                  doc.text(teamLabel.substring(0, 12), colX + 1, cellY + yOffset + 5);
+
+                  // Line 3: Event type (normal)
+                  doc.setFontSize(3.5);
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(typeLabel, colX + 1, cellY + yOffset + 7);
+
+                  // Line 4: Start–End time (bold)
+                  doc.setFontSize(3.5);
+                  doc.setFont('helvetica', 'bold');
+                  doc.text(timeLabel, colX + 1, cellY + yOffset + 9.5);
+
+                  yOffset += blockHeight + 1;
                 }
               });
             });

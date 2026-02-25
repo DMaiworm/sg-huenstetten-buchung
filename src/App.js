@@ -98,7 +98,7 @@ function AppLayout() {
                 users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
             } />
             <Route path="/export" element={
-              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} />
+              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
             } />
             <Route path="/teams" element={
               <TeamOverview {...orgProps} bookings={bookings} users={users} resources={RESOURCES} />
