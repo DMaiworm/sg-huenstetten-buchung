@@ -78,6 +78,7 @@ function mapBooking(b) {
     endTime:   b.end_time?.substring(0, 5)   || b.end_time,
     title: b.title, description: b.description || '',
     bookingType: b.booking_type, userId: b.user_id,
+    teamId: b.team_id || null,
     status: b.status, seriesId: b.series_id || null,
     parentBooking: b.parent_booking || false,
   };
@@ -88,6 +89,7 @@ function mapBookingToDb(b) {
     start_time: b.startTime, end_time: b.endTime,
     title: b.title, description: b.description || null,
     booking_type: b.bookingType, user_id: b.userId,
+    team_id: b.teamId || null,
     status: b.status || 'pending', series_id: b.seriesId || null,
     parent_booking: b.parentBooking || false,
   };
@@ -664,6 +666,26 @@ export function useBookings() {
     } catch (err) { return { data: null, error: err.message }; }
   }, []);
 
+  const updateBooking = useCallback(async (bookingId, updates) => {
+    try {
+      const dbUpdates = {};
+      if (updates.title !== undefined)       dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description || null;
+      if (updates.bookingType !== undefined) dbUpdates.booking_type = updates.bookingType;
+      if (updates.date !== undefined)        dbUpdates.date = updates.date;
+      if (updates.startTime !== undefined)   dbUpdates.start_time = updates.startTime;
+      if (updates.endTime !== undefined)     dbUpdates.end_time = updates.endTime;
+      if (updates.resourceId !== undefined)  dbUpdates.resource_id = updates.resourceId;
+      if (updates.teamId !== undefined)      dbUpdates.team_id = updates.teamId;
+      if (updates.status !== undefined)      dbUpdates.status = updates.status;
+      const { data, error } = await supabase.from('bookings').update(dbUpdates).eq('id', bookingId).select().single();
+      if (error) throw error;
+      const mapped = mapBooking(data);
+      setBookingsState(prev => prev.map(b => b.id === bookingId ? mapped : b));
+      return { data: mapped, error: null };
+    } catch (err) { return { data: null, error: err.message }; }
+  }, []);
+
   const updateBookingStatus = useCallback(async (bookingId, status) => {
     try {
       const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select().single();
@@ -708,7 +730,7 @@ export function useBookings() {
   return {
     bookings, setBookings, loading, isDemo,
     createBooking, createBookings,
-    updateBookingStatus, updateSeriesStatus,
+    updateBooking, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
     refreshBookings: fetchBookings,
   };

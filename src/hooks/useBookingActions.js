@@ -11,7 +11,7 @@ import { useUserContext } from '../contexts/UserContext';
 export function useBookingActions() {
   const {
     bookings, createBookings,
-    updateBookingStatus, updateSeriesStatus,
+    updateBooking, updateBookingStatus, updateSeriesStatus,
     deleteBooking, deleteBookingSeries,
   } = useBookingContext();
 
@@ -58,6 +58,7 @@ export function useBookingActions() {
       startTime: data.startTime, endTime: data.endTime,
       title: data.title, description: data.description,
       bookingType: data.bookingType, userId: data.userId,
+      teamId: data.teamId || null,
       status: bookingStatus, seriesId,
     }));
 
@@ -69,7 +70,8 @@ export function useBookingActions() {
             startTime: data.startTime, endTime: data.endTime,
             title: data.title + ' (Ganzes Feld)',
             bookingType: data.bookingType,
-            userId: data.userId, status: bookingStatus,
+            userId: data.userId, teamId: data.teamId || null,
+            status: bookingStatus,
             seriesId, parentBooking: true,
           });
         });
@@ -84,6 +86,28 @@ export function useBookingActions() {
     window.alert('Buchungsanfrage f\u00fcr ' + data.dates.length + ' Termin(e) eingereicht!');
   }, [createBookings, resolveBookingStatus]);
 
+  /** Buchung bearbeiten. Bei Terminänderung → neuer Genehmigungsprozess. */
+  const handleEditBooking = useCallback(async (bookingId, updates) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return { error: 'Buchung nicht gefunden' };
+
+    const scheduleChanged =
+      (updates.date !== undefined && updates.date !== booking.date) ||
+      (updates.startTime !== undefined && updates.startTime !== booking.startTime) ||
+      (updates.endTime !== undefined && updates.endTime !== booking.endTime) ||
+      (updates.resourceId !== undefined && updates.resourceId !== booking.resourceId);
+
+    if (scheduleChanged) {
+      updates.status = resolveBookingStatus(booking.userId);
+    }
+
+    const result = await updateBooking(bookingId, updates);
+    if (result.error) {
+      window.alert('Fehler beim Speichern: ' + result.error);
+    }
+    return result;
+  }, [bookings, updateBooking, resolveBookingStatus]);
+
   /** Einzelne Buchung oder Serie l\u00f6schen. */
   const handleDeleteBooking = useCallback(async (bookingId, deleteType, seriesId) => {
     const result = (deleteType === 'series' && seriesId)
@@ -94,6 +118,7 @@ export function useBookingActions() {
 
   return {
     handleNewBooking,
+    handleEditBooking,
     handleApprove,
     handleReject,
     handleDeleteBooking,

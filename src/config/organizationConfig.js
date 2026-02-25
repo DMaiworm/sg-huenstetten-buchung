@@ -9,10 +9,10 @@
 
 // ---- Event Types (single source of truth) ----
 export const EVENT_TYPES = [
-  { id: 'training', label: 'Training', icon: '\uD83C\uDFC3', color: '#3b82f6', description: 'Regelm\u00e4\u00dfiges Training', allowOverlap: false },
-  { id: 'match', label: 'Heimspiel', icon: '\u26BD', color: '#dc2626', description: 'Wettkampf oder Freundschaftsspiel', allowOverlap: false },
-  { id: 'event', label: 'Event/Wettkampf', icon: '\uD83C\uDF89', color: '#8b5cf6', description: 'Turnier, Wettkampf, Sonderveranstaltung', allowOverlap: false },
-  { id: 'other', label: 'Sonstiges', icon: '\uD83D\uDCCB', color: '#6b7280', description: 'Besprechung, Wartung, etc.', allowOverlap: true },
+  { id: 'training', label: 'Training', short: 'Tr.', icon: '\uD83C\uDFC3', color: '#3b82f6', description: 'Regelm\u00e4\u00dfiges Training', allowOverlap: false },
+  { id: 'match', label: 'Heimspiel', short: 'Spiel', icon: '\u26BD', color: '#dc2626', description: 'Wettkampf oder Freundschaftsspiel', allowOverlap: false },
+  { id: 'event', label: 'Event/Wettkampf', short: 'Event', icon: '\uD83C\uDF89', color: '#8b5cf6', description: 'Turnier, Wettkampf, Sonderveranstaltung', allowOverlap: false },
+  { id: 'other', label: 'Sonstiges', short: 'Sonst.', icon: '\uD83D\uDCCB', color: '#6b7280', description: 'Besprechung, Wartung, etc.', allowOverlap: true },
 ];
 
 // ---- Default Demo Data ----

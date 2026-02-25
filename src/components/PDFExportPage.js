@@ -2,10 +2,32 @@ import React, { useState } from 'react';
 import { FileDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
+import { EVENT_TYPES } from '../config/organizationConfig';
 
-const PDFExportPage = ({ bookings, users, resources, resourceGroups }) => {
+const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, departments, teams, trainerAssignments }) => {
   const navigate = useNavigate();
   const RESOURCES = resources;
+
+  // Lookup org info for a booking (team → department → club)
+  const getBookingOrgInfo = (booking) => {
+    if (!teams || !departments || !clubs) return null;
+    if (booking.teamId) {
+      const team = teams.find(t => t.id === booking.teamId);
+      if (team) {
+        const dept = departments.find(d => d.id === team.departmentId);
+        const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+        return { team, dept, club };
+      }
+    }
+    if (!trainerAssignments) return null;
+    const assignment = trainerAssignments.find(ta => ta.userId === booking.userId);
+    if (!assignment) return null;
+    const team = teams.find(t => t.id === assignment.teamId);
+    if (!team) return null;
+    const dept = departments.find(d => d.id === team.departmentId);
+    const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+    return { team, dept, club };
+  };
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -110,21 +132,53 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups }) => {
             });
             const dateStr = selectedYear + '-' + String(selectedMonth + 1).padStart(2, '0') + '-' + String(currentDay).padStart(2, '0');
             catResources.forEach((res, resIndex) => {
-              const dayBookings = bookings.filter(b => b.date === dateStr && b.resourceId === res.id && b.status === 'approved')
+              // Show bookings for this resource AND composite-parent bookings
+              // (e.g. "Sportplatz komplett" should appear on both "links" and "rechts")
+              const compositeParentId = res.partOf || null;
+              const dayBookings = bookings
+                .filter(b => b.date === dateStr && b.status === 'approved' && !b.parentBooking &&
+                  (b.resourceId === res.id || (compositeParentId && b.resourceId === compositeParentId)))
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
+              const blockHeight = 5;
+              const colX = cellX + resIndex * resourceColWidth;
+              const rightEdge = colX + resourceColWidth - 1.5;
               dayBookings.forEach(booking => {
-                if (yOffset < weekHeight - 3) {
-                  doc.setFontSize(4);
-                  doc.setFont('helvetica', 'normal');
-                  const rgb = hexToRgb(res.color);
-                  doc.setFillColor(rgb.r, rgb.g, rgb.b);
-                  doc.roundedRect(cellX + resIndex * resourceColWidth + 0.5, cellY + yOffset, resourceColWidth - 1, 6, 0.5, 0.5, 'F');
-                  doc.setTextColor(255, 255, 255);
-                  doc.text(booking.startTime.substring(0, 5), cellX + resIndex * resourceColWidth + 1, cellY + yOffset + 2.5);
+                if (yOffset + blockHeight <= weekHeight - 1) {
+                  const org = getBookingOrgInfo(booking);
+                  const clubLabel = org?.club?.shortName || '';
+                  // Prefer full team name, fall back to shortName if too wide
+                  const teamFull = org?.team?.name || '';
+                  const teamShort = org?.team?.shortName || teamFull;
                   doc.setFontSize(3.5);
-                  doc.text(booking.title.substring(0, 10), cellX + resIndex * resourceColWidth + 1, cellY + yOffset + 5);
-                  yOffset += 7;
+                  doc.setFont('helvetica', 'bold');
+                  const maxTextWidth = resourceColWidth - 2;
+                  const teamLabel = doc.getTextWidth(teamFull) <= maxTextWidth ? teamFull : teamShort;
+                  const typeLabel = EVENT_TYPES.find(t => t.id === booking.bookingType)?.label || '';
+                  const timeLabel = booking.startTime.substring(0, 5) + '–' + booking.endTime.substring(0, 5);
+
+                  const rgb = hexToRgb(org?.team?.color || res.color);
+                  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+                  doc.roundedRect(colX + 0.5, cellY + yOffset, resourceColWidth - 1, blockHeight, 0.5, 0.5, 'F');
+                  doc.setTextColor(255, 255, 255);
+
+                  // Line 1: Club (left) + Type (right)
+                  doc.setFontSize(2.5);
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(clubLabel, colX + 1, cellY + yOffset + 1.5);
+                  doc.text(typeLabel, rightEdge, cellY + yOffset + 1.5, { align: 'right' });
+
+                  // Line 2: Team (bold)
+                  doc.setFontSize(3);
+                  doc.setFont('helvetica', 'bold');
+                  doc.text(teamLabel, colX + 1, cellY + yOffset + 3);
+
+                  // Line 3: Time
+                  doc.setFontSize(2.5);
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(timeLabel, colX + 1, cellY + yOffset + 4.5);
+
+                  yOffset += blockHeight + 0.5;
                 }
               });
             });
