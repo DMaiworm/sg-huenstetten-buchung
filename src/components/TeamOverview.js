@@ -46,7 +46,7 @@ const TeamOverview = ({
     departmentTeams.forEach(t => { map[t.id] = { trainings: [], nextEvent: null }; });
 
     const teamIds = new Set(departmentTeams.map(t => t.id));
-    const relevant = (bookings || []).filter(b => b.teamId && teamIds.has(b.teamId) && b.status === 'approved');
+    const relevant = (bookings || []).filter(b => b.teamId && teamIds.has(b.teamId) && b.status === 'approved' && !b.parentBooking);
 
     relevant.forEach(b => {
       if (!map[b.teamId]) return;

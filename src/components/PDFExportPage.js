@@ -132,8 +132,12 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
             });
             const dateStr = selectedYear + '-' + String(selectedMonth + 1).padStart(2, '0') + '-' + String(currentDay).padStart(2, '0');
             catResources.forEach((res, resIndex) => {
+              // Show bookings for this resource AND composite-parent bookings
+              // (e.g. "Sportplatz komplett" should appear on both "links" and "rechts")
+              const compositeParentId = res.partOf || null;
               const dayBookings = bookings
-                .filter(b => b.date === dateStr && b.resourceId === res.id && b.status === 'approved' && !b.parentBooking)
+                .filter(b => b.date === dateStr && b.status === 'approved' && !b.parentBooking &&
+                  (b.resourceId === res.id || (compositeParentId && b.resourceId === compositeParentId)))
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
               const blockHeight = 10;
