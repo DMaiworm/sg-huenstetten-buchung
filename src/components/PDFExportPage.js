@@ -142,7 +142,13 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                 if (yOffset + blockHeight <= weekHeight - 1) {
                   const org = getBookingOrgInfo(booking);
                   const clubLabel = org?.club?.shortName || '';
-                  const teamLabel = org?.team?.shortName || org?.team?.name || '';
+                  // Prefer full team name, fall back to shortName if too wide
+                  const teamFull = org?.team?.name || '';
+                  const teamShort = org?.team?.shortName || teamFull;
+                  doc.setFontSize(4);
+                  doc.setFont('helvetica', 'bold');
+                  const maxTextWidth = resourceColWidth - 2;
+                  const teamLabel = doc.getTextWidth(teamFull) <= maxTextWidth ? teamFull : teamShort;
                   const typeLabel = EVENT_TYPES.find(t => t.id === booking.bookingType)?.label || '';
                   const timeLabel = booking.startTime.substring(0, 5) + '–' + booking.endTime.substring(0, 5);
 
@@ -159,7 +165,7 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   // Line 2: Team (bold)
                   doc.setFontSize(4);
                   doc.setFont('helvetica', 'bold');
-                  doc.text(teamLabel.substring(0, 12), colX + 1, cellY + yOffset + 5);
+                  doc.text(teamLabel, colX + 1, cellY + yOffset + 5);
 
                   // Line 3: Event type (normal)
                   doc.setFontSize(3.5);
