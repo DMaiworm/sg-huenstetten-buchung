@@ -140,7 +140,7 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   (b.resourceId === res.id || (compositeParentId && b.resourceId === compositeParentId)))
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
               let yOffset = 10;
-              const blockHeight = 7;
+              const blockHeight = 5;
               const colX = cellX + resIndex * resourceColWidth;
               const rightEdge = colX + resourceColWidth - 1.5;
               dayBookings.forEach(booking => {
@@ -163,20 +163,20 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
                   doc.setTextColor(255, 255, 255);
 
                   // Line 1: Club (left) + Type (right)
-                  doc.setFontSize(3);
+                  doc.setFontSize(2.5);
                   doc.setFont('helvetica', 'normal');
-                  doc.text(clubLabel, colX + 1, cellY + yOffset + 2.2);
-                  doc.text(typeLabel, rightEdge, cellY + yOffset + 2.2, { align: 'right' });
+                  doc.text(clubLabel, colX + 1, cellY + yOffset + 1.5);
+                  doc.text(typeLabel, rightEdge, cellY + yOffset + 1.5, { align: 'right' });
 
                   // Line 2: Team (bold)
-                  doc.setFontSize(3.5);
+                  doc.setFontSize(3);
                   doc.setFont('helvetica', 'bold');
-                  doc.text(teamLabel, colX + 1, cellY + yOffset + 4.5);
+                  doc.text(teamLabel, colX + 1, cellY + yOffset + 3);
 
                   // Line 3: Time
-                  doc.setFontSize(3);
+                  doc.setFontSize(2.5);
                   doc.setFont('helvetica', 'normal');
-                  doc.text(timeLabel, colX + 1, cellY + yOffset + 6.5);
+                  doc.text(timeLabel, colX + 1, cellY + yOffset + 4.5);
 
                   yOffset += blockHeight + 0.5;
                 }
