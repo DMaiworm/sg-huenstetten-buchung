@@ -55,27 +55,31 @@ function mapErfolg(row) {
 }
 
 export function useTrainerProfile(userId) {
-  const [details,  setDetails]  = useState(null);
-  const [lizenzen, setLizenzen] = useState([]);
-  const [erfolge,  setErfolge]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [details,   setDetails]   = useState(null);
+  const [lizenzen,  setLizenzen]  = useState([]);
+  const [erfolge,   setErfolge]   = useState([]);
+  const [aktivFuer, setAktivFuer] = useState([]); // Array von club_ids
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState(null);
 
   const fetchAll = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
     setLoading(true); setError(null);
     try {
-      const [detRes, lizRes, erfRes] = await Promise.all([
+      const [detRes, lizRes, erfRes, tvaRes] = await Promise.all([
         supabase.from('trainer_profile_details').select('*').eq('id', userId).maybeSingle(),
         supabase.from('trainer_lizenzen').select('*').eq('trainer_id', userId).order('ausstellungsdatum', { ascending: false }),
         supabase.from('trainer_erfolge').select('*').eq('trainer_id', userId).order('jahr', { ascending: false }),
+        supabase.from('trainer_verein_aktiv').select('club_id').eq('trainer_id', userId),
       ]);
       if (detRes.error) throw detRes.error;
       if (lizRes.error) throw lizRes.error;
       if (erfRes.error) throw erfRes.error;
+      if (tvaRes.error) throw tvaRes.error;
       setDetails(mapDetails(detRes.data));
       setLizenzen((lizRes.data || []).map(mapLizenz));
       setErfolge((erfRes.data || []).map(mapErfolg));
+      setAktivFuer((tvaRes.data || []).map(r => r.club_id));
     } catch (err) {
       setError(err.message);
     }
@@ -233,7 +237,7 @@ export function useTrainerProfile(userId) {
   }, []);
 
   return {
-    details, lizenzen, erfolge,
+    details, lizenzen, erfolge, aktivFuer,
     loading, error,
     upsertProfile, uploadPhoto, uploadFuehrungszeugnis,
     addLizenz, updateLizenz, deleteLizenz,

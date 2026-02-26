@@ -10,7 +10,7 @@ export const PERMISSIONS = [
 export const emptyUser = {
   firstName: '', lastName: '', email: '', phone: '', operatorId: '',
   isPassive: false, istTrainer: false, kannBuchen: false, kannGenehmigen: false, kannAdministrieren: false,
-  hauptvereinId: null, stammvereinId: null, stammvereinAndere: null,
+  aktivFuer: [], stammvereinId: null, stammvereinAndere: null,
 };
 
 export function trainerStatus(user) {

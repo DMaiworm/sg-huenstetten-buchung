@@ -19,7 +19,8 @@ function mapProfile(profile) {
     kannBuchen:         profile.kann_buchen         || false,
     kannGenehmigen:     profile.kann_genehmigen     || false,
     kannAdministrieren: profile.kann_administrieren || false,
-    hauptvereinId:      profile.hauptverein_id      || null,
+    // aktiv_fuer: Array von club_ids (via Junction-Tabelle trainer_verein_aktiv)
+    aktivFuer:          (profile.trainer_verein_aktiv || []).map(r => r.club_id),
     stammvereinId:      profile.stammverein_id      || null,
     stammvereinAndere:  profile.stammverein_andere  ?? null,
   };
@@ -37,7 +38,6 @@ function mapUserToDb(user) {
     kann_buchen:         user.kannBuchen         || false,
     kann_genehmigen:     user.kannGenehmigen     || false,
     kann_administrieren: user.kannAdministrieren || false,
-    hauptverein_id:      user.hauptvereinId      || null,
     stammverein_id:      user.stammvereinId      || null,
     stammverein_andere:  user.stammvereinAndere  || null,
   };
@@ -52,7 +52,10 @@ export function useUsers() {
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const { data, error: e } = await supabase.from('profiles').select('*').order('last_name');
+      const { data, error: e } = await supabase
+        .from('profiles')
+        .select('*, trainer_verein_aktiv(club_id)')
+        .order('last_name');
       if (e) throw e;
       setUsersState((data || []).map(mapProfile));
       setIsDemo(false);
@@ -63,7 +66,11 @@ export function useUsers() {
 
   const createUser = useCallback(async (userData) => {
     try {
-      const { data, error: e } = await supabase.from('profiles').insert(mapUserToDb(userData)).select().single();
+      const { data, error: e } = await supabase
+        .from('profiles')
+        .insert(mapUserToDb(userData))
+        .select('*, trainer_verein_aktiv(club_id)')
+        .single();
       if (e) throw e;
       const u = mapProfile(data);
       setUsersState(p => [...p, u]);
@@ -73,7 +80,12 @@ export function useUsers() {
 
   const updateUser = useCallback(async (userId, userData) => {
     try {
-      const { data, error: e } = await supabase.from('profiles').update(mapUserToDb(userData)).eq('id', userId).select().single();
+      const { data, error: e } = await supabase
+        .from('profiles')
+        .update(mapUserToDb(userData))
+        .eq('id', userId)
+        .select('*, trainer_verein_aktiv(club_id)')
+        .single();
       if (e) throw e;
       const u = mapProfile(data);
       setUsersState(p => p.map(x => x.id === userId ? u : x));
@@ -94,18 +106,46 @@ export function useUsers() {
     const user = users.find(u => u.id === userId);
     if (!user) return { error: 'User nicht gefunden' };
     try {
-      // supabase.functions.invoke() setzt Auth-Header automatisch korrekt (kein manueller fetch)
       const { data: result, error: fnError } = await supabase.functions.invoke('invite-trainer', {
         body: { profileId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName },
       });
       if (fnError) return { error: fnError.message };
       if (result?.error) return { error: result.error };
-      // Benutzerliste neu laden – UUID kann sich durch den Invite-Prozess geändert haben
       await fetchUsers();
       return { error: null };
     } catch (err) { return { error: err.message }; }
   }, [users, fetchUsers]);
 
+  // Setzt die "Aktiv für"-Vereinszuordnungen eines Trainers (replace-all)
+  const updateTrainerVereine = useCallback(async (trainerId, clubIds) => {
+    try {
+      // Alle bestehenden Einträge löschen
+      const { error: delErr } = await supabase
+        .from('trainer_verein_aktiv')
+        .delete()
+        .eq('trainer_id', trainerId);
+      if (delErr) throw delErr;
+
+      // Neue Einträge anlegen (falls vorhanden)
+      if (clubIds && clubIds.length > 0) {
+        const rows = clubIds.map(club_id => ({ trainer_id: trainerId, club_id }));
+        const { error: insErr } = await supabase.from('trainer_verein_aktiv').insert(rows);
+        if (insErr) throw insErr;
+      }
+
+      // Lokalen State aktualisieren
+      setUsersState(prev => prev.map(u =>
+        u.id === trainerId ? { ...u, aktivFuer: clubIds || [] } : u
+      ));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
   const setUsers = useCallback((v) => setUsersState(v), []);
-  return { users, setUsers, loading, error, isDemo, createUser, updateUser, deleteUser, inviteUser, refreshUsers: fetchUsers };
+  return {
+    users, setUsers, loading, error, isDemo,
+    createUser, updateUser, deleteUser, inviteUser,
+    updateTrainerVereine,
+    refreshUsers: fetchUsers,
+  };
 }

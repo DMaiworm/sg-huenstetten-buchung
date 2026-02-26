@@ -2,16 +2,16 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { PERMISSIONS } from './userConstants';
 
-/**
- * Leitet den aktuellen Dropdown-Wert für Stammverein ab:
- *   - club-UUID  → eine der App-Clubs ausgewählt
- *   - 'andere'   → "Andere" ausgewählt (stammvereinAndere !== null, stammvereinId === null)
- *   - ''         → nichts ausgewählt
- */
 function stammvereinSelectValue(user) {
   if (user.stammvereinId) return user.stammvereinId;
   if (user.stammvereinAndere !== null && user.stammvereinAndere !== undefined) return 'andere';
   return '';
+}
+
+function toggleAktivFuer(current, clubId) {
+  return current.includes(clubId)
+    ? current.filter(id => id !== clubId)
+    : [...current, clubId];
 }
 
 const UserFormModal = ({ newUser, setNewUser, editingUser, saving, onSubmit, onClose, clubs = [] }) => {
@@ -89,21 +89,29 @@ const UserFormModal = ({ newUser, setNewUser, editingUser, saving, onSubmit, onC
               <div className="space-y-3 pt-1 border-t border-gray-100">
                 <p className="text-sm font-semibold text-gray-700 pt-1">Vereinszuordnung</p>
 
-                {/* Hauptverein */}
+                {/* Aktiv für (Mehrfachauswahl) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hauptverein <span className="text-gray-400 font-normal">(Vereinsmitgliedschaft)</span>
+                    Aktiv für <span className="text-gray-400 font-normal">(Vereinsmitgliedschaft, Mehrfachauswahl möglich)</span>
                   </label>
-                  <select
-                    value={newUser.hauptvereinId || ''}
-                    onChange={e => setNewUser({ ...newUser, hauptvereinId: e.target.value || null })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  >
-                    <option value="">– bitte wählen –</option>
-                    {clubs.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col gap-1.5">
+                    {clubs.map(c => {
+                      const checked = (newUser.aktivFuer || []).includes(c.id);
+                      return (
+                        <label key={c.id} className="flex items-center gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
+                          style={{ backgroundColor: checked ? '#eff6ff' : 'white', borderColor: checked ? '#93c5fd' : '#e5e7eb' }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setNewUser({ ...newUser, aktivFuer: toggleAktivFuer(newUser.aktivFuer || [], c.id) })}
+                            className="w-4 h-4 rounded"
+                            style={{ accentColor: '#2563eb' }}
+                          />
+                          <span className="text-sm font-medium" style={{ color: checked ? '#1d4ed8' : '#374151' }}>{c.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Stammverein */}

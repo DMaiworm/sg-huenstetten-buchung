@@ -41,7 +41,7 @@ export default function TrainerProfil() {
   const { clubs } = useOrg();
   const { showToast } = useToast();
   const {
-    details, lizenzen, erfolge, loading, error,
+    details, lizenzen, erfolge, aktivFuer, loading, error,
     upsertProfile, uploadPhoto, uploadFuehrungszeugnis,
     addLizenz, updateLizenz, deleteLizenz,
     addErfolg, updateErfolg, deleteErfolg,
@@ -302,12 +302,19 @@ export default function TrainerProfil() {
             <p className="text-gray-500 text-xs mb-1">Unterlagen vollständig</p>
             <StatusBadge ok={details?.unterlagenVollstaendig} label={details?.unterlagenVollstaendig ? 'Vollständig' : 'Unvollständig'} />
           </div>
-          {profile?.hauptverein_id && (
-            <div>
-              <p className="text-gray-500 text-xs mb-1">Hauptverein</p>
-              <p className="text-gray-800 text-sm">
-                {clubs.find(c => c.id === profile.hauptverein_id)?.name || '–'}
-              </p>
+          {aktivFuer.length > 0 && (
+            <div className="sm:col-span-2">
+              <p className="text-gray-500 text-xs mb-1">Aktiv für</p>
+              <div className="flex flex-wrap gap-1">
+                {aktivFuer.map(clubId => {
+                  const club = clubs.find(c => c.id === clubId);
+                  return club ? (
+                    <span key={clubId} className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {club.name}
+                    </span>
+                  ) : null;
+                })}
+              </div>
             </div>
           )}
           {(profile?.stammverein_id || profile?.stammverein_andere) && (

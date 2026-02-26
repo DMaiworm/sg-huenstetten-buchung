@@ -55,6 +55,33 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
             </p>
             {user.phone && <p className="text-sm text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{user.phone}</p>}
             <PermBadges user={user} />
+            {/* Vereinszuordnung – nur für Trainer */}
+            {user.istTrainer && (
+              <div className="mt-1.5 space-y-1">
+                {user.aktivFuer?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {user.aktivFuer.map(clubId => {
+                      const club = (clubs || []).find(c => c.id === clubId);
+                      return club ? (
+                        <span key={clubId} className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                          {club.name}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+                {(user.stammvereinId || user.stammvereinAndere) && (
+                  <p className="text-xs text-gray-400">
+                    Abrechnung:{' '}
+                    <span className="text-gray-600 font-medium">
+                      {user.stammvereinId
+                        ? (clubs || []).find(c => c.id === user.stammvereinId)?.name || '–'
+                        : user.stammvereinAndere}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {sortedGroups.length > 0 && (
