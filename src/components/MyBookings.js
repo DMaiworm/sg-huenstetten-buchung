@@ -13,6 +13,7 @@ import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, Al
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
+import { useConfirm } from '../hooks/useConfirm';
 
 // ──────────────────────────────────────────────
 //  Sub-components
@@ -45,6 +46,11 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// Einheitliche Klassen für Aktions-Buttons
+const btnBase   = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer';
+const btnEdit   = `${btnBase} bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200`;
+const btnDanger = `${btnBase} bg-red-600 text-white hover:bg-red-700`;
+
 // ──────────────────────────────────────────────
 //  Component
 // ──────────────────────────────────────────────
@@ -56,11 +62,45 @@ const MyBookings = ({
   // ── Local state ────────────────────────────
   const [selectedGroupId, setSelectedGroupId]   = useState('all');
   const [selectedResource, setSelectedResource] = useState('all');
-  const [deleteConfirm, setDeleteConfirm]       = useState(null);
   const [expandedSeries, setExpandedSeries]     = useState({});
+  const [confirm, ConfirmDialogEl]              = useConfirm();
 
   const toggleSeries = (seriesId) =>
     setExpandedSeries(prev => ({ ...prev, [seriesId]: !prev[seriesId] }));
+
+  // ── Delete handlers (mit Bestätigungs-Dialog) ──
+  const handleDeleteSeries = async (booking) => {
+    const ok = await confirm({
+      title: 'Serie löschen',
+      message: `Alle ${booking.totalCount} Termine dieser Serie wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmLabel: 'Serie löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    });
+    if (ok) onDelete(booking.id, 'series', booking.seriesId);
+  };
+
+  const handleDeleteSingle = async (booking) => {
+    const ok = await confirm({
+      title: 'Termin löschen',
+      message: 'Diesen Termin wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+      confirmLabel: 'Löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    });
+    if (ok) onDelete(booking.id, 'single', null);
+  };
+
+  const handleDeleteSingleInSeries = async (sb) => {
+    const ok = await confirm({
+      title: 'Einzeltermin löschen',
+      message: `Termin vom ${fmtDate(sb.date)} (${sb.startTime} – ${sb.endTime}) wirklich löschen?`,
+      confirmLabel: 'Löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    });
+    if (ok) onDelete(sb.id, 'single', null);
+  };
 
   // ── Dynamic group tabs ──
   const groupTabs = useMemo(() => {
@@ -140,7 +180,6 @@ const MyBookings = ({
   // ── Organisation / trainer lookup helpers ──
   const getOrgInfo = (booking) => {
     if (!teams || !departments || !clubs) return null;
-    // Prefer teamId stored directly on the booking
     if (booking.teamId) {
       const team = teams.find(t => t.id === booking.teamId);
       if (team) {
@@ -149,7 +188,6 @@ const MyBookings = ({
         return [{ team, dept, club }];
       }
     }
-    // Fallback for legacy bookings without teamId: lookup via trainer assignments
     if (!trainerAssignments) return null;
     const assignments = trainerAssignments.filter(ta => ta.userId === booking.userId);
     if (assignments.length === 0) return null;
@@ -180,14 +218,14 @@ const MyBookings = ({
   };
 
   // ── Date / weekday display helpers ──
-  const fmtDate = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const fmtDateShort = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  const fmtDate = (s) => new Date(s + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fmtDateShort = (s) => new Date(s + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 
   const getWeekday = (booking) => {
     const isSeries = booking.seriesBookings && booking.seriesBookings.length > 1;
     const dateStr = isSeries ? booking.seriesBookings[0].date : booking.date;
     if (!dateStr) return '';
-    const d = new Date(dateStr);
+    const d = new Date(dateStr + 'T00:00:00');
     return isSeries ? ('Jeden ' + DAYS_FULL[d.getDay()]) : DAYS_FULL[d.getDay()];
   };
 
@@ -206,6 +244,7 @@ const MyBookings = ({
 
   return (
     <div>
+      {ConfirmDialogEl}
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Meine Buchungen</h2>
 
       {/* ── 1. Resource group filter tabs ── */}
@@ -299,11 +338,15 @@ const MyBookings = ({
             const userName      = getUserName(booking.userId);
             const isExpanded    = isSeries && expandedSeries[booking.seriesId];
 
+            // Mannschaftsfarbe für den Farbbalken, Fallback auf Ressourcenfarbe
+            const team      = teams?.find(t => t.id === booking.teamId);
+            const cardColor = team?.color || resource?.color || '#ccc';
+
             return (
               <div key={booking.seriesId || booking.id || idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <div className="flex items-stretch">
-                  {/* Color bar */}
-                  <div className="w-1.5 flex-shrink-0" style={{ backgroundColor: resource?.color || '#ccc' }} />
+                  {/* Farbbalken (Mannschaftsfarbe) */}
+                  <div className="w-1.5 flex-shrink-0" style={{ backgroundColor: cardColor }} />
 
                   <div className="flex flex-1 min-w-0">
 
@@ -335,7 +378,6 @@ const MyBookings = ({
                         <IconRow icon={<Clock className="w-3.5 h-3.5" />} bold>{booking.startTime} - {booking.endTime}</IconRow>
                         <IconRow icon={<Calendar className="w-3.5 h-3.5" />} muted>{getDateDisplay(booking)}</IconRow>
                       </div>
-                      {/* Termine expand/collapse for series */}
                       {isSeries && (
                         <button
                           onClick={() => toggleSeries(booking.seriesId)}
@@ -389,57 +431,22 @@ const MyBookings = ({
                   <div className="p-3 flex flex-col items-end gap-2 flex-shrink-0 border-l border-gray-100">
                     <StatusBadge status={booking.status} />
 
-                    {/* Edit button */}
                     {onEdit && (
-                      <button
-                        onClick={() => onEdit(booking)}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
-                      >
+                      <button onClick={() => onEdit(booking)} className={btnEdit}>
                         Bearbeiten
                       </button>
                     )}
 
-                    {/* Delete actions (admin only) */}
                     {isAdmin && (
-                      <>
-                        {deleteConfirm?.id === booking.id ? (
-                          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
-                            <div className="text-red-700 font-semibold mb-1">Löschen?</div>
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => { onDelete(booking.id, deleteConfirm.type, booking.seriesId); setDeleteConfirm(null); }}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
-                              >
-                                Ja
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirm(null)}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors cursor-pointer"
-                              >
-                                Nein
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            {isSeries ? (
-                              <button
-                                onClick={() => setDeleteConfirm({ id: booking.id, type: 'series' })}
-                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer"
-                              >
-                                <X className="w-3 h-3" />Serie
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirm({ id: booking.id, type: 'single' })}
-                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
-                              >
-                                <X className="w-3 h-3" />Löschen
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </>
+                      isSeries ? (
+                        <button onClick={() => handleDeleteSeries(booking)} className={btnDanger}>
+                          <X className="w-3 h-3" />Serie
+                        </button>
+                      ) : (
+                        <button onClick={() => handleDeleteSingle(booking)} className={btnDanger}>
+                          <X className="w-3 h-3" />Löschen
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -454,7 +461,7 @@ const MyBookings = ({
                       <div className="space-y-1">
                         {booking.seriesBookings.map(sb => {
                           const hasConflict = sb.conflicts.length > 0;
-                          const dayName = DAYS_FULL[new Date(sb.date).getDay()];
+                          const dayName = DAYS_FULL[new Date(sb.date + 'T00:00:00').getDay()];
                           return (
                             <div
                               key={sb.id}
@@ -476,26 +483,12 @@ const MyBookings = ({
                                 </span>
                               )}
                               {isAdmin && (
-                                deleteConfirm?.id === sb.id ? (
-                                  <span className="ml-auto flex items-center gap-1 flex-shrink-0">
-                                    <button
-                                      onClick={() => { onDelete(sb.id, 'single', null); setDeleteConfirm(null); }}
-                                      className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
-                                    >Ja</button>
-                                    <button
-                                      onClick={() => setDeleteConfirm(null)}
-                                      className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors cursor-pointer"
-                                    >Nein</button>
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => setDeleteConfirm({ id: sb.id, type: 'single' })}
-                                    className="ml-auto flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                                    title="Einzeltermin löschen"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                )
+                                <button
+                                  onClick={() => handleDeleteSingleInSeries(sb)}
+                                  className={`ml-auto flex-shrink-0 ${btnDanger}`}
+                                >
+                                  <X className="w-3 h-3" />Termin
+                                </button>
                               )}
                             </div>
                           );

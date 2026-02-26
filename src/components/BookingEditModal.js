@@ -37,6 +37,14 @@ const BookingEditModal = ({ booking, open, onClose, onSave, resources, users }) 
     }
   }, [booking, open]);
 
+  // Letztes Datum der Serie (für Enddatum-Anzeige)
+  const seriesEndDate = useMemo(() => {
+    if (!booking) return '';
+    const sbs = booking.seriesBookings;
+    if (sbs && sbs.length > 0) return sbs[sbs.length - 1].date;
+    return booking.date || '';
+  }, [booking]);
+
   // Erkennung ob Termindaten geändert wurden
   const scheduleChanged = useMemo(() => {
     if (!booking) return false;
@@ -179,15 +187,25 @@ const BookingEditModal = ({ booking, open, onClose, onSave, resources, users }) 
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Datum</label>
+              <label className={labelCls}>Startdatum</label>
               <input
                 type="date" value={form.date}
                 onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
                 className={inputCls} required
               />
             </div>
+            <div>
+              <label className={labelCls}>Enddatum</label>
+              <input
+                type="date" value={seriesEndDate}
+                readOnly
+                className={`${inputCls} bg-gray-50 text-gray-500 cursor-default`}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Startzeit</label>
               <input
