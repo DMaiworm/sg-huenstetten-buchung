@@ -122,6 +122,70 @@ Vorlage in `.env.example`. Niemals `.env` committen.
 - `vercel.json` enthält SPA-Rewrites (alle Routen → index.html)
 - Env-Variablen in Vercel Dashboard pflegen
 
+## Supabase Edge Functions
+
+Liegen in `supabase/functions/<name>/index.ts`. Deployment **direkt via Supabase MCP Tool** (`deploy_edge_function`), kein CLI nötig.
+
+**Projekt-ID:** `zqjheewhgrmcwzjurjlg`
+
+**Deployed Functions:**
+
+| Function | verify_jwt | Zweck |
+|---|---|---|
+| `send-email` | true | E-Mail via Resend API, loggt in `sent_emails` |
+| `invite-trainer` | **false** | Supabase Auth Einladung + `invited_at` Update |
+| `ical` | false | iCal-Feed per Ressource |
+
+**Edge Function Struktur:**
+```ts
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL              = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // ... logic
+});
+```
+
+**Env-Variablen in Edge Functions** (automatisch verfügbar, kein Setup nötig):
+- `SUPABASE_URL` – Projekt-URL
+- `SUPABASE_SERVICE_ROLE_KEY` – bypassed RLS, nur serverseitig verwenden
+- `RESEND_API_KEY`, `FROM_EMAIL` – manuell in Supabase Dashboard hinterlegt
+
+**verify_jwt:** Standardmäßig `true`. Auf `false` setzen wenn:
+- Die Funktion vom Frontend ohne garantierte Auth-Session aufgerufen wird
+- Die Funktion einen eigenen Auth-Mechanismus hat (z.B. Service Role Key intern)
+
+## Supabase MCP
+
+Claude hat direkten Zugriff auf das Supabase-Projekt via MCP:
+- `execute_sql` – SQL direkt ausführen (für Abfragen, kein DDL)
+- `apply_migration` – DDL-Migrationen anlegen (neue Tabellen, Spalten, Policies)
+- `deploy_edge_function` – Edge Function direkt deployen ohne CLI
+- `get_logs` – Logs für api/postgres/edge-function/auth/storage abrufen
+- `get_advisors` – Security- und Performance-Hinweise
+
+## RLS Policy Konventionen
+
+```sql
+-- Standard-Pattern für Admin-only Tabellen:
+ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "my_table_select" ON my_table FOR SELECT USING (true);
+CREATE POLICY "my_table_insert" ON my_table FOR INSERT WITH CHECK (true);
+-- Für User-spezifische Daten:
+CREATE POLICY "my_table_own" ON my_table USING (user_id = auth.uid());
+```
+
+Edge Functions mit `SUPABASE_SERVICE_ROLE_KEY` umgehen RLS vollständig.
+
 ## Bekannte Einschränkungen
 
 - **Tests:** Tests für `utils/helpers.js` (46), `ToastContext` und `useBookingActions` vorhanden. `npm test` nach Änderungen an Helfer-/Logik-Funktionen ausführen.
