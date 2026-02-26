@@ -1,8 +1,8 @@
 /**
  * TrainerUebersicht – Intranet-Übersicht aller Trainer.
  *
- * Filter: Alle / nach Verein. Grid mit TrainerUebersichtCards.
- * Daten: useTrainerUebersicht (öffentliche Felder) + useOrg (Teams).
+ * Filter: Verein-Dropdown → Abteilung-Dropdown (kaskadierend wie TeamOverview).
+ * Detail-Modal: öffnet Vollprofil bei Klick auf "Vollprofil ansehen".
  */
 
 import React, { useState, useMemo } from 'react';
@@ -12,17 +12,65 @@ import { useOrg } from '../contexts/OrganizationContext';
 import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import TrainerUebersichtCard from './TrainerUebersichtCard';
+import TrainerDetailModal from './TrainerDetailModal';
+
+const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white';
+const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
 
 const TrainerUebersicht = () => {
   const { trainers, loading, error } = useTrainerUebersicht();
   const { clubs, departments, teams, trainerAssignments } = useOrg();
 
-  const [filterClubId, setFilterClubId] = useState('all');
+  const [selectedClubId, setSelectedClubId] = useState('');
+  const [selectedDeptId, setSelectedDeptId] = useState('');
+  const [detailTrainer,  setDetailTrainer]  = useState(null);
 
+  const handleClubChange = (v) => { setSelectedClubId(v); setSelectedDeptId(''); };
+
+  // Abteilungen des gewählten Vereins, die mindestens einen Trainer haben
+  const clubDepts = useMemo(() => {
+    if (!selectedClubId) return [];
+    // Alle Teams dieses Vereins
+    const clubDeptIds = new Set(
+      (departments || []).filter(d => d.clubId === selectedClubId).map(d => d.id)
+    );
+    const clubTeamIds = new Set(
+      (teams || []).filter(t => clubDeptIds.has(t.departmentId)).map(t => t.id)
+    );
+    // Trainer, die aktiv_fuer diesen Club sind
+    const clubTrainerIds = new Set(
+      trainers.filter(tr => (tr.aktivFuer || []).includes(selectedClubId)).map(tr => tr.id)
+    );
+    // Departements, in denen diese Trainer Teams haben
+    const activeDeptIds = new Set();
+    for (const ta of (trainerAssignments || [])) {
+      if (clubTrainerIds.has(ta.userId) && clubTeamIds.has(ta.teamId)) {
+        const team = (teams || []).find(t => t.id === ta.teamId);
+        if (team) activeDeptIds.add(team.departmentId);
+      }
+    }
+    return (departments || [])
+      .filter(d => d.clubId === selectedClubId && activeDeptIds.has(d.id))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [selectedClubId, departments, teams, trainers, trainerAssignments]);
+
+  // Gefilterte Trainer
   const filtered = useMemo(() => {
-    if (filterClubId === 'all') return trainers;
-    return trainers.filter(t => (t.aktivFuer || []).includes(filterClubId));
-  }, [trainers, filterClubId]);
+    let result = trainers;
+    if (selectedClubId) {
+      result = result.filter(tr => (tr.aktivFuer || []).includes(selectedClubId));
+    }
+    if (selectedDeptId) {
+      // Teams in dieser Abteilung
+      const deptTeamIds = new Set((teams || []).filter(t => t.departmentId === selectedDeptId).map(t => t.id));
+      // Trainer, die mind. ein Team in dieser Abteilung haben
+      const trainerIdsInDept = new Set(
+        (trainerAssignments || []).filter(ta => deptTeamIds.has(ta.teamId)).map(ta => ta.userId)
+      );
+      result = result.filter(tr => trainerIdsInDept.has(tr.id));
+    }
+    return result;
+  }, [trainers, selectedClubId, selectedDeptId, teams, trainerAssignments]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
@@ -41,34 +89,35 @@ const TrainerUebersicht = () => {
       <PageHeader
         icon={Users2}
         title="Trainerübersicht"
-        subtitle={`${trainers.length} Trainer · ${filtered.length} angezeigt`}
+        subtitle={`${filtered.length} von ${trainers.length} Trainer${trainers.length !== 1 ? 'n' : ''}`}
       />
 
-      {/* Filter-Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1.5 rounded-lg w-fit flex-wrap">
-        <button
-          onClick={() => setFilterClubId('all')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-            filterClubId === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          Alle <span className="ml-1 text-xs font-bold text-gray-400">{trainers.length}</span>
-        </button>
-        {(clubs || []).map(club => {
-          const count = trainers.filter(t => (t.aktivFuer || []).includes(club.id)).length;
-          if (count === 0) return null;
-          return (
-            <button
-              key={club.id}
-              onClick={() => setFilterClubId(club.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                filterClubId === club.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'
-              }`}
+      {/* Filter-Dropdowns */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Verein</label>
+            <select value={selectedClubId} onChange={e => handleClubChange(e.target.value)} className={inputCls}>
+              <option value="">Alle Vereine</option>
+              {(clubs || []).map(c => {
+                const count = trainers.filter(tr => (tr.aktivFuer || []).includes(c.id)).length;
+                return <option key={c.id} value={c.id}>{c.name} ({count})</option>;
+              })}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Abteilung</label>
+            <select
+              value={selectedDeptId}
+              onChange={e => setSelectedDeptId(e.target.value)}
+              className={inputCls}
+              disabled={!selectedClubId}
             >
-              {club.name} <span className="ml-1 text-xs font-bold text-gray-400">{count}</span>
-            </button>
-          );
-        })}
+              <option value="">Alle Abteilungen</option>
+              {clubDepts.map(d => <option key={d.id} value={d.id}>{d.icon} {d.name}</option>)}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Grid */}
@@ -76,7 +125,12 @@ const TrainerUebersicht = () => {
         <EmptyState
           icon={Users2}
           title="Keine Trainer gefunden"
-          subtitle="Für diesen Verein sind noch keine Trainer angelegt."
+          subtitle={selectedDeptId
+            ? 'Für diese Abteilung sind keine Trainer zugewiesen.'
+            : selectedClubId
+            ? 'Für diesen Verein sind noch keine Trainer angelegt.'
+            : 'Es sind noch keine Trainer angelegt.'
+          }
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -88,9 +142,22 @@ const TrainerUebersicht = () => {
               teams={teams}
               departments={departments}
               clubs={clubs}
+              onDetail={setDetailTrainer}
             />
           ))}
         </div>
+      )}
+
+      {/* Detail-Modal */}
+      {detailTrainer && (
+        <TrainerDetailModal
+          trainer={detailTrainer}
+          trainerAssignments={trainerAssignments}
+          teams={teams}
+          departments={departments}
+          clubs={clubs}
+          onClose={() => setDetailTrainer(null)}
+        />
       )}
     </div>
   );
