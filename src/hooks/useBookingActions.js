@@ -1,7 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useBookingContext } from '../contexts/BookingContext';
 import { useUserContext } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useFacility } from '../contexts/FacilityContext';
+import { EmailService, EMAIL_TEMPLATES } from '../services/emailService';
 
 /**
  * useBookingActions – kapselt alle Buchungs-Handler.
@@ -18,6 +21,9 @@ export function useBookingActions() {
 
   const { users } = useUserContext();
   const { addToast } = useToast();
+  const { profile } = useAuth();
+  const { RESOURCES } = useFacility();
+  const emailService = useMemo(() => new EmailService(), []);
 
   /** Bestimmt ob eine Buchung auto-approved wird. */
   const resolveBookingStatus = useCallback((userId) => {
@@ -36,8 +42,14 @@ export function useBookingActions() {
       addToast('Fehler beim Genehmigen: ' + result.error, 'error');
     } else {
       addToast('Buchung genehmigt.', 'success');
+      const bookingUser = users.find(u => u.id === booking.userId);
+      const resource    = RESOURCES.find(r => r.id === booking.resourceId);
+      if (bookingUser?.email && resource) {
+        const approver = { firstName: profile?.first_name || '', lastName: profile?.last_name || '' };
+        emailService.send(EMAIL_TEMPLATES.bookingApproved(booking, bookingUser, resource, approver)).catch(() => {});
+      }
     }
-  }, [bookings, updateBookingStatus, updateSeriesStatus, addToast]);
+  }, [bookings, updateBookingStatus, updateSeriesStatus, addToast, users, RESOURCES, profile, emailService]);
 
   /** Buchung oder Serie ablehnen. singleOnly=true → nur diesen Einzeltermin. */
   const handleReject = useCallback(async (id, { singleOnly = false } = {}) => {
@@ -50,8 +62,14 @@ export function useBookingActions() {
       addToast('Fehler beim Ablehnen: ' + result.error, 'error');
     } else {
       addToast('Buchung abgelehnt.', 'warning');
+      const bookingUser = users.find(u => u.id === booking.userId);
+      const resource    = RESOURCES.find(r => r.id === booking.resourceId);
+      if (bookingUser?.email && resource) {
+        const approver = { firstName: profile?.first_name || '', lastName: profile?.last_name || '' };
+        emailService.send(EMAIL_TEMPLATES.bookingRejected(booking, bookingUser, resource, approver, null)).catch(() => {});
+      }
     }
-  }, [bookings, updateBookingStatus, updateSeriesStatus, addToast]);
+  }, [bookings, updateBookingStatus, updateSeriesStatus, addToast, users, RESOURCES, profile, emailService]);
 
   /** Neue Buchung(en) erstellen inkl. Composite-Logik. */
   const handleNewBooking = useCallback(async (data) => {
@@ -98,7 +116,22 @@ export function useBookingActions() {
       `Buchungsanfrage für ${anzahl} Termin${anzahl !== 1 ? 'e' : ''} eingereicht!`,
       bookingStatus === 'approved' ? 'success' : 'info'
     );
-  }, [createBookings, resolveBookingStatus, addToast]);
+
+    // E-Mail-Benachrichtigungen
+    const firstBooking = result.data?.[0];
+    const bookingUser  = users.find(u => u.id === data.userId);
+    const resource     = RESOURCES.find(r => r.id === data.resourceId);
+    if (firstBooking && bookingUser?.email && resource) {
+      emailService.send(EMAIL_TEMPLATES.bookingCreated(firstBooking, bookingUser, resource)).catch(() => {});
+      if (bookingStatus === 'pending') {
+        users
+          .filter(u => u.kannAdministrieren && u.email)
+          .forEach(admin => {
+            emailService.send(EMAIL_TEMPLATES.adminNewBooking(firstBooking, bookingUser, resource, admin.email)).catch(() => {});
+          });
+      }
+    }
+  }, [createBookings, resolveBookingStatus, addToast, users, RESOURCES, emailService]);
 
   /** Buchung bearbeiten. Bei Terminänderung → neuer Genehmigungsprozess. */
   const handleEditBooking = useCallback(async (bookingId, updates) => {

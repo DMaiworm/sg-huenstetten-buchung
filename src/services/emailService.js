@@ -23,7 +23,7 @@ export const EMAIL_TEMPLATES = {
               ${booking.seriesId ? `<p style="margin: 5px 0;"><strong>Serie:</strong> Wiederkehrende Buchung</p>` : ''}
             </div>
           </div>
-          ${user.role === 'extern' ? `
+          ${booking.status === 'pending' ? `
             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
               <p style="color: #92400e; margin: 0; font-size: 14px;">
                 <strong>Wartet auf Genehmigung</strong><br>
@@ -147,7 +147,7 @@ export const EMAIL_TEMPLATES = {
             <h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 16px;">Anfrager</h3>
             <div style="color: #374151; line-height: 1.8; font-size: 14px;">
               <p style="margin: 5px 0;"><strong>Name:</strong> ${user.firstName} ${user.lastName}</p>
-              <p style="margin: 5px 0;"><strong>Verein:</strong> ${user.club}</p>
+              ${user.club ? `<p style="margin: 5px 0;"><strong>Verein:</strong> ${user.club}</p>` : ''}
               ${user.team ? `<p style="margin: 5px 0;"><strong>Mannschaft:</strong> ${user.team}</p>` : ''}
               <p style="margin: 5px 0;"><strong>E-Mail:</strong> ${user.email}</p>
               ${user.phone ? `<p style="margin: 5px 0;"><strong>Telefon:</strong> ${user.phone}</p>` : ''}
