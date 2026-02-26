@@ -24,6 +24,8 @@ import FacilityManagement from './components/admin/FacilityManagement';
 import OrganizationManagement from './components/admin/OrganizationManagement';
 import HolidayManagement from './components/admin/HolidayManagement';
 import BookingEditModal from './components/BookingEditModal';
+import TrainerProfil from './components/trainer/TrainerProfil';
+import TrainerVerwaltung from './components/admin/trainer/TrainerVerwaltung';
 import TeamOverview from './components/TeamOverview';
 import LoginPage from './components/LoginPage';
 
@@ -36,7 +38,7 @@ registerLocale('de', de);
  * Bezieht Daten aus Contexts, Handler aus Custom Hooks.
  */
 function AppLayout() {
-  const { profile, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin } = useAuth();
+  const { profile, istTrainer, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin } = useAuth();
   const facility = useFacility();
   const { facilities, resourceGroups, configResources, slots, RESOURCES, loading: facilitiesLoading } = facility;
   const org = useOrg();
@@ -81,7 +83,8 @@ function AppLayout() {
     <div className="flex h-screen bg-gray-50">
       <Sidebar
         kannBuchen={kannBuchen} kannGenehmigen={kannGenehmigen}
-        kannAdministrieren={kannAdministrieren} pendingCount={pendingCount}
+        kannAdministrieren={kannAdministrieren} istTrainer={istTrainer}
+        pendingCount={pendingCount}
         open={sidebarOpen} onClose={() => setSidebarOpen(false)}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -199,6 +202,20 @@ function AppLayout() {
             <Route path="/admin/emails" element={
               <PermissionRoute permission="kannAdministrieren">
                 <EmailLog emailService={emailService} />
+              </PermissionRoute>
+            } />
+
+            {/* Trainer-Portal */}
+            <Route path="/trainer/profil" element={
+              <PermissionRoute permission="istTrainer">
+                <TrainerProfil />
+              </PermissionRoute>
+            } />
+
+            {/* Admin – Trainerverwaltung */}
+            <Route path="/admin/trainer" element={
+              <PermissionRoute permission="kannAdministrieren">
+                <TrainerVerwaltung operators={operators} />
               </PermissionRoute>
             } />
 

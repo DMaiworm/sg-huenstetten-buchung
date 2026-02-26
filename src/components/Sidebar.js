@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Calendar, CalendarDays, ClipboardList, Settings, Building2, Users, Users2, FileText, FileDown, Shield, Mail, X } from 'lucide-react';
+import { Calendar, CalendarDays, ClipboardList, Settings, Building2, Users, Users2, FileText, FileDown, Shield, Mail, X, UserCircle, ClipboardCheck } from 'lucide-react';
 import UserMenu from './UserMenu';
 
 /**
@@ -11,7 +11,7 @@ import UserMenu from './UserMenu';
  *   - Klick auf NavLink schließt die Sidebar
  * Desktop (md+): immer sichtbar, keine Props nötig.
  */
-const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren, open, onClose }) => {
+const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren, istTrainer, open, onClose }) => {
   const navItem = (to, icon, label, badge) => (
     <NavLink
       key={to}
@@ -88,6 +88,13 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
           {kannBuchen && navItem('/buchen', <FileText className="w-5 h-5" />, 'Neue Anfrage')}
           {navItem('/export', <FileDown className="w-5 h-5" />, 'PDF-Export')}
 
+          {istTrainer && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Trainer-Portal</p>
+              {navItem('/trainer/profil', <UserCircle className="w-5 h-5" />, 'Mein Profil')}
+            </>
+          )}
+
           {kannGenehmigen && (
             <>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Genehmigungen</p>
@@ -103,6 +110,7 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
               {navItem('/admin/organisation', <Settings className="w-5 h-5" />, 'Organisation')}
               {navItem('/admin/ferien-feiertage', <CalendarDays className="w-5 h-5" />, 'Ferien & Feiertage')}
               {navItem('/admin/emails', <Mail className="w-5 h-5" />, 'E-Mail-Log')}
+              {navItem('/admin/trainer', <ClipboardCheck className="w-5 h-5" />, 'Trainerverwaltung')}
             </>
           )}
         </nav>
