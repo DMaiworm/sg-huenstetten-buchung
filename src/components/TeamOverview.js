@@ -29,7 +29,7 @@ const TeamOverview = ({
 
   const departmentTeams = useMemo(() => {
     if (!teams || !selectedDeptId) return [];
-    return teams.filter(t => t.departmentId === selectedDeptId).sort((a, b) => a.sortOrder - b.sortOrder);
+    return teams.filter(t => t.departmentId === selectedDeptId).sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }, [teams, selectedDeptId]);
 
   const handleClubChange = (v) => { setSelectedClubId(v); setSelectedDeptId(''); };

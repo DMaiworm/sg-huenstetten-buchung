@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Clock, MapPin, Calendar, Star } from 'lucide-react';
+import { Clock, MapPin, Calendar, Star, Mail, Phone } from 'lucide-react';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 
@@ -61,11 +61,27 @@ const TeamOverviewCard = ({ team, trainerAssignments, users, resources, training
           {teamTrainers.length > 0 ? (
             <div className="flex flex-col gap-0.5">
               {teamTrainers.map(t => (
-                <span key={t.id} className="text-[13px] text-gray-700 flex items-center gap-1">
-                  {t.isPrimary && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />}
-                  {t.firstName} {t.lastName}
+                <div key={t.id} className="relative group inline-flex items-center gap-1 text-[13px] text-gray-700 cursor-default w-fit">
+                  {t.isPrimary && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0" />}
+                  <span className="group-hover:underline">{t.firstName} {t.lastName}</span>
                   {!t.isPrimary && <span className="text-[11px] text-gray-400">(Co)</span>}
-                </span>
+                  {(t.email || t.phone) && (
+                    <div className="absolute left-0 top-full mt-1 z-20 hidden group-hover:block bg-white border border-gray-200 rounded-lg shadow-lg p-2.5 whitespace-nowrap">
+                      {t.email && (
+                        <div className="flex items-center gap-1.5 text-[12px]">
+                          <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                          <a href={`mailto:${t.email}`} className="text-blue-600 hover:underline">{t.email}</a>
+                        </div>
+                      )}
+                      {t.phone && (
+                        <div className="flex items-center gap-1.5 text-[12px] mt-1">
+                          <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                          <a href={`tel:${t.phone}`} className="text-blue-600 hover:underline">{t.phone}</a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           ) : (
