@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useBookingContext } from '../contexts/BookingContext';
 import { useUserContext } from '../contexts/UserContext';
+import { useToast } from '../contexts/ToastContext';
 
 /**
  * useBookingActions – kapselt alle Buchungs-Handler.
@@ -16,6 +17,7 @@ export function useBookingActions() {
   } = useBookingContext();
 
   const { users } = useUserContext();
+  const { addToast } = useToast();
 
   /** Bestimmt ob eine Buchung auto-approved wird. */
   const resolveBookingStatus = useCallback((userId) => {
@@ -30,8 +32,12 @@ export function useBookingActions() {
     const result = (booking.seriesId && !singleOnly)
       ? await updateSeriesStatus(booking.seriesId, 'approved')
       : await updateBookingStatus(id, 'approved');
-    if (result.error) window.alert('Fehler: ' + result.error);
-  }, [bookings, updateBookingStatus, updateSeriesStatus]);
+    if (result.error) {
+      addToast('Fehler beim Genehmigen: ' + result.error, 'error');
+    } else {
+      addToast('Buchung genehmigt.', 'success');
+    }
+  }, [bookings, updateBookingStatus, updateSeriesStatus, addToast]);
 
   /** Buchung oder Serie ablehnen. singleOnly=true → nur diesen Einzeltermin. */
   const handleReject = useCallback(async (id, { singleOnly = false } = {}) => {
@@ -40,13 +46,17 @@ export function useBookingActions() {
     const result = (booking.seriesId && !singleOnly)
       ? await updateSeriesStatus(booking.seriesId, 'rejected')
       : await updateBookingStatus(id, 'rejected');
-    if (result.error) window.alert('Fehler: ' + result.error);
-  }, [bookings, updateBookingStatus, updateSeriesStatus]);
+    if (result.error) {
+      addToast('Fehler beim Ablehnen: ' + result.error, 'error');
+    } else {
+      addToast('Buchung abgelehnt.', 'warning');
+    }
+  }, [bookings, updateBookingStatus, updateSeriesStatus, addToast]);
 
   /** Neue Buchung(en) erstellen inkl. Composite-Logik. */
   const handleNewBooking = useCallback(async (data) => {
     if (!data.userId) {
-      window.alert('Kein Trainer f\u00fcr die ausgew\u00e4hlte Mannschaft gefunden.');
+      addToast('Kein Trainer für die ausgewählte Mannschaft gefunden.', 'error');
       return;
     }
     const needsSeriesId = data.dates.length > 1 || (data.isComposite && data.includedResources);
@@ -80,11 +90,15 @@ export function useBookingActions() {
 
     const result = await createBookings(newBookings);
     if (result.error) {
-      window.alert('Fehler: ' + result.error);
+      addToast('Fehler beim Erstellen der Buchung: ' + result.error, 'error');
       return;
     }
-    window.alert('Buchungsanfrage f\u00fcr ' + data.dates.length + ' Termin(e) eingereicht!');
-  }, [createBookings, resolveBookingStatus]);
+    const anzahl = data.dates.length;
+    addToast(
+      `Buchungsanfrage für ${anzahl} Termin${anzahl !== 1 ? 'e' : ''} eingereicht!`,
+      bookingStatus === 'approved' ? 'success' : 'info'
+    );
+  }, [createBookings, resolveBookingStatus, addToast]);
 
   /** Buchung bearbeiten. Bei Terminänderung → neuer Genehmigungsprozess. */
   const handleEditBooking = useCallback(async (bookingId, updates) => {
@@ -103,18 +117,27 @@ export function useBookingActions() {
 
     const result = await updateBooking(bookingId, updates);
     if (result.error) {
-      window.alert('Fehler beim Speichern: ' + result.error);
+      addToast('Fehler beim Speichern: ' + result.error, 'error');
+    } else {
+      addToast('Buchung gespeichert.', 'success');
     }
     return result;
-  }, [bookings, updateBooking, resolveBookingStatus]);
+  }, [bookings, updateBooking, resolveBookingStatus, addToast]);
 
-  /** Einzelne Buchung oder Serie l\u00f6schen. */
+  /** Einzelne Buchung oder Serie löschen. */
   const handleDeleteBooking = useCallback(async (bookingId, deleteType, seriesId) => {
     const result = (deleteType === 'series' && seriesId)
       ? await deleteBookingSeries(seriesId)
       : await deleteBooking(bookingId);
-    if (result.error) window.alert('Fehler: ' + result.error);
-  }, [deleteBooking, deleteBookingSeries]);
+    if (result.error) {
+      addToast('Fehler beim Löschen: ' + result.error, 'error');
+    } else {
+      addToast(
+        deleteType === 'series' ? 'Terminserie gelöscht.' : 'Termin gelöscht.',
+        'success'
+      );
+    }
+  }, [deleteBooking, deleteBookingSeries, addToast]);
 
   return {
     handleNewBooking,
