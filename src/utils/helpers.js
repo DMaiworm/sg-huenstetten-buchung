@@ -149,7 +149,7 @@ export const findConflicts = (booking, allBookings) => {
     other.resourceId === booking.resourceId &&
     other.date === booking.date &&
     (other.status === 'approved' || other.status === 'pending') &&
-    other.seriesId !== booking.seriesId &&
+    !(booking.seriesId && other.seriesId === booking.seriesId) &&
     hasTimeOverlap(booking.startTime, booking.endTime, other.startTime, other.endTime)
   );
 };
