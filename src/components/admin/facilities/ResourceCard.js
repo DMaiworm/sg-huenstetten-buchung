@@ -1,14 +1,30 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, SplitSquareHorizontal, Plus, Trash2, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, SplitSquareHorizontal, Plus, Trash2, Settings, Link, Copy, Check } from 'lucide-react';
 import { COLOR_PRESETS } from '../../../config/constants';
 import { generateId } from '../../../config/facilityConfig';
 import SubResourceRow from './SubResourceRow';
 import SlotPanel from './SlotPanel';
 
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
+
 const ResourceCard = ({ resource, onUpdate, onDelete, showSlots, slots, onAddSlot, onDeleteSlot }) => {
   const [expanded, setExpanded] = useState(false);
   const [slotsOpen, setSlotsOpen] = useState(false);
+  const [copied, setCopied]     = useState(false);
   const slotCount = slots ? slots.filter(s => s.resourceId === resource.id).length : 0;
+
+  const icalUrl = `${SUPABASE_URL}/functions/v1/ical/${resource.id}`;
+
+  const handleCopyIcal = async () => {
+    try {
+      await navigator.clipboard.writeText(icalUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback für Browser ohne Clipboard-API
+      window.prompt('iCal-URL kopieren:', icalUrl);
+    }
+  };
 
   const handleSubAdd = () => {
     const idx = (resource.subResources || []).length + 1;
@@ -93,6 +109,34 @@ const ResourceCard = ({ resource, onUpdate, onDelete, showSlots, slots, onAddSlo
               </div>
             </div>
           </div>
+          {/* iCal-Feed-URL */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+              <Link className="w-3.5 h-3.5" />
+              iCal-Feed (e-Ink Display)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={icalUrl}
+                className="flex-1 px-2 py-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded font-mono truncate"
+                onClick={e => e.target.select()}
+              />
+              <button
+                onClick={handleCopyIcal}
+                title="URL kopieren"
+                className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+                  copied
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                }`}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Kopiert' : 'Kopieren'}
+              </button>
+            </div>
+          </div>
+
           {resource.splittable && (
             <div className="mt-3">
               <div className="flex items-center justify-between mb-2">
