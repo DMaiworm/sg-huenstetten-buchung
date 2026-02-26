@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { EmailService } from './services/emailService';
 import { useAuth } from './contexts/AuthContext';
 import { FacilityProvider, useFacility } from './contexts/FacilityContext';
@@ -48,6 +49,7 @@ function AppLayout() {
   const [currentDate, setCurrentDate]           = useState(new Date());
   const [emailService]                          = useState(() => new EmailService());
   const [editingBooking, setEditingBooking]     = useState(null);
+  const [sidebarOpen, setSidebarOpen]           = useState(false);
 
   const effectiveSelectedResource = selectedResource || (RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id || null);
 
@@ -80,9 +82,27 @@ function AppLayout() {
       <Sidebar
         kannBuchen={kannBuchen} kannGenehmigen={kannGenehmigen}
         kannAdministrieren={kannAdministrieren} pendingCount={pendingCount}
+        open={sidebarOpen} onClose={() => setSidebarOpen(false)}
       />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header – nur auf kleinen Bildschirmen sichtbar */}
+        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            aria-label="Menü öffnen"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xs">SG</span>
+            </div>
+            <span className="font-semibold text-gray-900 text-sm">SG Hünstetten</span>
+          </div>
+        </header>
+        <main className="flex-1 overflow-auto">
+        <div className="p-4 md:p-6">
           <Routes>
             {/* Allgemein */}
             <Route path="/" element={
@@ -185,7 +205,8 @@ function AppLayout() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-      </main>
+        </main>
+      </div>
 
       {/* Booking Edit Modal (global, accessible from Calendar + MyBookings) */}
       <BookingEditModal
