@@ -177,29 +177,15 @@ export class EmailService {
 
   async send(emailData) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          to: emailData.to,
-          subject: emailData.subject,
-          html: emailData.html,
-        }),
+      const { data: result, error: fnError } = await supabase.functions.invoke('send-email', {
+        body: { to: emailData.to, subject: emailData.subject, html: emailData.html },
       });
-
-      const result = await response.json();
-      if (!response.ok) {
-        console.error('E-Mail-Versand fehlgeschlagen:', result);
-      }
-
       this._cache = null;
-      return { ...emailData, status: result.status || 'sent', sentAt: new Date().toISOString() };
+      if (fnError) {
+        console.error('E-Mail-Versand fehlgeschlagen:', fnError);
+        return { ...emailData, status: 'failed', sentAt: new Date().toISOString() };
+      }
+      return { ...emailData, status: result?.status || 'sent', sentAt: new Date().toISOString() };
     } catch (err) {
       console.error('E-Mail-Versand Fehler:', err);
       return { ...emailData, status: 'failed', sentAt: new Date().toISOString() };
