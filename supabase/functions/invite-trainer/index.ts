@@ -28,13 +28,19 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Altes Profil laden (Berechtigungen sichern)
+    const { data: oldProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', profileId)
+      .single();
+
     // Supabase Auth-Einladung senden
     const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: { first_name: firstName, last_name: lastName },
     });
 
     if (inviteError) {
-      // Einladung im E-Mail-Log als fehlgeschlagen vermerken
       await supabase.from('sent_emails').insert({
         recipient: email,
         subject: `Einladung: ${firstName} ${lastName}`,
@@ -48,13 +54,40 @@ serve(async (req) => {
       );
     }
 
-    // invited_at im Profil aktualisieren
-    await supabase
-      .from('profiles')
-      .update({ invited_at: new Date().toISOString() })
-      .eq('id', profileId);
+    const newAuthId = inviteData.user?.id;
 
-    // Einladung im E-Mail-Log vermerken
+    if (newAuthId && newAuthId !== profileId && oldProfile) {
+      // Supabase hat ein neues Profil per Trigger angelegt (andere UUID).
+      // Berechtigungen vom alten Profil auf das neue übertragen,
+      // FK-Referenzen ummhängen und altes Duplikat löschen.
+      await supabase.from('profiles').update({
+        first_name:          oldProfile.first_name,
+        last_name:           oldProfile.last_name,
+        phone:               oldProfile.phone,
+        operator_id:         oldProfile.operator_id,
+        is_passive:          oldProfile.is_passive,
+        ist_trainer:         oldProfile.ist_trainer,
+        kann_buchen:         oldProfile.kann_buchen,
+        kann_genehmigen:     oldProfile.kann_genehmigen,
+        kann_administrieren: oldProfile.kann_administrieren,
+      }).eq('id', newAuthId);
+
+      await supabase.from('trainer_assignments')
+        .update({ user_id: newAuthId })
+        .eq('user_id', profileId);
+
+      await supabase.from('bookings')
+        .update({ user_id: newAuthId })
+        .eq('user_id', profileId);
+
+      await supabase.from('profiles').delete().eq('id', profileId);
+    } else if (newAuthId === profileId) {
+      // UUID stimmt überein – nur invited_at aktualisieren
+      await supabase.from('profiles')
+        .update({ invited_at: new Date().toISOString() })
+        .eq('id', profileId);
+    }
+
     await supabase.from('sent_emails').insert({
       recipient: email,
       subject: `Einladung zum SG Hünstetten Buchungssystem`,
@@ -63,7 +96,7 @@ serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ success: true, userId: inviteData.user?.id }),
+      JSON.stringify({ success: true, userId: newAuthId }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {
