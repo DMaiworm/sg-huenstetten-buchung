@@ -19,6 +19,9 @@ function mapProfile(profile) {
     kannBuchen:         profile.kann_buchen         || false,
     kannGenehmigen:     profile.kann_genehmigen     || false,
     kannAdministrieren: profile.kann_administrieren || false,
+    hauptvereinId:      profile.hauptverein_id      || null,
+    stammvereinId:      profile.stammverein_id      || null,
+    stammvereinAndere:  profile.stammverein_andere  ?? null,
   };
 }
 
@@ -34,6 +37,9 @@ function mapUserToDb(user) {
     kann_buchen:         user.kannBuchen         || false,
     kann_genehmigen:     user.kannGenehmigen     || false,
     kann_administrieren: user.kannAdministrieren || false,
+    hauptverein_id:      user.hauptvereinId      || null,
+    stammverein_id:      user.stammvereinId      || null,
+    stammverein_andere:  user.stammvereinAndere  || null,
   };
 }
 

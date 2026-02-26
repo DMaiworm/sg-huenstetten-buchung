@@ -159,6 +159,7 @@ const UserManagement = ({
           newUser={newUser} setNewUser={setNewUser}
           editingUser={editingUser} saving={saving}
           onSubmit={handleSubmit} onClose={closeModal}
+          clubs={clubs || []}
         />
       )}
 

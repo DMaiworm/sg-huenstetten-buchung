@@ -4,6 +4,7 @@ import {
   Plus, Pencil, Trash2, Upload, Save,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOrg } from '../../contexts/OrganizationContext';
 import { useTrainerProfile } from '../../hooks/useTrainerProfile';
 import { useToast } from '../../contexts/ToastContext';
 import { Button, PageHeader } from '../ui';
@@ -37,6 +38,7 @@ function StatusBadge({ ok, label }) {
 // -----------------------------------------------------------------------
 export default function TrainerProfil() {
   const { profile } = useAuth();
+  const { clubs } = useOrg();
   const { showToast } = useToast();
   const {
     details, lizenzen, erfolge, loading, error,
@@ -300,6 +302,24 @@ export default function TrainerProfil() {
             <p className="text-gray-500 text-xs mb-1">Unterlagen vollständig</p>
             <StatusBadge ok={details?.unterlagenVollstaendig} label={details?.unterlagenVollstaendig ? 'Vollständig' : 'Unvollständig'} />
           </div>
+          {profile?.hauptverein_id && (
+            <div>
+              <p className="text-gray-500 text-xs mb-1">Hauptverein</p>
+              <p className="text-gray-800 text-sm">
+                {clubs.find(c => c.id === profile.hauptverein_id)?.name || '–'}
+              </p>
+            </div>
+          )}
+          {(profile?.stammverein_id || profile?.stammverein_andere) && (
+            <div>
+              <p className="text-gray-500 text-xs mb-1">Stammverein (Abrechnung)</p>
+              <p className="text-gray-800 text-sm">
+                {profile.stammverein_id
+                  ? clubs.find(c => c.id === profile.stammverein_id)?.name || '–'
+                  : profile.stammverein_andere || '–'}
+              </p>
+            </div>
+          )}
         </div>
         {/* Führungszeugnis hochladen */}
         <div className="mt-4 pt-4 border-t border-gray-100">
