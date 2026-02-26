@@ -1,36 +1,40 @@
 /**
- * CalendarView – Weekly calendar grid with resource & facility selection.
+ * CalendarView – Wochen- oder Tageskalender mit Ressourcen- und Anlagenauswahl.
+ *
+ * Ansichtsmodi (lokal, nicht persistent):
+ *   'week' – 7-Tage-Raster, wochenweise Navigation
+ *   'day'  – 1-Tage-Raster, tagesweise Navigation
  *
  * Layout (top → bottom):
- *   1. Facility dropdown
- *   2. Resource group tabs  (filtered by selected facility)
- *   3. Resource tabs        (filtered by selected group via groupId)
- *   4. Resource info bar  +  Week navigation (prev / datepicker / next / today)
- *   5. 7-day hour grid      (07:00 – 22:00, slot shading for limited resources)
- *   6. Legend
+ *   1. Anlagen-Dropdown
+ *   2. Ressourcengruppen-Tabs  (gefiltert nach Anlage)
+ *   3. Ressourcen-Tabs         (gefiltert nach Gruppe via groupId)
+ *   4. Ressourcen-Info-Leiste  +  Navigation (prev / datepicker / next / Heute / Woche/Tag)
+ *   5. Kalender-Grid           (07:00–22:00, Slot-Shading bei limitierten Ressourcen)
+ *   6. Legende
  */
 
 import React, { useState, useMemo } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { ChevronLeft, ChevronRight, Shield, Maximize, Building2 } from 'lucide-react';
-import { DAYS } from '../config/constants';
+import { ChevronLeft, ChevronRight, Shield, Maximize, Building2, CalendarDays, Calendar } from 'lucide-react';
+import { DAYS, DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { formatDate, formatDateISO, getWeekDates, getWeekStart, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 
 // ──────────────────────────────────────────────
-//  Grid layout constants
+//  Grid-Layout-Konstanten
 // ──────────────────────────────────────────────
-const FIRST_HOUR  = 7;
-const LAST_HOUR   = 22;
-const HOURS       = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, i) => i + FIRST_HOUR);
-const HOUR_HEIGHT = 48;
+const FIRST_HOUR   = 7;
+const LAST_HOUR    = 22;
+const HOURS        = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, i) => i + FIRST_HOUR);
+const HOUR_HEIGHT  = 48;
 const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT;
 
 // ──────────────────────────────────────────────
-//  Component
+//  Komponente
 // ──────────────────────────────────────────────
 
 const CalendarView = ({
@@ -39,15 +43,18 @@ const CalendarView = ({
   resources, facilities, resourceGroups,
   onBookingClick,
 }) => {
-  // ── Local state ────────────────────────────
+  // ── Lokaler State ───────────────────────────
   const [selectedFacilityId, setSelectedFacilityId] = useState(facilities?.[0]?.id || '');
   const [selectedGroupId, setSelectedGroupId]       = useState('');
   const [pickerOpen, setPickerOpen]                 = useState(false);
   const [pickerDate, setPickerDate]                 = useState(new Date(currentDate));
+  const [viewMode, setViewMode]                     = useState('week'); // 'week' | 'day'
 
-  const weekDates = getWeekDates(currentDate);
+  // Anzuzeigende Tage – 7 in Wochenansicht, 1 in Tagesansicht
+  const weekDates    = getWeekDates(currentDate);
+  const displayDates = viewMode === 'week' ? weekDates : [currentDate];
 
-  // ── Derived: groups for selected facility ──
+  // ── Abgeleitete Werte: Gruppen der Anlage ──
   const facilityGroups = useMemo(() => {
     if (!resourceGroups) return [];
     return resourceGroups
@@ -55,14 +62,14 @@ const CalendarView = ({
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }, [resourceGroups, selectedFacilityId]);
 
-  // ── Derived: resources for selected group ──
+  // ── Abgeleitete Werte: Ressourcen der Gruppe ──
   const groupResources = useMemo(() => {
     const group = facilityGroups.find(g => g.id === selectedGroupId);
     if (!group) return [];
     return resources.filter(r => r.groupId === group.id);
   }, [facilityGroups, selectedGroupId, resources]);
 
-  // ── Auto-sync: when facilityGroups change, pick first group + resource ──
+  // ── Auto-Sync: erste Gruppe + erste Ressource bei Anlagenwechsel ──
   useMemo(() => {
     if (facilityGroups.length === 0) return;
     const firstGroup = facilityGroups[0];
@@ -72,33 +79,67 @@ const CalendarView = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilityGroups]);
 
-  // ── Current resource object ────────────────
-  const resource   = resources.find(r => r.id === selectedResource);
-  const isLimited  = resource?.type === 'limited';
+  // ── Aktuell ausgewählte Ressource ──────────
+  const resource    = resources.find(r => r.id === selectedResource);
+  const isLimited   = resource?.type === 'limited';
   const isComposite = resource?.isComposite;
 
-  // ── Facility change handler ────────────────
+  // ── Handler: Anlagenwechsel ────────────────
   const handleFacilityChange = (facId) => {
     setSelectedFacilityId(facId);
   };
 
-  // ── Group tab change handler ───────────────
+  // ── Handler: Gruppen-Tab ───────────────────
   const handleGroupChange = (groupId) => {
     setSelectedGroupId(groupId);
     const firstRes = resources.filter(r => r.groupId === groupId);
     if (firstRes.length > 0) setSelectedResource(firstRes[0].id);
   };
 
-  // ── Week navigation ────────────────────────
-  const navigateWeek = (direction) => {
+  // ── Navigation: vorherige/nächste Periode ──
+  const navigatePeriod = (direction) => {
     const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + direction * 7);
-    const monday = getWeekStart(newDate);
-    setCurrentDate(monday);
-    setPickerDate(monday);
+    if (viewMode === 'week') {
+      newDate.setDate(newDate.getDate() + direction * 7);
+      const monday = getWeekStart(newDate);
+      setCurrentDate(monday);
+      setPickerDate(monday);
+    } else {
+      newDate.setDate(newDate.getDate() + direction);
+      setCurrentDate(newDate);
+      setPickerDate(newDate);
+    }
   };
 
-  // ── DatePicker custom trigger button ───────
+  // ── Handler: Klick auf Wochentag-Header → Tagesansicht ──
+  const handleDayHeaderClick = (date) => {
+    if (viewMode === 'week') {
+      setCurrentDate(date);
+      setPickerDate(date);
+      setViewMode('day');
+    }
+  };
+
+  // ── Handler: Ansichtsmodus umschalten ──────
+  const toggleViewMode = () => {
+    if (viewMode === 'week') {
+      // Von Woche → Tag: aktuellen Tag (oder heute in der Woche) wählen
+      const today = new Date();
+      const todayInWeek = weekDates.find(d => d.toDateString() === today.toDateString());
+      const targetDate = todayInWeek || weekDates[0];
+      setCurrentDate(targetDate);
+      setPickerDate(targetDate);
+      setViewMode('day');
+    } else {
+      // Von Tag → Woche: zur Woche des aktuellen Tages
+      const monday = getWeekStart(currentDate);
+      setCurrentDate(monday);
+      setPickerDate(monday);
+      setViewMode('week');
+    }
+  };
+
+  // ── DatePicker Custom-Trigger ───────────────
   const PickerButton = React.forwardRef(({ value, onClick }, ref) => (
     <button
       ref={ref}
@@ -106,20 +147,25 @@ const CalendarView = ({
       onClick={(e) => { if (onClick) onClick(e); setPickerOpen(prev => !prev); }}
       className="select-none cursor-pointer bg-transparent p-0 min-w-[90px]"
     >
-      {value || formatDate(weekDates[0])}
+      {value || formatDate(displayDates[0])}
     </button>
   ));
   PickerButton.displayName = 'PickerButton';
 
   const handleDatePickerSelect = (date) => {
     if (!date) return;
-    const monday = getWeekStart(date);
-    setPickerDate(monday);
-    setCurrentDate(monday);
+    if (viewMode === 'week') {
+      const monday = getWeekStart(date);
+      setPickerDate(monday);
+      setCurrentDate(monday);
+    } else {
+      setPickerDate(date);
+      setCurrentDate(date);
+    }
     setPickerOpen(false);
   };
 
-  // ── Lookup helpers ─────────────────────────
+  // ── Hilfsfunktionen ─────────────────────────
 
   const getUserName = (userId) => {
     const user = users.find(u => u.id === userId);
@@ -127,19 +173,19 @@ const CalendarView = ({
   };
 
   const getBookingCountForGroup = (group) => {
-    const weekStart = formatDateISO(weekDates[0]);
-    const weekEnd   = formatDateISO(weekDates[6]);
-    const resIds    = resources.filter(r => r.groupId === group.id).map(r => r.id);
+    const from = formatDateISO(displayDates[0]);
+    const to   = formatDateISO(displayDates[displayDates.length - 1]);
+    const resIds = resources.filter(r => r.groupId === group.id).map(r => r.id);
     return bookings.filter(b =>
-      resIds.includes(b.resourceId) && b.date >= weekStart && b.date <= weekEnd
+      resIds.includes(b.resourceId) && b.date >= from && b.date <= to
     ).length;
   };
 
   const getBookingCountForResource = (resId) => {
-    const weekStart = formatDateISO(weekDates[0]);
-    const weekEnd   = formatDateISO(weekDates[6]);
+    const from = formatDateISO(displayDates[0]);
+    const to   = formatDateISO(displayDates[displayDates.length - 1]);
     return bookings.filter(b =>
-      b.resourceId === resId && b.date >= weekStart && b.date <= weekEnd
+      b.resourceId === resId && b.date >= from && b.date <= to
     ).length;
   };
 
@@ -173,6 +219,10 @@ const CalendarView = ({
 
   const selectedFacility = (facilities || []).find(f => f.id === selectedFacilityId);
 
+  // ── Grid-Spalten-Definition ─────────────────
+  const gridCols = `60px repeat(${displayDates.length}, 1fr)`;
+  const minWidth = viewMode === 'week' ? '800px' : '280px';
+
   // ══════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════
@@ -180,7 +230,7 @@ const CalendarView = ({
   return (
     <div className="h-full flex flex-col">
 
-      {/* ── 1. Facility dropdown ── */}
+      {/* ── 1. Anlagen-Dropdown ── */}
       <div className="mb-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
@@ -202,7 +252,7 @@ const CalendarView = ({
         {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
-      {/* ── 2. Resource group tabs ── */}
+      {/* ── 2. Ressourcengruppen-Tabs ── */}
       <div className="mb-3">
         <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
           {facilityGroups.map(group => {
@@ -231,7 +281,7 @@ const CalendarView = ({
         </div>
       </div>
 
-      {/* ── 3. Resource tabs ── */}
+      {/* ── 3. Ressourcen-Tabs ── */}
       <div className="mb-3 h-[42px]">
         <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto h-[40px] whitespace-nowrap" style={{ scrollbarWidth: 'thin' }}>
           {groupResources.map(res => (
@@ -258,8 +308,9 @@ const CalendarView = ({
         </div>
       </div>
 
-      {/* ── 4. Resource info + week navigation ── */}
+      {/* ── 4. Ressourcen-Info + Navigation ── */}
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        {/* Ressourcen-Info */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: resource?.color }} />
           <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
@@ -274,9 +325,40 @@ const CalendarView = ({
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => navigateWeek(-1)}><ChevronLeft className="w-5 h-5" /></Button>
-          <div className="font-medium text-center px-3 py-1.5 min-w-[220px]">
+
+        {/* Navigation */}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Woche/Tag Toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+            <button
+              onClick={() => { if (viewMode !== 'week') toggleViewMode(); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
+                viewMode === 'week'
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Woche</span>
+            </button>
+            <button
+              onClick={() => { if (viewMode !== 'day') toggleViewMode(); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 transition-colors ${
+                viewMode === 'day'
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Tag</span>
+            </button>
+          </div>
+
+          {/* Pfeil-Navigation + DatePicker */}
+          <Button variant="ghost" onClick={() => navigatePeriod(-1)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="font-medium text-center px-3 py-1.5 min-w-[140px]">
             <div className="flex items-center justify-center">
               <div className="relative">
                 <DatePicker
@@ -292,36 +374,82 @@ const CalendarView = ({
                   customInput={<PickerButton />}
                 />
               </div>
-              <span className="mx-2">–</span>
-              <span className="select-none">{formatDate(weekDates[6])}</span>
+              {viewMode === 'week' && (
+                <>
+                  <span className="mx-2">–</span>
+                  <span className="select-none">{formatDate(weekDates[6])}</span>
+                </>
+              )}
+              {viewMode === 'day' && (
+                <span className="ml-2 text-gray-500 text-sm hidden sm:inline">
+                  {DAYS_FULL ? DAYS_FULL[currentDate.getDay()] : DAYS[currentDate.getDay()]}
+                </span>
+              )}
             </div>
           </div>
-          <Button variant="ghost" onClick={() => navigateWeek(1)}><ChevronRight className="w-5 h-5" /></Button>
-          <Button variant="secondary" onClick={() => setCurrentDate(getWeekStart(new Date()))}>Heute</Button>
+          <Button variant="ghost" onClick={() => navigatePeriod(1)}>
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              const today = new Date();
+              if (viewMode === 'week') {
+                const monday = getWeekStart(today);
+                setCurrentDate(monday);
+                setPickerDate(monday);
+              } else {
+                setCurrentDate(today);
+                setPickerDate(today);
+              }
+            }}
+          >
+            Heute
+          </Button>
         </div>
       </div>
 
-      {/* ── 5. Calendar grid ── */}
+      {/* ── 5. Kalender-Grid ── */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-[400px]">
-        {/* Day header row */}
-        <div className="grid min-w-[800px] flex-shrink-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+
+        {/* Wochentag-Header-Zeile */}
+        <div
+          className="grid flex-shrink-0"
+          style={{ gridTemplateColumns: gridCols, minWidth }}
+        >
           <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
-          {weekDates.map((date, i) => (
-            <div key={i} className="bg-gray-50 border-b border-gray-200 p-2 text-center">
-              <div className="text-xs text-gray-500">{DAYS[date.getDay()]}</div>
-              <div className={`text-lg font-semibold ${
-                date.toDateString() === new Date().toDateString() ? 'text-blue-600' : 'text-gray-800'
-              }`}>
-                {date.getDate()}
+          {displayDates.map((date, i) => {
+            const isToday = date.toDateString() === new Date().toDateString();
+            return (
+              <div
+                key={i}
+                className={`bg-gray-50 border-b border-gray-200 p-2 text-center ${
+                  viewMode === 'week' ? 'cursor-pointer hover:bg-blue-50 transition-colors' : ''
+                }`}
+                onClick={() => handleDayHeaderClick(date)}
+                title={viewMode === 'week' ? 'Tagesansicht öffnen' : undefined}
+              >
+                <div className="text-xs text-gray-500">{DAYS[date.getDay()]}</div>
+                <div className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
+                  {date.getDate()}
+                </div>
+                {viewMode === 'day' && (
+                  <div className="text-xs text-gray-400">
+                    {date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Scrollable hour grid */}
+        {/* Scrollbares Stunden-Grid */}
         <div className="flex-1 overflow-auto">
-          <div className="grid min-w-[800px]" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
-            {/* Hour labels (left column) */}
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: gridCols, minWidth }}
+          >
+            {/* Stunden-Labels (linke Spalte) */}
             <div className="border-r border-gray-200">
               {HOURS.map(hour => (
                 <div
@@ -334,9 +462,9 @@ const CalendarView = ({
               ))}
             </div>
 
-            {/* Day columns */}
-            {weekDates.map((date, dayIndex) => {
-              const slot = getSlotForDay(date.getDay());
+            {/* Tages-Spalten */}
+            {displayDates.map((date, dayIndex) => {
+              const slot        = getSlotForDay(date.getDay());
               const dayBookings = getBookingsForDay(date);
 
               return (
@@ -345,10 +473,10 @@ const CalendarView = ({
                   className="relative"
                   style={{
                     height: `${TOTAL_HEIGHT}px`,
-                    borderRight: dayIndex < 6 ? '1px solid #e5e7eb' : 'none',
+                    borderRight: dayIndex < displayDates.length - 1 ? '1px solid #e5e7eb' : 'none',
                   }}
                 >
-                  {/* Hour cells with slot shading */}
+                  {/* Stunden-Zellen mit Slot-Shading */}
                   {HOURS.map((hour, hourIdx) => {
                     const hourStart = hour * 60;
                     const hourEnd   = (hour + 1) * 60;
@@ -366,15 +494,12 @@ const CalendarView = ({
                       <div
                         key={hour}
                         className={`absolute left-0 right-0 border-b border-gray-200 ${bgCls}`}
-                        style={{
-                          top: `${hourIdx * HOUR_HEIGHT}px`,
-                          height: `${HOUR_HEIGHT}px`,
-                        }}
+                        style={{ top: `${hourIdx * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
                       />
                     );
                   })}
 
-                  {/* Booking blocks */}
+                  {/* Buchungs-Blöcke */}
                   {dayBookings.map(booking => {
                     const bookingResource = resources.find(r => r.id === booking.resourceId);
                     const bookingType     = EVENT_TYPES.find(t => t.id === booking.bookingType);
@@ -386,7 +511,6 @@ const CalendarView = ({
                     const heightPx = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 20);
                     const userName = getUserName(booking.userId);
 
-                    // Dynamic colors must stay inline
                     let bgColor, textColor, borderStyle;
                     if (isBlocking) {
                       bgColor = '#d1d5db'; textColor = '#4b5563'; borderStyle = '1px dashed #9ca3af';
@@ -451,7 +575,7 @@ const CalendarView = ({
         </div>
       </div>
 
-      {/* ── 6. Legend ── */}
+      {/* ── 6. Legende ── */}
       <div className="mt-2 py-2 flex gap-6 text-sm flex-wrap items-center border-t border-gray-200">
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded" /><span>Genehmigt</span></div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded" /><span>Ausstehend</span></div>
@@ -465,6 +589,17 @@ const CalendarView = ({
             <div className="w-px h-6 bg-gray-300 mx-2" />
             <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded" /><span>Verfügbarer Slot</span></div>
             <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded" /><span>Nicht verfügbar</span></div>
+          </>
+        )}
+        {viewMode === 'day' && (
+          <>
+            <div className="w-px h-6 bg-gray-300 mx-2" />
+            <button
+              onClick={toggleViewMode}
+              className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+            >
+              <CalendarDays className="w-4 h-4" />Wochenansicht
+            </button>
           </>
         )}
       </div>
