@@ -40,7 +40,7 @@ const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT;
 const CalendarView = ({
   bookings, slots, selectedResource, setSelectedResource,
   currentDate, setCurrentDate, users, adminCheckbox,
-  resources, facilities, resourceGroups, teams,
+  resources, facilities, resourceGroups, teams, departments, clubs,
   onBookingClick,
 }) => {
   // ── Lokaler State ───────────────────────────
@@ -281,7 +281,10 @@ const CalendarView = ({
     const heightPx = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 20);
     const userName = getUserName(booking.userId);
 
-    const bookingTeam = teams?.find(t => t.id === booking.teamId);
+    const bookingTeam       = teams?.find(t => t.id === booking.teamId);
+    const bookingDepartment = departments?.find(d => d.id === bookingTeam?.departmentId);
+    const bookingClub       = clubs?.find(c => c.id === bookingDepartment?.clubId);
+    const clubShortName     = bookingClub?.shortName;
 
     let bgColor, textColor, borderStyle;
     if (isBlockingBooking) {
@@ -317,7 +320,9 @@ const CalendarView = ({
         ) : (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-[13px]">{bookingType ? bookingType.icon : '📋'}</span>
+              <span className="text-[10px] font-bold opacity-90 flex-shrink-0">
+                {clubShortName || (bookingType ? bookingType.icon : '📋')}
+              </span>
               <span className="truncate opacity-90 font-medium">
                 {bookingType ? bookingType.label : ''}
               </span>
