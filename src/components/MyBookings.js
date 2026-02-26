@@ -46,8 +46,8 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// Einheitliche Klassen für Aktions-Buttons
-const btnBase   = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer';
+// Einheitliche Klassen für Aktions-Buttons (w-full + justify-center für gleiche Breite)
+const btnBase   = 'inline-flex items-center justify-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer w-full';
 const btnEdit   = `${btnBase} bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200`;
 const btnDanger = `${btnBase} bg-red-600 text-white hover:bg-red-700`;
 
@@ -159,7 +159,8 @@ const MyBookings = ({
       s.freeCount = s.seriesBookings.filter(sb => sb.conflicts.length === 0).length;
       s.blockedCount = s.seriesBookings.filter(sb => sb.conflicts.length > 0).length;
     });
-    return [...Object.values(seriesMap), ...singles];
+    return [...Object.values(seriesMap), ...singles]
+      .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
   }, [filteredBookings, bookings]);
 
   // ── Tab change handler ──
