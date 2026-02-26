@@ -486,7 +486,7 @@ const MyBookings = ({
                               {isAdmin && (
                                 <button
                                   onClick={() => handleDeleteSingleInSeries(sb)}
-                                  className={`ml-auto flex-shrink-0 ${btnDanger}`}
+                                  className={`ml-auto flex-shrink-0 !w-auto ${btnDanger}`}
                                 >
                                   <X className="w-3 h-3" />Termin
                                 </button>
