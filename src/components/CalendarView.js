@@ -353,11 +353,7 @@ const CalendarView = ({
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
-          {selectedFacility && (
-            <span className="text-xs text-gray-400 hidden md:inline">
-              {selectedFacility.street} {selectedFacility.houseNumber}, {selectedFacility.city}
-            </span>
-          )}
+
           {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
         </div>
 
