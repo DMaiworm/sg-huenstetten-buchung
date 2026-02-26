@@ -2,14 +2,14 @@
  * CalendarView – Wochen- oder Tageskalender mit Ressourcen- und Anlagenauswahl.
  *
  * Ansichtsmodi (lokal, nicht persistent):
- *   'week' – 7-Tage-Raster, wochenweise Navigation
- *   'day'  – 1-Tage-Raster, tagesweise Navigation
+ *   'week' – 7-Tage-Raster, wochenweise Navigation, eine Ressource im Fokus
+ *   'day'  – 1 Tag, alle Ressourcen der Gruppe nebeneinander als Spalten
  *
  * Layout (top → bottom):
- *   1. Anlagen-Dropdown
+ *   1. Anlagen-Dropdown + Navigation (Woche/Tag Toggle, ←/→, DatePicker, Heute)
  *   2. Ressourcengruppen-Tabs  (gefiltert nach Anlage)
- *   3. Ressourcen-Tabs         (gefiltert nach Gruppe via groupId)
- *   4. Ressourcen-Info-Leiste  +  Navigation (prev / datepicker / next / Heute / Woche/Tag)
+ *   3. Ressourcen-Tabs         (nur Wochenansicht, gefiltert nach Gruppe via groupId)
+ *   4. Ressourcen-Info-Leiste  (nur Wochenansicht: Farbe, Name, Badges)
  *   5. Kalender-Grid           (07:00–22:00, Slot-Shading bei limitierten Ressourcen)
  *   6. Legende
  */
@@ -50,7 +50,6 @@ const CalendarView = ({
   const [pickerDate, setPickerDate]                 = useState(new Date(currentDate));
   const [viewMode, setViewMode]                     = useState('week'); // 'week' | 'day'
 
-  // Anzuzeigende Tage – 7 in Wochenansicht, 1 in Tagesansicht
   const weekDates    = getWeekDates(currentDate);
   const displayDates = viewMode === 'week' ? weekDates : [currentDate];
 
@@ -79,24 +78,20 @@ const CalendarView = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilityGroups]);
 
-  // ── Aktuell ausgewählte Ressource ──────────
+  // ── Aktuell ausgewählte Ressource (Wochenansicht) ──
   const resource    = resources.find(r => r.id === selectedResource);
   const isLimited   = resource?.type === 'limited';
   const isComposite = resource?.isComposite;
 
-  // ── Handler: Anlagenwechsel ────────────────
-  const handleFacilityChange = (facId) => {
-    setSelectedFacilityId(facId);
-  };
+  // ── Handler ─────────────────────────────────
+  const handleFacilityChange = (facId) => setSelectedFacilityId(facId);
 
-  // ── Handler: Gruppen-Tab ───────────────────
   const handleGroupChange = (groupId) => {
     setSelectedGroupId(groupId);
     const firstRes = resources.filter(r => r.groupId === groupId);
     if (firstRes.length > 0) setSelectedResource(firstRes[0].id);
   };
 
-  // ── Navigation: vorherige/nächste Periode ──
   const navigatePeriod = (direction) => {
     const newDate = new Date(currentDate);
     if (viewMode === 'week') {
@@ -108,6 +103,18 @@ const CalendarView = ({
       newDate.setDate(newDate.getDate() + direction);
       setCurrentDate(newDate);
       setPickerDate(newDate);
+    }
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    if (viewMode === 'week') {
+      const monday = getWeekStart(today);
+      setCurrentDate(monday);
+      setPickerDate(monday);
+    } else {
+      setCurrentDate(today);
+      setPickerDate(today);
     }
   };
 
@@ -123,7 +130,6 @@ const CalendarView = ({
   // ── Handler: Ansichtsmodus umschalten ──────
   const toggleViewMode = () => {
     if (viewMode === 'week') {
-      // Von Woche → Tag: aktuellen Tag (oder heute in der Woche) wählen
       const today = new Date();
       const todayInWeek = weekDates.find(d => d.toDateString() === today.toDateString());
       const targetDate = todayInWeek || weekDates[0];
@@ -131,7 +137,6 @@ const CalendarView = ({
       setPickerDate(targetDate);
       setViewMode('day');
     } else {
-      // Von Tag → Woche: zur Woche des aktuellen Tages
       const monday = getWeekStart(currentDate);
       setCurrentDate(monday);
       setPickerDate(monday);
@@ -189,11 +194,20 @@ const CalendarView = ({
     ).length;
   };
 
+  // Wochenansicht: Slot für die aktuell gewählte Ressource
   const getSlotForDay = (dayOfWeek) => {
     if (!isLimited) return null;
     return slots.find(s => s.resourceId === selectedResource && s.dayOfWeek === dayOfWeek);
   };
 
+  // Tagesansicht: Slot für eine beliebige Ressource
+  const getSlotForResource = (resourceId, dayOfWeek) => {
+    const res = resources.find(r => r.id === resourceId);
+    if (res?.type !== 'limited') return null;
+    return slots.find(s => s.resourceId === resourceId && s.dayOfWeek === dayOfWeek);
+  };
+
+  // Wochenansicht: Buchungen für die gewählte Ressource an einem Tag
   const getBookingsForDay = (date) => {
     const dateStr = formatDateISO(date);
     const result = [];
@@ -217,11 +231,105 @@ const CalendarView = ({
     return result;
   };
 
+  // Tagesansicht: Buchungen für eine bestimmte Ressource an einem Tag
+  const getBookingsForResourceAndDay = (resourceId, date) => {
+    const res = resources.find(r => r.id === resourceId);
+    const dateStr = formatDateISO(date);
+    const result = [];
+    bookings.forEach(b => {
+      if (b.date !== dateStr) return;
+      if (b.resourceId === resourceId) {
+        result.push({ ...b, isBlocking: false });
+        return;
+      }
+      if (res?.partOf && b.resourceId === res.partOf) {
+        result.push({ ...b, isBlocking: true, blockingReason: 'Ganzes Feld gebucht' });
+        return;
+      }
+      if (res?.isComposite && res.includes?.includes(b.resourceId)) {
+        result.push({
+          ...b, isBlocking: true,
+          blockingReason: resources.find(r => r.id === b.resourceId)?.name,
+        });
+      }
+    });
+    return result;
+  };
+
   const selectedFacility = (facilities || []).find(f => f.id === selectedFacilityId);
+  const isToday = currentDate.toDateString() === new Date().toDateString();
 
   // ── Grid-Spalten-Definition ─────────────────
-  const gridCols = `60px repeat(${displayDates.length}, 1fr)`;
-  const minWidth = viewMode === 'week' ? '800px' : '280px';
+  const weekGridCols = `60px repeat(7, 1fr)`;
+  const dayGridCols  = `60px repeat(${groupResources.length}, 1fr)`;
+  const dayMinWidth  = `${Math.max(400, 60 + groupResources.length * 160)}px`;
+
+  // Slot-Legende: in Tagesansicht anzeigen, wenn mind. eine Ressource limited ist
+  const showSlotLegend = viewMode === 'week'
+    ? isLimited
+    : groupResources.some(r => r.type === 'limited');
+
+  // ── Buchungs-Block-Renderer (wird von Wochen- und Tagesansicht genutzt) ──
+  const renderBookingBlock = (booking, key) => {
+    const bookingResource = resources.find(r => r.id === booking.resourceId);
+    const bookingType     = EVENT_TYPES.find(t => t.id === booking.bookingType);
+    const isBlockingBooking = booking.isBlocking;
+
+    const startMinutes = timeToMinutes(booking.startTime);
+    const endMinutes   = timeToMinutes(booking.endTime);
+    const topPx    = ((startMinutes - FIRST_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const heightPx = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 20);
+    const userName = getUserName(booking.userId);
+
+    let bgColor, textColor, borderStyle;
+    if (isBlockingBooking) {
+      bgColor = '#d1d5db'; textColor = '#4b5563'; borderStyle = '1px dashed #9ca3af';
+    } else if (booking.status === 'approved') {
+      bgColor = bookingResource?.color; textColor = '#ffffff';
+    } else {
+      bgColor = '#fef08a'; textColor = '#854d0e'; borderStyle = '1px solid #facc15';
+    }
+
+    return (
+      <div
+        key={key}
+        className={`absolute left-1 right-1 rounded overflow-hidden text-[11px] leading-tight px-1.5 py-0.5${!isBlockingBooking && onBookingClick ? ' cursor-pointer hover:brightness-95 transition-all' : ''}`}
+        style={{
+          top: `${topPx}px`,
+          height: `${heightPx - 2}px`,
+          backgroundColor: bgColor, color: textColor, border: borderStyle,
+          zIndex: isBlockingBooking ? 5 : 10,
+        }}
+        onClick={!isBlockingBooking && onBookingClick ? () => onBookingClick(booking) : undefined}
+        title={[
+          bookingType ? `${bookingType.icon} ${bookingType.label}` : '',
+          booking.title, userName,
+          `${booking.startTime}-${booking.endTime}`,
+        ].filter(Boolean).join(' | ')}
+      >
+        {isBlockingBooking ? (
+          <>
+            <div className="truncate opacity-80">🚫 Blockiert</div>
+            {heightPx > 25 && <div className="truncate opacity-70">{booking.title}</div>}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-[13px]">{bookingType ? bookingType.icon : '📋'}</span>
+              <span className="truncate opacity-90 font-medium">
+                {bookingType ? bookingType.label : ''}
+              </span>
+            </div>
+            {heightPx > 28 && <div className="font-bold truncate">{booking.title}</div>}
+            {heightPx > 42 && <div className="truncate opacity-80">{userName}</div>}
+            {heightPx > 56 && (
+              <div className="font-bold truncate">{booking.startTime} – {booking.endTime}</div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   // ══════════════════════════════════════════
   //  RENDER
@@ -230,9 +338,11 @@ const CalendarView = ({
   return (
     <div className="h-full flex flex-col">
 
-      {/* ── 1. Anlagen-Dropdown ── */}
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      {/* ── 1. Top-Bar: Anlage + Navigation ── */}
+      <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
+
+        {/* Links: Anlage */}
+        <div className="flex items-center gap-3 flex-wrap">
           <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
           <select
             value={selectedFacilityId}
@@ -248,8 +358,82 @@ const CalendarView = ({
               {selectedFacility.street} {selectedFacility.houseNumber}, {selectedFacility.city}
             </span>
           )}
+          {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
         </div>
-        {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
+
+        {/* Rechts: Navigation */}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+
+          {/* Woche/Tag Toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+            <button
+              onClick={() => { if (viewMode !== 'week') toggleViewMode(); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
+                viewMode === 'week'
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Woche</span>
+            </button>
+            <button
+              onClick={() => { if (viewMode !== 'day') toggleViewMode(); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 transition-colors ${
+                viewMode === 'day'
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Tag</span>
+            </button>
+          </div>
+
+          {/* ← */}
+          <Button variant="ghost" onClick={() => navigatePeriod(-1)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+
+          {/* DatePicker */}
+          <div className="font-medium text-center px-3 py-1.5 min-w-[140px]">
+            <div className="flex items-center justify-center">
+              <div className="relative">
+                <DatePicker
+                  selected={pickerDate}
+                  onChange={handleDatePickerSelect}
+                  onClickOutside={() => setPickerOpen(false)}
+                  open={pickerOpen}
+                  onSelect={handleDatePickerSelect}
+                  shouldCloseOnSelect={true}
+                  popperPlacement="bottom"
+                  dateFormat="dd.MM.yyyy"
+                  locale="de"
+                  customInput={<PickerButton />}
+                />
+              </div>
+              {viewMode === 'week' && (
+                <>
+                  <span className="mx-2">–</span>
+                  <span className="select-none">{formatDate(weekDates[6])}</span>
+                </>
+              )}
+              {viewMode === 'day' && (
+                <span className="ml-2 text-gray-500 text-sm hidden sm:inline">
+                  {DAYS_FULL ? DAYS_FULL[currentDate.getDay()] : DAYS[currentDate.getDay()]}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* → */}
+          <Button variant="ghost" onClick={() => navigatePeriod(1)}>
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+
+          {/* Heute */}
+          <Button variant="secondary" onClick={goToToday}>Heute</Button>
+        </div>
       </div>
 
       {/* ── 2. Ressourcengruppen-Tabs ── */}
@@ -281,37 +465,38 @@ const CalendarView = ({
         </div>
       </div>
 
-      {/* ── 3. Ressourcen-Tabs ── */}
-      <div className="mb-3 h-[42px]">
-        <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto h-[40px] whitespace-nowrap" style={{ scrollbarWidth: 'thin' }}>
-          {groupResources.map(res => (
-            <button
-              key={res.id}
-              onClick={() => setSelectedResource(res.id)}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 flex-shrink-0 ${
-                selectedResource === res.id
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
-            >
-              {res.isComposite && <span>⭐</span>}
-              {res.type === 'limited' && <span>⚠️</span>}
-              {res.name}
-              {getBookingCountForResource(res.id) > 0 && (
-                <span className="ml-1 min-w-6 h-6 px-1.5 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
-                  {getBookingCountForResource(res.id)}
-                </span>
-              )}
-            </button>
-          ))}
+      {/* ── 3. Ressourcen-Tabs (nur Wochenansicht) ── */}
+      {viewMode === 'week' && (
+        <div className="mb-3 h-[42px]">
+          <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto h-[40px] whitespace-nowrap" style={{ scrollbarWidth: 'thin' }}>
+            {groupResources.map(res => (
+              <button
+                key={res.id}
+                onClick={() => setSelectedResource(res.id)}
+                className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                  selectedResource === res.id
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
+              >
+                {res.isComposite && <span>⭐</span>}
+                {res.type === 'limited' && <span>⚠️</span>}
+                {res.name}
+                {getBookingCountForResource(res.id) > 0 && (
+                  <span className="ml-1 min-w-6 h-6 px-1.5 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                    {getBookingCountForResource(res.id)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── 4. Ressourcen-Info + Navigation ── */}
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        {/* Ressourcen-Info */}
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* ── 4. Ressourcen-Info (nur Wochenansicht) ── */}
+      {viewMode === 'week' && (
+        <div className="flex items-center gap-2 flex-wrap mb-3">
           <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: resource?.color }} />
           <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
           {isLimited && (
@@ -325,254 +510,207 @@ const CalendarView = ({
             </Badge>
           )}
         </div>
-
-        {/* Navigation */}
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Woche/Tag Toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-            <button
-              onClick={() => { if (viewMode !== 'week') toggleViewMode(); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                viewMode === 'week'
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span className="hidden sm:inline">Woche</span>
-            </button>
-            <button
-              onClick={() => { if (viewMode !== 'day') toggleViewMode(); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 transition-colors ${
-                viewMode === 'day'
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Tag</span>
-            </button>
-          </div>
-
-          {/* Pfeil-Navigation + DatePicker */}
-          <Button variant="ghost" onClick={() => navigatePeriod(-1)}>
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div className="font-medium text-center px-3 py-1.5 min-w-[140px]">
-            <div className="flex items-center justify-center">
-              <div className="relative">
-                <DatePicker
-                  selected={pickerDate}
-                  onChange={handleDatePickerSelect}
-                  onClickOutside={() => setPickerOpen(false)}
-                  open={pickerOpen}
-                  onSelect={handleDatePickerSelect}
-                  shouldCloseOnSelect={true}
-                  popperPlacement="bottom"
-                  dateFormat="dd.MM.yyyy"
-                  locale="de"
-                  customInput={<PickerButton />}
-                />
-              </div>
-              {viewMode === 'week' && (
-                <>
-                  <span className="mx-2">–</span>
-                  <span className="select-none">{formatDate(weekDates[6])}</span>
-                </>
-              )}
-              {viewMode === 'day' && (
-                <span className="ml-2 text-gray-500 text-sm hidden sm:inline">
-                  {DAYS_FULL ? DAYS_FULL[currentDate.getDay()] : DAYS[currentDate.getDay()]}
-                </span>
-              )}
-            </div>
-          </div>
-          <Button variant="ghost" onClick={() => navigatePeriod(1)}>
-            <ChevronRight className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              const today = new Date();
-              if (viewMode === 'week') {
-                const monday = getWeekStart(today);
-                setCurrentDate(monday);
-                setPickerDate(monday);
-              } else {
-                setCurrentDate(today);
-                setPickerDate(today);
-              }
-            }}
-          >
-            Heute
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* ── 5. Kalender-Grid ── */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-[400px]">
 
-        {/* Wochentag-Header-Zeile */}
-        <div
-          className="grid flex-shrink-0"
-          style={{ gridTemplateColumns: gridCols, minWidth }}
-        >
-          <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
-          {displayDates.map((date, i) => {
-            const isToday = date.toDateString() === new Date().toDateString();
-            return (
-              <div
-                key={i}
-                className={`bg-gray-50 border-b border-gray-200 p-2 text-center ${
-                  viewMode === 'week' ? 'cursor-pointer hover:bg-blue-50 transition-colors' : ''
-                }`}
-                onClick={() => handleDayHeaderClick(date)}
-                title={viewMode === 'week' ? 'Tagesansicht öffnen' : undefined}
-              >
-                <div className="text-xs text-gray-500">{DAYS[date.getDay()]}</div>
-                <div className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
-                  {date.getDate()}
-                </div>
-                {viewMode === 'day' && (
-                  <div className="text-xs text-gray-400">
-                    {date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+        {viewMode === 'week' ? (
+          <>
+            {/* Wochentag-Header-Zeile */}
+            <div
+              className="grid flex-shrink-0"
+              style={{ gridTemplateColumns: weekGridCols, minWidth: '800px' }}
+            >
+              <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
+              {weekDates.map((date, i) => {
+                const isTodayCol = date.toDateString() === new Date().toDateString();
+                return (
+                  <div
+                    key={i}
+                    className="bg-gray-50 border-b border-gray-200 p-2 text-center cursor-pointer hover:bg-blue-50 transition-colors"
+                    onClick={() => handleDayHeaderClick(date)}
+                    title="Tagesansicht öffnen"
+                  >
+                    <div className="text-xs text-gray-500">{DAYS[date.getDay()]}</div>
+                    <div className={`text-lg font-semibold ${isTodayCol ? 'text-blue-600' : 'text-gray-800'}`}>
+                      {date.getDate()}
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Scrollbares Stunden-Grid */}
-        <div className="flex-1 overflow-auto">
-          <div
-            className="grid"
-            style={{ gridTemplateColumns: gridCols, minWidth }}
-          >
-            {/* Stunden-Labels (linke Spalte) */}
-            <div className="border-r border-gray-200">
-              {HOURS.map(hour => (
-                <div
-                  key={hour}
-                  className="border-b border-gray-200 p-2 text-xs text-gray-500 text-right"
-                  style={{ height: `${HOUR_HEIGHT}px` }}
-                >
-                  {hour}:00
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Tages-Spalten */}
-            {displayDates.map((date, dayIndex) => {
-              const slot        = getSlotForDay(date.getDay());
-              const dayBookings = getBookingsForDay(date);
-
-              return (
-                <div
-                  key={dayIndex}
-                  className="relative"
-                  style={{
-                    height: `${TOTAL_HEIGHT}px`,
-                    borderRight: dayIndex < displayDates.length - 1 ? '1px solid #e5e7eb' : 'none',
-                  }}
-                >
-                  {/* Stunden-Zellen mit Slot-Shading */}
-                  {HOURS.map((hour, hourIdx) => {
-                    const hourStart = hour * 60;
-                    const hourEnd   = (hour + 1) * 60;
-                    let isInSlot = !isLimited;
-                    if (isLimited && slot) {
-                      const ss = timeToMinutes(slot.startTime);
-                      const se = timeToMinutes(slot.endTime);
-                      isInSlot = hourStart >= ss && hourEnd <= se;
-                    }
-                    const bgCls = isLimited
-                      ? (isInSlot ? 'bg-green-50' : 'bg-gray-100')
-                      : 'bg-white';
-
-                    return (
-                      <div
-                        key={hour}
-                        className={`absolute left-0 right-0 border-b border-gray-200 ${bgCls}`}
-                        style={{ top: `${hourIdx * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
-                      />
-                    );
-                  })}
-
-                  {/* Buchungs-Blöcke */}
-                  {dayBookings.map(booking => {
-                    const bookingResource = resources.find(r => r.id === booking.resourceId);
-                    const bookingType     = EVENT_TYPES.find(t => t.id === booking.bookingType);
-                    const isBlocking      = booking.isBlocking;
-
-                    const startMinutes = timeToMinutes(booking.startTime);
-                    const endMinutes   = timeToMinutes(booking.endTime);
-                    const topPx    = ((startMinutes - FIRST_HOUR * 60) / 60) * HOUR_HEIGHT;
-                    const heightPx = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 20);
-                    const userName = getUserName(booking.userId);
-
-                    let bgColor, textColor, borderStyle;
-                    if (isBlocking) {
-                      bgColor = '#d1d5db'; textColor = '#4b5563'; borderStyle = '1px dashed #9ca3af';
-                    } else if (booking.status === 'approved') {
-                      bgColor = bookingResource?.color; textColor = '#ffffff';
-                    } else {
-                      bgColor = '#fef08a'; textColor = '#854d0e'; borderStyle = '1px solid #facc15';
-                    }
-
-                    return (
-                      <div
-                        key={`${booking.id}-${isBlocking ? 'block' : 'own'}`}
-                        className={`absolute left-1 right-1 rounded overflow-hidden text-[11px] leading-tight px-1.5 py-0.5${!isBlocking && onBookingClick ? ' cursor-pointer hover:brightness-95 transition-all' : ''}`}
-                        style={{
-                          top: `${topPx}px`,
-                          height: `${heightPx - 2}px`,
-                          backgroundColor: bgColor, color: textColor, border: borderStyle,
-                          zIndex: isBlocking ? 5 : 10,
-                        }}
-                        onClick={!isBlocking && onBookingClick ? () => onBookingClick(booking) : undefined}
-                        title={[
-                          bookingType ? `${bookingType.icon} ${bookingType.label}` : '',
-                          booking.title, userName,
-                          `${booking.startTime}-${booking.endTime}`,
-                        ].filter(Boolean).join(' | ')}
-                      >
-                        {isBlocking ? (
-                          <>
-                            <div className="truncate opacity-80">🚫 Blockiert</div>
-                            {heightPx > 25 && (
-                              <div className="truncate opacity-70">{booking.title}</div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <span className="text-[13px]">{bookingType ? bookingType.icon : '📋'}</span>
-                              <span className="truncate opacity-90 font-medium">
-                                {bookingType ? bookingType.label : ''}
-                              </span>
-                            </div>
-                            {heightPx > 28 && (
-                              <div className="font-bold truncate">{booking.title}</div>
-                            )}
-                            {heightPx > 42 && (
-                              <div className="truncate opacity-80">{userName}</div>
-                            )}
-                            {heightPx > 56 && (
-                              <div className="font-bold truncate">
-                                {booking.startTime} – {booking.endTime}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
+            {/* Scrollbares Stunden-Grid */}
+            <div className="flex-1 overflow-auto">
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: weekGridCols, minWidth: '800px' }}
+              >
+                {/* Stunden-Labels */}
+                <div className="border-r border-gray-200">
+                  {HOURS.map(hour => (
+                    <div
+                      key={hour}
+                      className="border-b border-gray-200 p-2 text-xs text-gray-500 text-right"
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                    >
+                      {hour}:00
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        </div>
+
+                {/* Tages-Spalten */}
+                {weekDates.map((date, dayIndex) => {
+                  const slot        = getSlotForDay(date.getDay());
+                  const dayBookings = getBookingsForDay(date);
+
+                  return (
+                    <div
+                      key={dayIndex}
+                      className="relative"
+                      style={{
+                        height: `${TOTAL_HEIGHT}px`,
+                        borderRight: dayIndex < 6 ? '1px solid #e5e7eb' : 'none',
+                      }}
+                    >
+                      {HOURS.map((hour, hourIdx) => {
+                        const hourStart = hour * 60;
+                        const hourEnd   = (hour + 1) * 60;
+                        let isInSlot = !isLimited;
+                        if (isLimited && slot) {
+                          const ss = timeToMinutes(slot.startTime);
+                          const se = timeToMinutes(slot.endTime);
+                          isInSlot = hourStart >= ss && hourEnd <= se;
+                        }
+                        const bgCls = isLimited
+                          ? (isInSlot ? 'bg-green-50' : 'bg-gray-100')
+                          : 'bg-white';
+                        return (
+                          <div
+                            key={hour}
+                            className={`absolute left-0 right-0 border-b border-gray-200 ${bgCls}`}
+                            style={{ top: `${hourIdx * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                          />
+                        );
+                      })}
+                      {dayBookings.map(booking =>
+                        renderBookingBlock(booking, `${booking.id}-${booking.isBlocking ? 'block' : 'own'}`)
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* ── Tagesansicht: Fixe Header-Zeilen ── */}
+            <div className="flex-shrink-0" style={{ minWidth: dayMinWidth }}>
+
+              {/* Datum-Header (spans alle Ressourcen-Spalten) */}
+              <div className="grid" style={{ gridTemplateColumns: `60px 1fr` }}>
+                <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
+                <div className="bg-gray-50 border-b border-gray-200 p-2 text-center">
+                  <span className="text-sm text-gray-500 mr-2">
+                    {DAYS_FULL ? DAYS_FULL[currentDate.getDay()] : DAYS[currentDate.getDay()]}
+                  </span>
+                  <span className={`text-xl font-bold mx-1 ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
+                    {currentDate.getDate()}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    {currentDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ressourcen-Spalten-Header */}
+              <div className="grid" style={{ gridTemplateColumns: dayGridCols }}>
+                <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
+                {groupResources.map((res, i) => (
+                  <div
+                    key={res.id}
+                    className="bg-gray-50 border-b border-gray-200 p-2 text-center"
+                    style={{ borderLeft: i > 0 ? '1px solid #e5e7eb' : undefined }}
+                  >
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="w-2.5 h-4 rounded flex-shrink-0" style={{ backgroundColor: res.color }} />
+                      <span className="text-sm font-semibold text-gray-800">{res.name}</span>
+                      {res.isComposite && <span className="text-xs">⭐</span>}
+                      {res.type === 'limited' && <span className="text-xs">⚠️</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Tagesansicht: Scrollbares Stunden-Grid ── */}
+            <div className="flex-1 overflow-auto">
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: dayGridCols, minWidth: dayMinWidth }}
+              >
+                {/* Stunden-Labels */}
+                <div className="border-r border-gray-200">
+                  {HOURS.map(hour => (
+                    <div
+                      key={hour}
+                      className="border-b border-gray-200 p-2 text-xs text-gray-500 text-right"
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                    >
+                      {hour}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* Ressourcen-Spalten */}
+                {groupResources.map((res, colIndex) => {
+                  const resIsLimited = res.type === 'limited';
+                  const slot         = getSlotForResource(res.id, currentDate.getDay());
+                  const colBookings  = getBookingsForResourceAndDay(res.id, currentDate);
+
+                  return (
+                    <div
+                      key={res.id}
+                      className="relative"
+                      style={{
+                        height: `${TOTAL_HEIGHT}px`,
+                        borderRight: colIndex < groupResources.length - 1 ? '1px solid #e5e7eb' : 'none',
+                      }}
+                    >
+                      {HOURS.map((hour, hourIdx) => {
+                        const hourStart = hour * 60;
+                        const hourEnd   = (hour + 1) * 60;
+                        let isInSlot = !resIsLimited;
+                        if (resIsLimited && slot) {
+                          const ss = timeToMinutes(slot.startTime);
+                          const se = timeToMinutes(slot.endTime);
+                          isInSlot = hourStart >= ss && hourEnd <= se;
+                        }
+                        const bgCls = resIsLimited
+                          ? (isInSlot ? 'bg-green-50' : 'bg-gray-100')
+                          : 'bg-white';
+                        return (
+                          <div
+                            key={hour}
+                            className={`absolute left-0 right-0 border-b border-gray-200 ${bgCls}`}
+                            style={{ top: `${hourIdx * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                          />
+                        );
+                      })}
+                      {colBookings.map(booking =>
+                        renderBookingBlock(
+                          booking,
+                          `${booking.id}-${res.id}-${booking.isBlocking ? 'block' : 'own'}`
+                        )
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── 6. Legende ── */}
@@ -584,22 +722,11 @@ const CalendarView = ({
         {EVENT_TYPES.map(type => (
           <div key={type.id} className="flex items-center gap-2"><span>{type.icon}</span><span>{type.label}</span></div>
         ))}
-        {isLimited && (
+        {showSlotLegend && (
           <>
             <div className="w-px h-6 bg-gray-300 mx-2" />
             <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-50 border border-green-200 rounded" /><span>Verfügbarer Slot</span></div>
             <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-100 rounded" /><span>Nicht verfügbar</span></div>
-          </>
-        )}
-        {viewMode === 'day' && (
-          <>
-            <div className="w-px h-6 bg-gray-300 mx-2" />
-            <button
-              onClick={toggleViewMode}
-              className="text-blue-600 hover:underline text-sm flex items-center gap-1"
-            >
-              <CalendarDays className="w-4 h-4" />Wochenansicht
-            </button>
           </>
         )}
       </div>

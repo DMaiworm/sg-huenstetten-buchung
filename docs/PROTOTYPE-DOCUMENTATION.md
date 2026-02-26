@@ -1,6 +1,6 @@
 # SG Hünstetten – Ressourcen-Buchungssystem
 
-## Systemdokumentation (Stand: 22.02.2026)
+## Systemdokumentation (Stand: 26.02.2026)
 
 > **Zweck dieses Dokuments:** Vollständige Beschreibung des Systems als "Source of Truth" für die weitere Entwicklung. Alle Entitäten, Beziehungen, Geschäftsregeln und UI-Seiten sind hier dokumentiert.
 
@@ -33,7 +33,7 @@ Das System besteht aus **drei unabhängigen Verwaltungsbereichen**, die über Bu
 | Auth | Supabase Auth (E-Mail/Passwort, einladungsbasiert) |
 | PDF | jsPDF (on-demand CDN-Load) |
 | Hosting | Vercel (Auto-Deploy bei Push auf `main`) |
-| State | React Contexts (Auth, Facility, Organization, Booking, User) |
+| State | React Contexts (Auth, Facility, Organization, Booking, User, Holiday, Toast) |
 | Repository | `DMaiworm/sg-huenstetten-buchung` (Branch: main) |
 
 ---
@@ -47,12 +47,17 @@ Die Datenbank wurde über mehrere Migrationen aufgebaut:
 | Migration | Datei | Inhalt |
 |-----------|-------|--------|
 | 001 | `001_operators_and_profiles.sql` | Operator-Tabelle + Profiles (Users) mit UUID-PKs |
-| 002 | `002_enable_profiles_rls.sql` | Row Level Security für Profiles |
+| 002 | `002_prototype_mode.sql` | Prototype-Mode Flags |
 | 003 | `003_facilities_and_resources.sql` | Facilities, ResourceGroups, Resources, SubResources, Slots + Seed-Daten |
 | 004 | `004_organization.sql` | Clubs, Departments, Teams, TrainerAssignments + Seed-Daten |
 | 005 | `005_bookings.sql` | Bookings-Tabelle mit ENUMs + Konflikterkennung-Funktion + Seed-Daten |
 | 006 | `006_fix_sub_resources_as_bookable.sql` | Sub-Resources als reguläre Resources mit `parent_resource_id` (FK-Fix) |
 | 007 | `007_drop_deprecated_sub_resources.sql` | Drop der veralteten `sub_resources`-Tabelle |
+| 008 | `008_holidays.sql` | `holidays`-Tabelle (Ferien & Feiertage) |
+| 009 | `009_sent_emails.sql` | `sent_emails`-Tabelle (E-Mail-Log) |
+| 010 | `010_jfv_trainer_profiles.sql` | JFV Trainer-Profile Seed-Daten |
+| 011 | `011_bookings_team_id.sql` | `team_id`-Spalte in `bookings` (FK → teams) |
+| 012 | `012_backfill_booking_team_id.sql` | Backfill `team_id` für bestehende Buchungen |
 
 **Vollständiges ER-Diagramm:**
 
@@ -79,16 +84,18 @@ genehmiger_resource_assignments (user_id → profiles.id, resource_id → resour
 
 ### 2.2 State-Architektur (React Contexts)
 
-Das State-Management nutzt eine Provider-Hierarchie mit 5 Contexts:
+Das State-Management nutzt eine Provider-Hierarchie mit 7 Contexts:
 
 ```
 BrowserRouter (index.js)
-  → AuthProvider (index.js)
-    → FacilityProvider
-      → OrganizationProvider
-        → BookingProvider
-          → UserProvider
-            → Routes (App.js)
+  → ToastProvider (index.js)
+    → AuthProvider (index.js)
+      → FacilityProvider
+        → OrganizationProvider
+          → BookingProvider
+            → UserProvider
+              → HolidayProvider
+                → Routes (App.js)
 ```
 
 | Context | Datei | Verantwortung |
@@ -98,13 +105,24 @@ BrowserRouter (index.js)
 | `OrganizationContext` | `contexts/OrganizationContext.js` | Clubs, Departments, Teams, TrainerAssignments + CRUD |
 | `BookingContext` | `contexts/BookingContext.js` | Bookings laden, erstellen, Status-Updates, Löschen |
 | `UserContext` | `contexts/UserContext.js` | User-Profile, Einladungen, Genehmiger-Zuweisungen (`genehmiger_resource_assignments`) |
+| `HolidayContext` | `contexts/HolidayContext.js` | Ferien & Feiertage laden + CRUD |
+| `ToastContext` | `contexts/ToastContext.js` | In-App Toast-Benachrichtigungen (success, error, warning, info) |
 
-**Custom Hooks:**
+**Custom Hooks (DB-Logik, aufgeteilt aus useSupabase.js):**
 
 | Hook | Datei | Verantwortung |
 |------|-------|---------------|
+| `useBookings` | `hooks/useBookings.js` | Buchungen laden, erstellen, Status-Updates, Löschen |
+| `useFacilities` | `hooks/useFacilities.js` | Anlagen, Gruppen, Ressourcen, Slots CRUD |
+| `useOrganization` | `hooks/useOrganization.js` | Vereine, Abteilungen, Mannschaften, Trainer-Zuordnungen CRUD |
+| `useUsers` | `hooks/useUsers.js` | Benutzer laden, einladen, Rolle ändern |
+| `useHolidays` | `hooks/useHolidays.js` | Ferien & Feiertage CRUD + Bulk-Import |
+| `useOperators` | `hooks/useOperators.js` | Betreiber laden |
+| `useGenehmigerResources` | `hooks/useGenehmigerResources.js` | Genehmiger↔Ressourcen-Zuweisungen |
 | `useBookingActions` | `hooks/useBookingActions.js` | Orchestriert Buchen, Genehmigen, Ablehnen, Löschen. Unterstützt `{ singleOnly: true }` für Einzeltermin-Aktionen innerhalb einer Serie. |
 | `useConfirm` | `hooks/useConfirm.js` | Promise-basierter Ersatz für `window.confirm()` → rendert `ConfirmDialog` |
+
+> `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper (~23 Zeilen) für Backwards-Compatibility.
 
 ---
 
@@ -432,6 +450,8 @@ Neue Buchung erstellt
 
 ### 3.1 Navigation (Sidebar)
 
+Responsive Sidebar mit Hamburger-Menü auf Mobile (eingeklappt, Overlay bei Öffnen).
+
 ```
 ┌─────────────────────┐
 │ SG  SG Hünstetten    │
@@ -450,6 +470,8 @@ Neue Buchung erstellt
 │ 👥 Benutzerverwaltung│
 │ 🏢 Anlagenverwaltung│
 │ ⚙️ Organisation     │
+│ 🗓️ Ferien & Feiertage│
+│ 📧 E-Mail-Log       │
 ├─────────────────────┤
 │ DM  Daniel Maiworm   │  ← UserMenu (Name, Rollen, Logout)
 │     Admin · Genehm…  │
@@ -470,8 +492,8 @@ Supabase Auth Login-Formular (E-Mail + Passwort). Nach erfolgreicher Anmeldung R
 1. **Facility-Dropdown** + Adressanzeige
 2. **Gruppen-Tabs** (Ressourcengruppen der Anlage, dynamisch via `groupId`-FK) mit Buchungs-Count
 3. **Ressourcen-Tabs** (Einzelressourcen der Gruppe) mit Farbbalken und Buchungs-Count
-4. **Resource-Info** (Name, Farbe, Badges: "Nur in zugewiesenen Slots", "Beide Hälften") + **Wochennavigation** (← | DatePicker | → | Heute)
-5. **Kalender-Grid**: 7 Tage × 7:00–22:00 Uhr, 48px/Stunde. Buchungen als farbige Blöcke (approved = Ressourcenfarbe, pending = gelb, blocking = grau gestrichelt). Slot-Shading (grün/grau) bei limitierten Ressourcen.
+4. **Resource-Info** (Name, Farbe, Badges: "Nur in zugewiesenen Slots", "Beide Hälften") + **Navigation** (← | DatePicker | → | Heute) + **Tag/Woche Toggle**
+5. **Kalender-Grid**: Woche (7 Tage × 7:00–22:00 Uhr, 48px/Stunde) oder Tagesansicht (einzelner Tag, detaillierter). Buchungen als farbige Blöcke (approved = Ressourcenfarbe, pending = gelb, blocking = grau gestrichelt). Slot-Shading (grün/grau) bei limitierten Ressourcen.
 6. **Legende**: Genehmigt, Ausstehend, Blockiert, Event-Types, Slot-Info
 
 ### 3.4 Meine Buchungen (MyBookings)
@@ -572,17 +594,25 @@ Export des Buchungsplans als PDF (Querformat A4):
 
 | Komponente | Datei | Beschreibung |
 |-----------|-------|-------------|
+| `AddButton` | `ui/AddButton.js` | Standardisierter "Hinzufügen"-Button |
 | `Badge` | `ui/Badge.js` | Status-Badges (success, warning, error, info, neutral) |
 | `Button` | `ui/Button.js` | Einheitliche Buttons (primary, secondary, danger, ghost) |
-| `Card` | `ui/Card.js` | Content-Container mit optionalem Header/Footer |
+| `ColorPicker` | `ui/ColorPicker.js` | Farbauswahl-Komponente |
 | `ConfirmDialog` | `ui/ConfirmDialog.js` | Modal-basierter `window.confirm()`-Ersatz (via `useConfirm`) |
+| `DebouncedInput` | `ui/DebouncedInput.js` | Input mit Debounce für Suche/Filter |
 | `EmptyState` | `ui/EmptyState.js` | Platzhalter für leere Listen |
-| `FormField` | `ui/FormField.js` | Label + Input-Wrapper mit Fehlertext |
-| `InfoBanner` | `ui/InfoBanner.js` | Farbige Hinweisbox (info, warning, error) |
-| `LoadingSpinner` | `ui/LoadingSpinner.js` | Lade-Animation |
+| `ErrorBoundary` | `ui/ErrorBoundary.js` | React Error Boundary mit benutzerfreundlicher Fehlerseite |
+| `ExpandableSection` | `ui/ExpandableSection.js` | Aufklappbarer Abschnitt (Akkordeon) |
 | `Modal` | `ui/Modal.js` | Overlay-Dialog mit Backdrop |
-| `SectionHeader` | `ui/SectionHeader.js` | Sektions-Überschrift mit optionalem Action-Button |
-| `TabBar` | `ui/TabBar.js` | Wiederverwendbare Tab-Navigation |
+| `PageHeader` | `ui/PageHeader.js` | Standardisierter Seiten-Header |
+
+### 3.12 Admin: Ferien & Feiertage (HolidayManagement)
+
+**Route:** `/admin/ferien-feiertage` (nur `kannAdministrieren`)
+
+- Feiertage und Schulferien manuell anlegen/bearbeiten/löschen
+- Bulk-Import: Schulferien eines Jahres automatisch importieren
+- Jahrgangsweise Löschung möglich
 
 ---
 
@@ -595,10 +625,12 @@ Export des Buchungsplans als PDF (Querformat A4):
 | `/meine-buchungen` | MyBookings | ProtectedRoute | Alle |
 | `/buchen` | BookingRequest | PermissionRoute(kannBuchen) | Alle eingeloggten |
 | `/export` | PDFExportPage | ProtectedRoute | Alle |
+| `/teams` | TeamOverview | ProtectedRoute | Alle |
 | `/genehmigungen` | Approvals | PermissionRoute(kannGenehmigen) | Admin + Genehmiger |
 | `/admin/benutzer` | UserManagement | PermissionRoute(kannAdministrieren) | Admin |
 | `/admin/anlagen` | FacilityManagement | PermissionRoute(kannAdministrieren) | Admin |
 | `/admin/organisation` | OrganizationManagement | PermissionRoute(kannAdministrieren) | Admin |
+| `/admin/ferien-feiertage` | HolidayManagement | PermissionRoute(kannAdministrieren) | Admin |
 | `/admin/emails` | EmailLog | PermissionRoute(kannAdministrieren) | Admin |
 | `*` | → Redirect `/` | – | Fallback |
 
@@ -659,11 +691,21 @@ src/
 │   ├── FacilityContext.js              # Anlagen, Gruppen, Ressourcen, Slots, RESOURCES
 │   ├── OrganizationContext.js          # Vereine, Abteilungen, Mannschaften + CRUD
 │   ├── BookingContext.js               # Buchungen laden, erstellen, Status-Updates
-│   └── UserContext.js                  # User-Profile, Einladungen, Genehmiger-Zuweisungen
+│   ├── UserContext.js                  # User-Profile, Einladungen, Genehmiger-Zuweisungen
+│   ├── HolidayContext.js               # Ferien & Feiertage
+│   └── ToastContext.js                 # In-App Toast-Benachrichtigungen
 │
 ├── hooks/
-│   ├── useBookingActions.js            # Buchen, Genehmigen, Ablehnen, Löschen
-│   └── useConfirm.js                   # Promise-basierter ConfirmDialog
+│   ├── useBookings.js                  # Buchungen (DB-Logik)
+│   ├── useFacilities.js               # Anlagen, Gruppen, Ressourcen, Slots
+│   ├── useOrganization.js             # Vereine, Abteilungen, Mannschaften
+│   ├── useUsers.js                    # Benutzer, Einladungen
+│   ├── useHolidays.js                 # Ferien & Feiertage
+│   ├── useOperators.js                # Betreiber
+│   ├── useGenehmigerResources.js      # Genehmiger-Ressourcen-Zuweisungen
+│   ├── useSupabase.js                 # Dünner Re-Export-Wrapper (~23 Zeilen)
+│   ├── useBookingActions.js           # Buchen, Genehmigen, Ablehnen, Löschen
+│   └── useConfirm.js                  # Promise-basierter ConfirmDialog
 │
 ├── routes/
 │   ├── ProtectedRoute.js               # Auth-Guard (→ /login wenn nicht eingeloggt)
@@ -687,43 +729,58 @@ src/
 │   │   ├── facilities/                 #   Anlagenverwaltung
 │   │   │   ├── index.js               #     Barrel Export
 │   │   │   ├── FacilitySection.js     #     Anlagen CRUD
+│   │   │   ├── FacilityCard.js        #     Anlagen-Karte
+│   │   │   ├── FacilityEditor.js      #     Anlagen-Editor
 │   │   │   ├── ResourceGroupSection.js#     Gruppen CRUD
-│   │   │   ├── ResourceSection.js     #     Ressourcen CRUD
-│   │   │   ├── SlotSection.js         #     Slot-Verwaltung
-│   │   │   ├── ResourceForm.js        #     Ressourcen-Formular
-│   │   │   └── SlotForm.js            #     Slot-Formular
+│   │   │   ├── ResourceCard.js        #     Ressourcen-Karte
+│   │   │   ├── SubResourceRow.js      #     Sub-Ressourcen-Zeile
+│   │   │   └── SlotPanel.js           #     Slot-Verwaltung
 │   │   │
 │   │   ├── organization/               #   Organisationsverwaltung
 │   │   │   ├── index.js               #     Barrel Export
 │   │   │   ├── ClubSection.js         #     Vereine CRUD
 │   │   │   ├── DepartmentSection.js   #     Abteilungen CRUD
-│   │   │   ├── TeamSection.js         #     Mannschaften CRUD
-│   │   │   └── TrainerSection.js      #     Trainer-Zuordnungen
+│   │   │   ├── TeamCard.js            #     Mannschafts-Karte
+│   │   │   ├── TrainerAssignmentRow.js#     Trainer-Zuordnungs-Zeile
+│   │   │   └── OrganizationManagement.js # Container
 │   │   │
 │   │   ├── users/                      #   Benutzerverwaltung
 │   │   │   ├── index.js               #     Barrel Export
-│   │   │   ├── UserTable.js           #     Benutzerliste
-│   │   │   ├── UserForm.js            #     Benutzerformular
-│   │   │   ├── InviteForm.js          #     Einladungsformular
-│   │   │   ├── GenehmigerResources.js #     Genehmiger-Ressourcen-Zuweisung
-│   │   │   └── TrainerInfo.js         #     Trainer-Details
+│   │   │   ├── UserManagement.js      #     Container
+│   │   │   ├── UserCard.js            #     Benutzer-Karte
+│   │   │   ├── UserFormModal.js       #     Benutzerformular (Modal)
+│   │   │   ├── ResourceAssignment.js  #     Genehmiger-Ressourcen-Zuweisung
+│   │   │   ├── PermBadges.js          #     Berechtigungs-Badges
+│   │   │   ├── StatusBadge.js         #     Status-Badge
+│   │   │   └── userConstants.js       #     Konstanten für Benutzerverwaltung
+│   │   │
+│   │   ├── holidays/                   #   Ferien & Feiertage
+│   │   │   ├── HolidayManagement.js   #     Container
+│   │   │   ├── HolidayFormModal.js    #     Formular-Modal
+│   │   │   ├── HolidayImportModal.js  #     Bulk-Import-Modal
+│   │   │   └── HolidayRow.js          #     Zeile in der Liste
 │   │   │
 │   │   ├── Approvals.js               #   Genehmigungen
 │   │   ├── EmailLog.js                 #   E-Mail-Protokoll
+│   │   ├── HolidayManagement.js        #   Ferien & Feiertage (Container-Wrapper)
 │   │   ├── FacilityManagement.js       #   Container für facilities/
 │   │   ├── OrganizationManagement.js   #   Container für organization/
 │   │   └── UserManagement.js           #   Container für users/
 │   │
-│   ├── CalendarView.js                 #   Wochenkalender
+│   ├── CalendarView.js                 #   Wochen-/Tageskalender (Tag/Woche Toggle)
 │   ├── BookingRequest.js               #   Buchungsformular
+│   ├── BookingEditModal.js             #   Buchung bearbeiten (Modal)
 │   ├── MyBookings.js                   #   Meine Buchungen
 │   ├── PDFExportPage.js                #   PDF-Export
-│   ├── Sidebar.js                      #   Navigation mit Rollen-abhängigen Links
+│   ├── TeamOverview.js                 #   Mannschaftsübersicht
+│   ├── TeamOverviewCard.js             #   Mannschafts-Karte
+│   ├── Sidebar.js                      #   Navigation (responsive, Hamburger-Menü)
 │   ├── LoginPage.js                    #   Login-Formular
 │   └── UserMenu.js                     #   Benutzer-Menü (Name, Rollen, Logout)
 │
 ├── config/
-│   ├── constants.js                    # ROLES, DAYS, DAYS_FULL
+│   ├── constants.js                    # ROLES, DAYS, DAYS_FULL, COLOR_PRESETS
+│   ├── facilityConfig.js              # buildBookableResources()
 │   └── organizationConfig.js           # EVENT_TYPES (Single Source of Truth)
 │
 ├── services/
@@ -736,16 +793,22 @@ public/
 └── index.html                          # Tailwind CDN Script + Meta-Tags
 
 supabase/
+├── functions/
+│   ├── ical/                           # iCal-Feed Edge Function
+│   └── send-email/                     # E-Mail Edge Function
 └── migrations/
     ├── 001_operators_and_profiles.sql
-    ├── 002_enable_profiles_rls.sql
+    ├── 002_prototype_mode.sql
     ├── 003_facilities_and_resources.sql
     ├── 004_organization.sql
     ├── 005_bookings.sql
     ├── 006_fix_sub_resources_as_bookable.sql
     ├── 007_drop_deprecated_sub_resources.sql
     ├── 008_holidays.sql
-    └── 009_sent_emails.sql
+    ├── 009_sent_emails.sql
+    ├── 010_jfv_trainer_profiles.sql
+    ├── 011_bookings_team_id.sql
+    └── 012_backfill_booking_team_id.sql
 ```
 
 ---
@@ -786,12 +849,20 @@ Wird in `FacilityContext` per `useMemo` aufgerufen und als `RESOURCES` an alle K
 
 | Priorität | Feature | Beschreibung |
 |-----------|---------|-------------|
-| 🟡 Mittel | Buchungs-Bearbeitung | Aktuell nur Löschen möglich |
-| 🟡 Mittel | Mobile-Optimierung | Responsive Layouts für Smartphone |
-| 🟡 Mittel | Tagesansicht Kalender | Detaillierte Tagesansicht als Alternative |
+| 🟡 Mittel | Buchungs-Bearbeitung | Modal (`BookingEditModal.js`) vorhanden, Integrationstiefe prüfen |
 | 🟢 Niedrig | Audit-Log | Änderungshistorie für alle Entitäten |
-| 🟢 Niedrig | iCal-Export | Buchungen als Kalender-Abonnement |
-| 🟢 Niedrig | Benachrichtigungen | Push/E-Mail bei Statusänderungen |
+
+**Abgeschlossen:**
+
+| Feature | PR | Beschreibung |
+|---------|-----|-------------|
+| ✅ Mobile-Optimierung | #5 | Responsive Sidebar mit Hamburger-Menü |
+| ✅ Tagesansicht Kalender | #6 | Tag/Woche Toggle in CalendarView |
+| ✅ iCal-Feed | #7 | Edge Function `ical/` – Buchungen als Kalender-Abonnement pro Ressource |
+| ✅ Toast-Benachrichtigungen | #9 | In-App Feedback nach Aktionen via ToastContext |
+| ✅ Error Boundaries | #12 | Benutzerfreundliche Fehlerseite bei unerwarteten Fehlern |
+| ✅ Ferien & Feiertage | Migration 008 | Verwaltung + Bulk-Import von Schulferien |
+| ✅ E-Mail-Log | #4 | Link in Sidebar + EmailLog-Seite |
 
 ### 8.3 Technische Schulden
 

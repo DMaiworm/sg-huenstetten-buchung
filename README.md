@@ -6,7 +6,7 @@ Internes Buchungssystem für Sportstätten und Räumlichkeiten der SG Hünstette
 
 ## Features
 
-- **Wochenkalender** – Stundenraster (7–22 Uhr) mit Facility-/Gruppen-/Ressource-Auswahl
+- **Kalender** – Wochen- und Tagesansicht (Toggle), Stundenraster (7–22 Uhr), Facility-/Gruppen-/Ressource-Auswahl
 - **Buchungsanfragen** – Einzeltermine und wiederkehrende Serien mit Live-Konfliktprüfung
 - **Genehmigungsworkflow** – Anfragen genehmigen oder ablehnen, mit optionalem Kommentar
 - **Rollen & Berechtigungen** – Admin, Trainer, Genehmiger, Extern (einladungsbasiert)
@@ -16,6 +16,11 @@ Internes Buchungssystem für Sportstätten und Räumlichkeiten der SG Hünstette
 - **Benutzerverwaltung** – Einladung per E-Mail, Rollenzuweisung, Trainer-Status
 - **PDF-Export** – Monatsplan pro Kategorie als PDF (jsPDF)
 - **Meine Buchungen** – Filterbarer Überblick aller eigenen Buchungen mit Serien-Gruppierung
+- **Ferien & Feiertage** – Verwaltung und Import von Schulferien/Feiertagen
+- **iCal-Feed** – Buchungen als Kalender-Abonnement pro Ressource (Supabase Edge Function)
+- **Toast-Benachrichtigungen** – In-App-Feedback nach Aktionen (Buchen, Genehmigen, etc.)
+- **Mobile-Optimierung** – Responsive Sidebar mit Hamburger-Menü
+- **Error Boundaries** – Benutzerfreundliche Fehlerseite bei unerwarteten Fehlern
 
 ## Tech Stack
 
@@ -32,32 +37,43 @@ Internes Buchungssystem für Sportstätten und Räumlichkeiten der SG Hünstette
 ```
 src/
 ├── App.js                    # Root – Provider-Hierarchie + Routing
-├── index.js                  # BrowserRouter + AuthProvider
+├── index.js                  # BrowserRouter + AuthProvider + ToastProvider
 ├── contexts/                 # React Contexts
 │   ├── AuthContext.js        #   Login, Session, Rollen-Check
 │   ├── FacilityContext.js    #   Anlagen, Gruppen, Ressourcen, Slots
 │   ├── OrganizationContext.js#   Vereine, Abteilungen, Mannschaften
 │   ├── BookingContext.js     #   Buchungen (CRUD)
-│   └── UserContext.js        #   Benutzer, Genehmiger-Zuweisungen
-├── hooks/
+│   ├── UserContext.js        #   Benutzer, Genehmiger-Zuweisungen
+│   ├── HolidayContext.js     #   Ferien & Feiertage
+│   └── ToastContext.js       #   In-App Toast-Benachrichtigungen
+├── hooks/                    # Domain-spezifische DB-Hooks
+│   ├── useBookings.js        #   Buchungen (DB-Logik)
+│   ├── useFacilities.js      #   Anlagen, Gruppen, Ressourcen, Slots
+│   ├── useOrganization.js    #   Vereine, Abteilungen, Mannschaften
+│   ├── useUsers.js           #   Benutzer, Einladungen
+│   ├── useHolidays.js        #   Ferien & Feiertage
+│   ├── useOperators.js       #   Betreiber
+│   ├── useGenehmigerResources.js # Genehmiger-Ressourcen-Zuweisungen
 │   ├── useBookingActions.js  #   Buchen, Genehmigen, Ablehnen, Löschen
 │   └── useConfirm.js         #   Promise-basierter ConfirmDialog-Ersatz
 ├── routes/
 │   ├── ProtectedRoute.js     #   Auth-Guard (Redirect → /login)
 │   └── PermissionRoute.js    #   Rollen-Guard (kannBuchen, kannGenehmigen, etc.)
 ├── components/
-│   ├── ui/                   #   Shared UI (Badge, Button, ConfirmDialog, Modal, etc.)
+│   ├── ui/                   #   Shared UI (Badge, Button, Modal, ErrorBoundary, etc.)
 │   ├── admin/
-│   │   ├── facilities/       #   Anlagenverwaltung (7 Dateien)
-│   │   ├── organization/     #   Organisationsverwaltung (5 Dateien)
-│   │   ├── users/            #   Benutzerverwaltung (6 Dateien)
+│   │   ├── facilities/       #   Anlagenverwaltung
+│   │   ├── organization/     #   Organisationsverwaltung
+│   │   ├── users/            #   Benutzerverwaltung
+│   │   ├── holidays/         #   Ferien & Feiertage
 │   │   ├── Approvals.js      #   Genehmigungen
 │   │   └── EmailLog.js       #   E-Mail-Protokoll
-│   ├── CalendarView.js       #   Wochenkalender
+│   ├── CalendarView.js       #   Wochen-/Tageskalender (Tag/Woche Toggle)
 │   ├── BookingRequest.js     #   Buchungsformular
+│   ├── BookingEditModal.js   #   Buchung bearbeiten
 │   ├── MyBookings.js         #   Meine Buchungen
 │   ├── PDFExportPage.js      #   PDF-Export
-│   ├── Sidebar.js            #   Navigation
+│   ├── Sidebar.js            #   Navigation (responsive, Hamburger-Menü)
 │   └── LoginPage.js          #   Login
 ├── config/
 │   ├── constants.js          #   UI-Konstanten, Farben, Icons
@@ -68,6 +84,12 @@ src/
 │   └── supabase.js           #   Supabase-Client
 └── utils/
     └── helpers.js            #   Datum, Format, Kalender-Helfer
+
+supabase/
+├── functions/
+│   ├── ical/                 # iCal-Feed Edge Function
+│   └── send-email/           # E-Mail Edge Function
+└── migrations/               # 001–012
 ```
 
 ## Rollen
@@ -106,11 +128,13 @@ Jeder Push auf `main` triggert automatisch ein Vercel-Deployment. Umgebungsvaria
 
 ## Datenbank
 
-Die App nutzt Supabase (PostgreSQL) mit Row Level Security. Migrationen liegen in `supabase/`. Wichtige Tabellen:
+Die App nutzt Supabase (PostgreSQL) mit Row Level Security. Migrationen liegen in `supabase/migrations/` (001–012). Wichtige Tabellen:
 
 - `profiles` – Benutzerprofile (verknüpft mit Supabase Auth)
-- `facilities`, `resource_groups`, `resources`, `sub_resources` – Anlagenstruktur
+- `facilities`, `resource_groups`, `resources` – Anlagenstruktur (Sub-Resources via `parent_resource_id`)
 - `slots` – Verfügbarkeitsfenster für limitierte Ressourcen
-- `bookings` – Buchungen (Einzel + Serien)
+- `bookings` – Buchungen (Einzel + Serien, inkl. `team_id` seit Migration 011)
 - `clubs`, `departments`, `teams`, `trainer_assignments` – Organisationsstruktur
 - `genehmiger_resource_assignments` – Ressourcen-Zuweisung für Genehmiger
+- `holidays` – Ferien & Feiertage
+- `sent_emails` – E-Mail-Protokoll

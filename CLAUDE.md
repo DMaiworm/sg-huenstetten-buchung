@@ -20,25 +20,32 @@ Internes Buchungssystem für Sportstätten der SG Hünstetten. React-SPA mit Sup
 ```bash
 npm start          # Dev-Server auf localhost:3000
 npm run build      # Production Build (CI=false unterdrückt Warnings als Errors)
-npm test           # react-scripts test (aktuell keine Tests vorhanden)
+npm test           # react-scripts test (Tests für helpers.js, ToastContext, useBookingActions)
 ```
 
 ## Projektstruktur
 
 ```
 src/
-├── contexts/          # React Context Provider (Auth, Facility, Organization, Booking, User, Holiday)
-├── hooks/             # useBookingActions, useConfirm, useSupabase (zentrale DB-Logik, 887 Zeilen)
+├── contexts/          # React Context Provider
+│                      #   Auth, Facility, Organization, Booking, User, Holiday, Toast
+├── hooks/             # Domain-spezifische DB-Hooks (aus useSupabase aufgeteilt):
+│                      #   useBookings, useFacilities, useOrganization, useUsers,
+│                      #   useHolidays, useOperators, useGenehmigerResources
+│                      #   + useBookingActions, useConfirm
+│                      #   useSupabase.js = dünner Re-Export-Wrapper (~23 Zeilen)
 ├── routes/            # ProtectedRoute (Auth-Guard), PermissionRoute (Rollen-Guard)
 ├── components/
-│   ├── ui/            # Shared: Button, Badge, Modal, ConfirmDialog, EmptyState, etc.
+│   ├── ui/            # Shared: Button, Badge, Modal, ConfirmDialog, EmptyState,
+│   │                  #         ErrorBoundary, ExpandableSection, PageHeader, etc.
 │   ├── admin/
 │   │   ├── facilities/    # Anlagenverwaltung (Facility → ResourceGroup → Resource)
 │   │   ├── organization/  # Vereine → Abteilungen → Mannschaften
 │   │   ├── users/         # Benutzerverwaltung + Genehmiger-Zuweisungen
-│   │   └── holidays/      # Feiertage
-│   ├── CalendarView.js    # Wochenkalender (7–22 Uhr Raster)
+│   │   └── holidays/      # Feiertage & Schulferien
+│   ├── CalendarView.js    # Wochen-/Tageskalender (7–22 Uhr Raster, Tag/Woche Toggle)
 │   ├── BookingRequest.js  # Mehrstufiges Buchungsformular
+│   ├── BookingEditModal.js # Buchung bearbeiten
 │   ├── MyBookings.js      # Eigene Buchungen mit Serien-Gruppierung
 │   └── PDFExportPage.js   # Monatsplan-PDF pro Kategorie
 ├── config/
@@ -70,7 +77,7 @@ createContext(null) → SomeProvider({ children }) → useSome() mit Error bei f
 
 **Demo-Modus:** Contexts prüfen `isDemo` und fallen auf DEFAULT_*-Daten zurück. CRUD gibt `{ error: 'Demo-Modus' }` zurück.
 
-**Daten-Mapping:** `useSupabase.js` enthält alle DB↔App Mapper (mapProfile, mapFacility, mapBooking, etc.) für snake_case↔camelCase.
+**Daten-Mapping:** Die domain-spezifischen Hooks (`useBookings`, `useFacilities`, etc.) enthalten alle DB↔App Mapper (mapProfile, mapFacility, mapBooking, etc.) für snake_case↔camelCase. `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper.
 
 **Routing:** `<ProtectedRoute>` (Auth) wrapping `<PermissionRoute requiredPermission="kannBuchen">` (Rolle).
 
@@ -117,7 +124,7 @@ Vorlage in `.env.example`. Niemals `.env` committen.
 
 ## Bekannte Einschränkungen
 
-- **Tests:** Basis-Tests für `utils/helpers.js` vorhanden (46 Tests). `npm test` ausführen nach Änderungen an Helfer-/Logik-Funktionen
+- **Tests:** Tests für `utils/helpers.js` (46), `ToastContext` und `useBookingActions` vorhanden. `npm test` nach Änderungen an Helfer-/Logik-Funktionen ausführen.
 - **Tailwind via CDN** – kein Purging, keine Build-Time-Optimierung
 - **Keine TypeScript** – reines JavaScript
 - **Kein Linting-Setup** – nur Standard react-app ESLint-Config
@@ -149,9 +156,10 @@ Vor Beginn jeder größeren Aufgabe:
 
 ## Hinweise für Claude Code Sessions
 
-- `useSupabase.js` ist die zentrale Datei für alle DB-Operationen (887 Zeilen) – bei DB-Änderungen immer dort prüfen
+- DB-Operationen sind auf 7 domain-spezifische Hooks aufgeteilt: `useBookings`, `useFacilities`, `useOrganization`, `useUsers`, `useHolidays`, `useOperators`, `useGenehmigerResources` – bei DB-Änderungen den passenden Hook prüfen
+- `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper, nicht mehr die zentrale Logik-Datei
 - Tailwind-Klassen direkt in JSX, keine CSS-Dateien anlegen
-- Bestehende UI-Komponenten aus `components/ui/` wiederverwenden (Button, Modal, Badge, etc.)
-- Dokumentation in `docs/PROTOTYPE-DOCUMENTATION.md` (37KB) enthält ER-Diagramme, API-Details, Berechtigungsmatrix
-- Bei Supabase-Queries: snake_case verwenden, Mapper in useSupabase.js konvertieren zu camelCase
+- Bestehende UI-Komponenten aus `components/ui/` wiederverwenden (Button, Modal, Badge, ErrorBoundary, etc.)
+- Dokumentation in `docs/PROTOTYPE-DOCUMENTATION.md` enthält ER-Diagramme, API-Details, Berechtigungsmatrix
+- Bei Supabase-Queries: snake_case verwenden, Mapper im jeweiligen Domain-Hook konvertieren zu camelCase
 - Neue Komponenten immer in den passenden Unterordner legen und im jeweiligen `index.js` exportieren
