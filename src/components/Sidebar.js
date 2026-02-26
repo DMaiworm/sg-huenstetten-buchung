@@ -85,6 +85,7 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
           {navItem('/', <Calendar className="w-5 h-5" />, 'Kalender')}
           {navItem('/meine-buchungen', <ClipboardList className="w-5 h-5" />, 'Meine Buchungen')}
           {navItem('/teams', <Users2 className="w-5 h-5" />, 'Teamübersicht')}
+          {navItem('/trainer', <Users className="w-5 h-5" />, 'Trainerübersicht')}
           {kannBuchen && navItem('/buchen', <FileText className="w-5 h-5" />, 'Neue Anfrage')}
           {navItem('/export', <FileDown className="w-5 h-5" />, 'PDF-Export')}
 

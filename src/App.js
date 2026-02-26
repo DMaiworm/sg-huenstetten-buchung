@@ -25,6 +25,7 @@ import OrganizationManagement from './components/admin/OrganizationManagement';
 import HolidayManagement from './components/admin/HolidayManagement';
 import BookingEditModal from './components/BookingEditModal';
 import TrainerProfil from './components/trainer/TrainerProfil';
+import TrainerUebersicht from './components/TrainerUebersicht';
 import TrainerVerwaltung from './components/admin/trainer/TrainerVerwaltung';
 import TeamOverview from './components/TeamOverview';
 import LoginPage from './components/LoginPage';
@@ -205,6 +206,9 @@ function AppLayout() {
                 <EmailLog emailService={emailService} />
               </PermissionRoute>
             } />
+
+            {/* Trainerübersicht – für alle */}
+            <Route path="/trainer" element={<TrainerUebersicht />} />
 
             {/* Trainer-Portal */}
             <Route path="/trainer/profil" element={
