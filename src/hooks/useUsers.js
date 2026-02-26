@@ -88,24 +88,17 @@ export function useUsers() {
     const user = users.find(u => u.id === userId);
     if (!user) return { error: 'User nicht gefunden' };
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(
-        'https://zqjheewhgrmcwzjurjlg.supabase.co/functions/v1/invite-trainer',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-          body: JSON.stringify({ profileId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName }),
-        }
-      );
-      const result = await response.json();
-      if (!response.ok || result.error) return { error: result.error || 'Unbekannter Fehler' };
-      setUsersState(p => p.map(u => u.id === userId
-        ? { ...u, invitedAt: new Date().toISOString(), isPassive: false, kannBuchen: true }
-        : u
-      ));
+      // supabase.functions.invoke() setzt Auth-Header automatisch korrekt (kein manueller fetch)
+      const { data: result, error: fnError } = await supabase.functions.invoke('invite-trainer', {
+        body: { profileId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName },
+      });
+      if (fnError) return { error: fnError.message };
+      if (result?.error) return { error: result.error };
+      // Benutzerliste neu laden – UUID kann sich durch den Invite-Prozess geändert haben
+      await fetchUsers();
       return { error: null };
     } catch (err) { return { error: err.message }; }
-  }, [users]);
+  }, [users, fetchUsers]);
 
   const setUsers = useCallback((v) => setUsersState(v), []);
   return { users, setUsers, loading, error, isDemo, createUser, updateUser, deleteUser, inviteUser, refreshUsers: fetchUsers };
