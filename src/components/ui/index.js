@@ -14,3 +14,4 @@ export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as PageHeader } from './PageHeader';
 export { default as DebouncedInput } from './DebouncedInput';
 export { default as AddButton } from './AddButton';
+export { default as ErrorBoundary } from './ErrorBoundary';
