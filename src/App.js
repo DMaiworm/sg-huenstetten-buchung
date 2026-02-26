@@ -109,7 +109,7 @@ function AppLayout() {
               <CalendarView bookings={bookings} slots={slots}
                 selectedResource={effectiveSelectedResource} setSelectedResource={setSelectedResource}
                 currentDate={currentDate} setCurrentDate={setCurrentDate}
-                users={users} resources={RESOURCES} {...facilityProps}
+                users={users} resources={RESOURCES} teams={org.teams} {...facilityProps}
                 onBookingClick={setEditingBooking} />
             } />
             <Route path="/meine-buchungen" element={

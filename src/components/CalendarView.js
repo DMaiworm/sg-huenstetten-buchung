@@ -40,7 +40,7 @@ const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT;
 const CalendarView = ({
   bookings, slots, selectedResource, setSelectedResource,
   currentDate, setCurrentDate, users, adminCheckbox,
-  resources, facilities, resourceGroups,
+  resources, facilities, resourceGroups, teams,
   onBookingClick,
 }) => {
   // ── Lokaler State ───────────────────────────
@@ -281,11 +281,13 @@ const CalendarView = ({
     const heightPx = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 20);
     const userName = getUserName(booking.userId);
 
+    const bookingTeam = teams?.find(t => t.id === booking.teamId);
+
     let bgColor, textColor, borderStyle;
     if (isBlockingBooking) {
       bgColor = '#d1d5db'; textColor = '#4b5563'; borderStyle = '1px dashed #9ca3af';
     } else if (booking.status === 'approved') {
-      bgColor = bookingResource?.color; textColor = '#ffffff';
+      bgColor = bookingTeam?.color || bookingResource?.color; textColor = '#ffffff';
     } else {
       bgColor = '#fef08a'; textColor = '#854d0e'; borderStyle = '1px solid #facc15';
     }
