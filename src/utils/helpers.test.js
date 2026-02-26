@@ -220,12 +220,11 @@ describe('findConflicts', () => {
     expect(conflicts[0].id).toBe('b2');
   });
 
-  // Hinweis: Zwei Einzelbuchungen (seriesId: null) werden aktuell NICHT als
-  // Konflikt erkannt, weil `null !== null` → false. Ggf. Bug im Prod-Code.
-  it('behandelt null-seriesId als gleiche Serie (bekanntes Verhalten)', () => {
+  it('erkennt Konflikt zwischen zwei Einzelbuchungen (seriesId: null)', () => {
     const other = { ...baseBooking, id: 'b2', startTime: '09:00', endTime: '11:00' };
     const conflicts = findConflicts(baseBooking, [baseBooking, other]);
-    expect(conflicts).toHaveLength(0);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].id).toBe('b2');
   });
 
   it('ignoriert eigene Buchung', () => {
