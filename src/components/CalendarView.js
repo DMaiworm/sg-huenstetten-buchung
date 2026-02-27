@@ -364,7 +364,32 @@ const CalendarView = ({
             ))}
           </select>
         </div>
-        {adminCheckbox && <div className="flex-shrink-0 ml-auto">{adminCheckbox}</div>}
+        {/* Woche/Tag Toggle */}
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm ml-auto">
+          <button
+            onClick={() => { if (viewMode !== 'week') toggleViewMode(); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
+              viewMode === 'week'
+                ? 'bg-blue-600 text-white font-medium'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span className="hidden sm:inline">Woche</span>
+          </button>
+          <button
+            onClick={() => { if (viewMode !== 'day') toggleViewMode(); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 transition-colors ${
+              viewMode === 'day'
+                ? 'bg-blue-600 text-white font-medium'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="hidden sm:inline">Tag</span>
+          </button>
+        </div>
+        {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
       {/* ── 2. Ressourcen-Tabs (nur Wochenansicht) ── */}
@@ -421,32 +446,6 @@ const CalendarView = ({
 
         {/* Rechts: Navigation */}
         <div className="flex items-center gap-2 flex-wrap justify-end">
-
-          {/* Woche/Tag Toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-            <button
-              onClick={() => { if (viewMode !== 'week') toggleViewMode(); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                viewMode === 'week'
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span className="hidden sm:inline">Woche</span>
-            </button>
-            <button
-              onClick={() => { if (viewMode !== 'day') toggleViewMode(); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 transition-colors ${
-                viewMode === 'day'
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Tag</span>
-            </button>
-          </div>
 
           {/* ← */}
           <Button variant="ghost" onClick={() => navigatePeriod(-1)}>
