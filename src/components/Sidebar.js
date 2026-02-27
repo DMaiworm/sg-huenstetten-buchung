@@ -6,10 +6,14 @@ import UserMenu from './UserMenu';
 /**
  * Sidebar – Haupt-Navigation.
  *
+ * Struktur:
+ *   ÜBERSICHTEN       – alle eingeloggten User
+ *   MEINE AUFGABEN    – kontextuell (kannBuchen, kannGenehmigen, istTrainer)
+ *   TAGESBETRIEB      – kannAdministrieren (regelmäßige Verwaltung)
+ *   SYSTEM-SETUP      – kannAdministrieren (seltenes Grundlagen-Setup)
+ *
  * Mobile (< md): fixed, per Hamburger-Button in AppLayout öffenbar.
- *   - open / onClose steuern Sichtbarkeit
- *   - Klick auf NavLink schließt die Sidebar
- * Desktop (md+): immer sichtbar, keine Props nötig.
+ * Desktop (md+): immer sichtbar.
  */
 const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren, istTrainer, open, onClose }) => {
   const navItem = (to, icon, label, badge) => (
@@ -36,6 +40,12 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
         </>
       )}
     </NavLink>
+  );
+
+  const section = (label, first = false) => (
+    <p className={`text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2 ${first ? '' : 'mt-5'}`}>
+      {label}
+    </p>
   );
 
   return (
@@ -69,7 +79,6 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
               <p className="text-xs text-gray-400">Buchungssystem</p>
             </div>
           </NavLink>
-          {/* Schließen-Button nur Mobile */}
           <button
             onClick={onClose}
             className="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -81,39 +90,41 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Allgemein</p>
+
+          {/* ── Übersichten ── */}
+          {section('Übersichten', true)}
           {navItem('/', <Calendar className="w-5 h-5" />, 'Kalender')}
-          {navItem('/meine-buchungen', <ClipboardList className="w-5 h-5" />, 'Buchungsübersicht')}
-          {navItem('/teams', <Users2 className="w-5 h-5" />, 'Teamübersicht')}
-          {navItem('/trainer', <Users className="w-5 h-5" />, 'Trainerübersicht')}
+          {navItem('/teams', <Users2 className="w-5 h-5" />, 'Mannschaften')}
+          {navItem('/trainer', <Users className="w-5 h-5" />, 'Trainer')}
+
+          {/* ── Meine Aufgaben ── */}
+          {section('Meine Aufgaben')}
           {kannBuchen && navItem('/buchen', <FileText className="w-5 h-5" />, 'Buchungsanfrage')}
-          {navItem('/export', <FileDown className="w-5 h-5" />, 'PDF-Export')}
+          {navItem('/meine-buchungen', <ClipboardList className="w-5 h-5" />, 'Buchungsübersicht')}
+          {kannGenehmigen && navItem('/genehmigungen', <Shield className="w-5 h-5" />, 'Genehmigungen', pendingCount)}
+          {istTrainer && navItem('/trainer/profil', <UserCircle className="w-5 h-5" />, 'Mein Trainer-Profil')}
 
-          {istTrainer && (
-            <>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Trainer-Portal</p>
-              {navItem('/trainer/profil', <UserCircle className="w-5 h-5" />, 'Mein Profil')}
-            </>
-          )}
-
-          {kannGenehmigen && (
-            <>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Genehmigungen</p>
-              {navItem('/genehmigungen', <Shield className="w-5 h-5" />, 'Genehmigungen', pendingCount)}
-            </>
-          )}
-
+          {/* ── Tagesbetrieb ── */}
           {kannAdministrieren && (
             <>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mt-4 mb-2">Administration</p>
-              {navItem('/admin/benutzer', <Users className="w-5 h-5" />, 'Benutzerverwaltung')}
-              {navItem('/admin/anlagen', <Building2 className="w-5 h-5" />, 'Anlagenverwaltung')}
-              {navItem('/admin/organisation', <Settings className="w-5 h-5" />, 'Organisation')}
-              {navItem('/admin/ferien-feiertage', <CalendarDays className="w-5 h-5" />, 'Ferien & Feiertage')}
-              {navItem('/admin/emails', <Mail className="w-5 h-5" />, 'E-Mail-Log')}
+              {section('Tagesbetrieb')}
               {navItem('/admin/trainer', <ClipboardCheck className="w-5 h-5" />, 'Trainerverwaltung')}
+              {navItem('/admin/emails', <Mail className="w-5 h-5" />, 'E-Mail-Log')}
+              {navItem('/export', <FileDown className="w-5 h-5" />, 'PDF-Export')}
             </>
           )}
+
+          {/* ── System-Setup ── */}
+          {kannAdministrieren && (
+            <>
+              {section('System-Setup')}
+              {navItem('/admin/benutzer', <Users className="w-5 h-5" />, 'Benutzerverwaltung')}
+              {navItem('/admin/anlagen', <Building2 className="w-5 h-5" />, 'Anlagen & Ressourcen')}
+              {navItem('/admin/organisation', <Settings className="w-5 h-5" />, 'Organisation')}
+              {navItem('/admin/ferien-feiertage', <CalendarDays className="w-5 h-5" />, 'Ferien & Feiertage')}
+            </>
+          )}
+
         </nav>
 
         {/* User Menu */}
