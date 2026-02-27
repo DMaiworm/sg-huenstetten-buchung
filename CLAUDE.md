@@ -91,21 +91,21 @@ createContext(null) → SomeProvider({ children }) → useSome() mit Error bei f
 
 **Routing:** `<ProtectedRoute>` (Auth) wrapping `<PermissionRoute requiredPermission="kannBuchen">` (Rolle).
 
-**Rollen:** admin, genehmiger, trainer, extern. Berechtigungsprüfung über `kannBuchen`, `kannGenehmigen`, `kannAdministrieren` aus AuthContext.
+**Rollen:** admin, genehmiger, verwalter, trainer, extern. Berechtigungsprüfung über `kannBuchen`, `kannGenehmigen`, `kannAdministrieren`, `kannVerwalten` aus AuthContext.
 
 ## Datenbank
 
-Supabase PostgreSQL mit RLS. Migrationen in `supabase/migrations/` (001–019).
+Supabase PostgreSQL mit RLS. Migrationen in `supabase/migrations/` (001–023, ab 013 via MCP).
 
 **Wichtige Tabellen:**
 - `profiles` – Benutzer (UUID PK, verknüpft mit Supabase Auth). Zusatzfelder für Trainer: `ist_trainer`, `stammverein_id` (FK clubs), `stammverein_andere`
 - `facilities` → `resource_groups` → `resources` (hierarchisch, resources können parent_resource_id haben für Splits)
 - `bookings` – Einzeltermine + Serien (series_id), Status: pending/approved/rejected
-- `clubs` → `departments` → `teams` → `trainer_assignments`
+- `clubs` → `departments` → `teams` (mit `ist_jugendmannschaft` Flag) → `trainer_assignments`
 - `genehmiger_resource_assignments` – Genehmiger↔Ressourcen-Zuordnung
 - `holidays` – Feiertage
 - `sent_emails` – E-Mail-Log
-- `trainer_profile_details` – Trainer-Profil 1:1 zu profiles (Bio, Foto, IBAN, FZ, Chip-ID, Veröffentlichungs-Flags)
+- `trainer_profile_details` – Trainer-Profil 1:1 zu profiles (Bio, Foto, IBAN, FZ, VK, Chip-ID, Veröffentlichungs-Flags, Postadresse)
 - `trainer_lizenzen` – Lizenzen & Zertifikate 1:n zu profiles
 - `trainer_erfolge` – Erfolge 1:n zu profiles
 
@@ -190,16 +190,27 @@ Claude hat direkten Zugriff auf das Supabase-Projekt via MCP:
 - `get_logs` – Logs für api/postgres/edge-function/auth/storage abrufen
 - `get_advisors` – Security- und Performance-Hinweise
 
-## RLS Policy Konventionen
+## RLS Policy Konventionen (seit Migration 021)
+
+**Alle 17 Tabellen haben RLS aktiviert.** Hilfsfunktion `is_admin()` prüft `kann_administrieren`.
 
 ```sql
--- Standard-Pattern für Admin-only Tabellen:
-ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "my_table_select" ON my_table FOR SELECT USING (true);
-CREATE POLICY "my_table_insert" ON my_table FOR INSERT WITH CHECK (true);
--- Für User-spezifische Daten:
-CREATE POLICY "my_table_own" ON my_table USING (user_id = auth.uid());
+-- SELECT: Immer auf authenticated beschränkt
+CREATE POLICY "select_authenticated" ON my_table FOR SELECT TO authenticated USING (true);
+
+-- INSERT/UPDATE/DELETE: Admin-only für Konfigurationstabellen
+CREATE POLICY "insert_admin" ON my_table FOR INSERT TO authenticated WITH CHECK (public.is_admin());
+
+-- Bookings: eigene oder Admin/Genehmiger
+CREATE POLICY "update_own_or_admin_or_genehmiger" ON bookings FOR UPDATE TO authenticated
+  USING (user_id = auth.uid() OR public.is_admin() OR EXISTS (...kann_genehmigen...));
+
+-- Profiles: eigene oder Admin (Trigger schützt Berechtigungs-Flags)
+CREATE POLICY "update_own_or_admin" ON profiles FOR UPDATE TO authenticated
+  USING (id = auth.uid() OR public.is_admin());
 ```
+
+**Trigger `protect_permission_flags`:** Non-Admins können eigene Profile-Felder ändern, aber nicht `kann_buchen`, `kann_genehmigen`, `kann_administrieren`, `kann_verwalten`, `ist_trainer`, `operator_id`, `role`.
 
 Edge Functions mit `SUPABASE_SERVICE_ROLE_KEY` umgehen RLS vollständig.
 
