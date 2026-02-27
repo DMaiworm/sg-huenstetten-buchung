@@ -4,16 +4,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 function mapHoliday(h) {
   return { id: h.id, name: h.name, type: h.type, startDate: h.start_date, endDate: h.end_date, year: h.year };
 }
 
 export function useHolidays() {
+  const { user } = useAuth();
   const [holidays, setHolidaysState] = useState([]);
   const [loading, setLoading]        = useState(true);
 
   const fetchAll = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const { data, error } = await supabase.from('holidays').select('*').order('start_date');
@@ -21,7 +24,7 @@ export function useHolidays() {
       setHolidaysState((data || []).map(mapHoliday));
     } catch (err) { console.warn('Holidays nicht geladen:', err.message); setHolidaysState([]); }
     setLoading(false);
-  }, []);
+  }, [user]);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const createHoliday = useCallback(async (holidayData) => {

@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 function mapProfile(profile) {
   return {
@@ -44,12 +45,14 @@ function mapUserToDb(user) {
 }
 
 export function useUsers() {
+  const { user } = useAuth();
   const [users, setUsersState] = useState([]);
   const [loading, setLoading]  = useState(true);
   const [error,   setError]    = useState(null);
   const [isDemo,  setIsDemo]   = useState(false);
 
   const fetchUsers = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     setLoading(true); setError(null);
     try {
       const { data, error: e } = await supabase
@@ -61,7 +64,7 @@ export function useUsers() {
       setIsDemo(false);
     } catch (err) { setUsersState([]); setIsDemo(true); setError(err.message); }
     setLoading(false);
-  }, []);
+  }, [user]);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const createUser = useCallback(async (userData) => {

@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 function mapClub(c)       { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
 function mapDepartment(d) { return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
@@ -11,6 +12,7 @@ function mapTeam(t)       { return { id: t.id, departmentId: t.department_id, na
 function mapTrainerAssignment(ta) { return { id: ta.id, userId: ta.user_id, teamId: ta.team_id, isPrimary: ta.is_primary }; }
 
 export function useOrganization() {
+  const { user } = useAuth();
   const [clubs,              setClubsState]              = useState([]);
   const [departments,        setDepartmentsState]        = useState([]);
   const [teams,              setTeamsState]              = useState([]);
@@ -19,6 +21,7 @@ export function useOrganization() {
   const [isDemo,             setIsDemo]                  = useState(false);
 
   const fetchAll = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const [clubR, deptR, teamR, taR] = await Promise.all([
@@ -40,7 +43,7 @@ export function useOrganization() {
       } else { setIsDemo(true); }
     } catch (err) { console.warn('Organization nicht geladen:', err.message); setIsDemo(true); }
     setLoading(false);
-  }, []);
+  }, [user]);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // --- Clubs ---

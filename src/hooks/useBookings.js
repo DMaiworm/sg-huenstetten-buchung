@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 function mapBooking(b) {
   return {
@@ -31,11 +32,13 @@ function mapBookingToDb(b) {
 }
 
 export function useBookings() {
+  const { user } = useAuth();
   const [bookings, setBookingsState] = useState([]);
   const [loading,  setLoading]       = useState(true);
   const [isDemo,   setIsDemo]        = useState(false);
 
   const fetchBookings = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const { data, error } = await supabase.from('bookings').select('*').order('date');
@@ -48,7 +51,7 @@ export function useBookings() {
       setIsDemo(true);
     }
     setLoading(false);
-  }, []);
+  }, [user]);
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
   const createBooking = useCallback(async (bookingData) => {

@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 function mapFacility(f) {
   return { id: f.id, name: f.name, street: f.street || '', houseNumber: f.house_number || '', zip: f.zip || '', city: f.city || '', sortOrder: f.sort_order };
@@ -33,6 +34,7 @@ function mapSlot(s) {
 }
 
 export function useFacilities() {
+  const { user } = useAuth();
   const [facilities,     setFacilitiesState]     = useState([]);
   const [resourceGroups, setResourceGroupsState] = useState([]);
   const [resources,      setResourcesState]      = useState([]);
@@ -41,6 +43,7 @@ export function useFacilities() {
   const [isDemo,         setIsDemo]              = useState(false);
 
   const fetchAll = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const [facR, grpR, resR, slotR] = await Promise.all([
@@ -62,7 +65,7 @@ export function useFacilities() {
       } else { setIsDemo(true); }
     } catch (err) { console.warn('Facilities nicht geladen:', err.message); setIsDemo(true); }
     setLoading(false);
-  }, []);
+  }, [user]);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Legacy setters (kept for demo mode compatibility)

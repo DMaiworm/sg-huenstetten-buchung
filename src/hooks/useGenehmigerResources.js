@@ -4,12 +4,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export function useGenehmigerResources() {
+  const { user } = useAuth();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading]         = useState(true);
 
   const fetchAll = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const { data, error } = await supabase.from('genehmiger_resources').select('*');
@@ -17,7 +20,7 @@ export function useGenehmigerResources() {
       setAssignments(data || []);
     } catch (err) { console.warn('Genehmiger-Ressourcen nicht geladen:', err.message); }
     setLoading(false);
-  }, []);
+  }, [user]);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const getResourcesForUser = useCallback((userId) =>
