@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Camera, Award, Trophy, CheckCircle, Clock, AlertCircle,
   Plus, Pencil, Trash2, Upload, Save, Mail, Phone,
@@ -38,14 +38,27 @@ function StatusBadge({ ok, label }) {
 // -----------------------------------------------------------------------
 export default function TrainerProfil() {
   const { profile } = useAuth();
-  const { clubs } = useOrg();
+  const { clubs, departments, teams, trainerAssignments } = useOrg();
   const { showToast } = useToast();
   const {
-    details, lizenzen, erfolge, aktivFuer, loading, error,
+    details, lizenzen, erfolge, loading, error,
     upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis,
     addLizenz, updateLizenz, deleteLizenz,
     addErfolg, updateErfolg, deleteErfolg,
   } = useTrainerProfile(profile?.id);
+
+  // Aktiv-für-Vereine aus Team-Zuordnungen ableiten
+  const aktivFuer = useMemo(() => {
+    const myAssignments = (trainerAssignments || []).filter(ta => ta.userId === profile?.id);
+    const clubIds = new Set();
+    for (const ta of myAssignments) {
+      const team = (teams || []).find(t => t.id === ta.teamId);
+      if (!team) continue;
+      const dept = (departments || []).find(d => d.id === team.departmentId);
+      if (dept) clubIds.add(dept.clubId);
+    }
+    return [...clubIds];
+  }, [trainerAssignments, teams, departments, profile?.id]);
 
   // Profil-Header State
   const [bioEdit, setBioEdit]   = useState(false);

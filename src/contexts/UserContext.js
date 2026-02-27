@@ -6,7 +6,6 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const {
     users, setUsers, createUser, updateUser, deleteUser, inviteUser,
-    updateTrainerVereine,
     loading: usersLoading,
   } = useUsersHook();
 
@@ -22,7 +21,7 @@ export function UserProvider({ children }) {
 
   const value = {
     // Users
-    users, setUsers, createUser, updateUser, deleteUser, inviteUser, updateTrainerVereine,
+    users, setUsers, createUser, updateUser, deleteUser, inviteUser,
     // Operators
     operators,
     // Genehmiger-Ressourcen

@@ -24,8 +24,6 @@ function mapTrainer(row) {
     // Öffentliche Profil-Details
     bio:       det?.bio       || '',
     photoUrl:  det?.photo_url || null,
-    // Vereinszuordnungen
-    aktivFuer: (row.trainer_verein_aktiv || []).map(r => r.club_id),
     // Lizenzen
     lizenzen: (row.trainer_lizenzen || []).map(l => ({
       id:               l.id,
@@ -58,7 +56,6 @@ export function useTrainerUebersicht() {
         .select(`
           id, first_name, last_name, email, phone,
           trainer_profile_details(bio, photo_url),
-          trainer_verein_aktiv(club_id),
           trainer_lizenzen(id, bezeichnung, ausstellende_org, ausstellungsdatum, ablaufdatum),
           trainer_erfolge(id, jahr, mannschaft, titel, sort_order)
         `)

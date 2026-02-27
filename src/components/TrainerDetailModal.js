@@ -60,7 +60,14 @@ const TrainerDetailModal = ({ trainer, trainerAssignments, teams, departments, c
     return (a.club?.name || '').localeCompare(b.club?.name || '', 'de');
   });
 
-  const aktivFuerNames = (trainer.aktivFuer || [])
+  const aktivFuerClubIds = new Set();
+  for (const ta of assignments) {
+    const team = (teams || []).find(t => t.id === ta.teamId);
+    if (!team) continue;
+    const dept = (departments || []).find(d => d.id === team.departmentId);
+    if (dept) aktivFuerClubIds.add(dept.clubId);
+  }
+  const aktivFuerNames = [...aktivFuerClubIds]
     .map(id => (clubs || []).find(c => c.id === id)?.name)
     .filter(Boolean);
 

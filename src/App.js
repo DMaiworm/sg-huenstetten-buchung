@@ -44,7 +44,7 @@ function AppLayout() {
   const { facilities, resourceGroups, configResources, slots, RESOURCES, loading: facilitiesLoading } = facility;
   const org = useOrg();
   const { bookings, loading: bookingsLoading } = useBookingContext();
-  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, updateTrainerVereine, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
+  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
   const { handleNewBooking, handleEditBooking, handleApprove, handleReject, handleDeleteBooking } = useBookingActions();
   const holiday = useHolidayContext();
 
@@ -152,7 +152,6 @@ function AppLayout() {
                 <UserManagement
                   users={users} setUsers={setUsers}
                   createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} inviteUser={inviteUser}
-                  updateTrainerVereine={updateTrainerVereine}
                   operators={operators}
                   resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities}
                   genehmigerAssignments={genehmigerAssignments}

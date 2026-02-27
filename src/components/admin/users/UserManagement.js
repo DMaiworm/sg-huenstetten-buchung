@@ -7,7 +7,6 @@ import UserFormModal from './UserFormModal';
 
 const UserManagement = ({
   users, setUsers, createUser, updateUser, deleteUser, inviteUser,
-  updateTrainerVereine,
   operators,
   resources, resourceGroups, facilities,
   genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource,
@@ -40,10 +39,6 @@ const UserManagement = ({
     } else {
       const { data: created } = createUser ? await createUser(newUser) : {};
       savedId = created?.id;
-    }
-    // Aktiv-für-Vereinszuordnungen separat speichern (nur für Trainer)
-    if (savedId && newUser.istTrainer && updateTrainerVereine) {
-      await updateTrainerVereine(savedId, newUser.aktivFuer || []);
     }
     setSaving(false);
     setNewUser(emptyUser); setEditingUser(null); setShowForm(false);

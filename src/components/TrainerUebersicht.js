@@ -37,14 +37,13 @@ const TrainerUebersicht = () => {
     const clubTeamIds = new Set(
       (teams || []).filter(t => clubDeptIds.has(t.departmentId)).map(t => t.id)
     );
-    // Trainer, die aktiv_fuer diesen Club sind
-    const clubTrainerIds = new Set(
-      trainers.filter(tr => (tr.aktivFuer || []).includes(selectedClubId)).map(tr => tr.id)
+    // Departements mit mindestens einem Trainer (aus Team-Zuordnungen)
+    const trainerIdsInClub = new Set(
+      (trainerAssignments || []).filter(ta => clubTeamIds.has(ta.teamId)).map(ta => ta.userId)
     );
-    // Departements, in denen diese Trainer Teams haben
     const activeDeptIds = new Set();
     for (const ta of (trainerAssignments || [])) {
-      if (clubTrainerIds.has(ta.userId) && clubTeamIds.has(ta.teamId)) {
+      if (trainerIdsInClub.has(ta.userId) && clubTeamIds.has(ta.teamId)) {
         const team = (teams || []).find(t => t.id === ta.teamId);
         if (team) activeDeptIds.add(team.departmentId);
       }
@@ -52,13 +51,27 @@ const TrainerUebersicht = () => {
     return (departments || [])
       .filter(d => d.clubId === selectedClubId && activeDeptIds.has(d.id))
       .sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [selectedClubId, departments, teams, trainers, trainerAssignments]);
+  }, [selectedClubId, departments, teams, trainerAssignments]);
+
+  // Trainer-IDs pro Verein (aus Team-Zuordnungen)
+  const trainerIdsForClub = useMemo(() => {
+    if (!selectedClubId) return null;
+    const clubDeptIds = new Set(
+      (departments || []).filter(d => d.clubId === selectedClubId).map(d => d.id)
+    );
+    const clubTeamIds = new Set(
+      (teams || []).filter(t => clubDeptIds.has(t.departmentId)).map(t => t.id)
+    );
+    return new Set(
+      (trainerAssignments || []).filter(ta => clubTeamIds.has(ta.teamId)).map(ta => ta.userId)
+    );
+  }, [selectedClubId, departments, teams, trainerAssignments]);
 
   // Gefilterte Trainer
   const filtered = useMemo(() => {
     let result = trainers;
-    if (selectedClubId) {
-      result = result.filter(tr => (tr.aktivFuer || []).includes(selectedClubId));
+    if (selectedClubId && trainerIdsForClub) {
+      result = result.filter(tr => trainerIdsForClub.has(tr.id));
     }
     if (selectedDeptId) {
       // Teams in dieser Abteilung
@@ -100,7 +113,10 @@ const TrainerUebersicht = () => {
             <select value={selectedClubId} onChange={e => handleClubChange(e.target.value)} className={inputCls}>
               <option value="">Alle Vereine</option>
               {(clubs || []).map(c => {
-                const count = trainers.filter(tr => (tr.aktivFuer || []).includes(c.id)).length;
+                const clubDeptIds = new Set((departments || []).filter(d => d.clubId === c.id).map(d => d.id));
+                const clubTeamIds = new Set((teams || []).filter(t => clubDeptIds.has(t.departmentId)).map(t => t.id));
+                const trainerIds  = new Set((trainerAssignments || []).filter(ta => clubTeamIds.has(ta.teamId)).map(ta => ta.userId));
+                const count = trainers.filter(tr => trainerIds.has(tr.id)).length;
                 return <option key={c.id} value={c.id}>{c.name} ({count})</option>;
               })}
             </select>
