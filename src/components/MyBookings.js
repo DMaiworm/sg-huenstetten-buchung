@@ -9,8 +9,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, BookMarked } from 'lucide-react';
-import PageHeader from './ui/PageHeader';
+import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, BookMarked, Building2 } from 'lucide-react';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
@@ -57,12 +56,13 @@ const btnDanger = `${btnBase} bg-red-600 text-white hover:bg-red-700`;
 // ──────────────────────────────────────────────
 
 const MyBookings = ({
-  bookings, isAdmin, onDelete, onEdit, users, resources, resourceGroups,
+  bookings, isAdmin, onDelete, onEdit, users, resources, resourceGroups, facilities,
   clubs, departments, teams, trainerAssignments,
 }) => {
   // ── Local state ────────────────────────────
-  const [selectedGroupId, setSelectedGroupId]   = useState('all');
-  const [selectedResource, setSelectedResource] = useState('all');
+  const [selectedFacilityId, setSelectedFacilityId] = useState('all');
+  const [selectedGroupId, setSelectedGroupId]       = useState('all');
+  const [selectedResource, setSelectedResource]     = useState('all');
   const [expandedSeries, setExpandedSeries]     = useState({});
   const [confirm, ConfirmDialogEl]              = useConfirm();
 
@@ -103,17 +103,14 @@ const MyBookings = ({
     if (ok) onDelete(sb.id, 'single', null);
   };
 
-  // ── Dynamic group tabs ──
-  const groupTabs = useMemo(() => {
-    if (!resourceGroups || resourceGroups.length === 0) return [];
-    return resourceGroups
-      .slice()
-      .sort((a, b) => {
-        if (a.facilityId < b.facilityId) return -1;
-        if (a.facilityId > b.facilityId) return 1;
-        return a.sortOrder - b.sortOrder;
-      });
-  }, [resourceGroups]);
+  // ── Gruppen für Dropdown 2 (gefiltert nach Anlage) ──
+  const groupsForDropdown = useMemo(() => {
+    if (!resourceGroups) return [];
+    const groups = selectedFacilityId === 'all'
+      ? resourceGroups
+      : resourceGroups.filter(g => g.facilityId === selectedFacilityId);
+    return groups.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }, [resourceGroups, selectedFacilityId]);
 
   // ── Resources for the selected group ──
   const groupResources = useMemo(() => {
@@ -129,14 +126,21 @@ const MyBookings = ({
 
   // ── Filtered bookings ──
   const filteredBookings = useMemo(() => {
-    if (selectedGroupId === 'all') return visibleBookings;
-    const groupResIds = resources.filter(r => r.groupId === selectedGroupId).map(r => r.id);
-    let filtered = visibleBookings.filter(b => groupResIds.includes(b.resourceId));
-    if (selectedResource !== 'all') {
-      filtered = filtered.filter(b => b.resourceId === selectedResource);
+    let result = visibleBookings;
+    if (selectedFacilityId !== 'all') {
+      const facGroupIds = (resourceGroups || []).filter(g => g.facilityId === selectedFacilityId).map(g => g.id);
+      const facResIds = resources.filter(r => facGroupIds.includes(r.groupId)).map(r => r.id);
+      result = result.filter(b => facResIds.includes(b.resourceId));
     }
-    return filtered;
-  }, [visibleBookings, selectedGroupId, selectedResource, resources]);
+    if (selectedGroupId !== 'all') {
+      const groupResIds = resources.filter(r => r.groupId === selectedGroupId).map(r => r.id);
+      result = result.filter(b => groupResIds.includes(b.resourceId));
+    }
+    if (selectedResource !== 'all') {
+      result = result.filter(b => b.resourceId === selectedResource);
+    }
+    return result;
+  }, [visibleBookings, selectedFacilityId, selectedGroupId, selectedResource, resources, resourceGroups]);
 
   // ── Group series bookings together with conflict info ──
   const groupedBookings = useMemo(() => {
@@ -164,16 +168,16 @@ const MyBookings = ({
       .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
   }, [filteredBookings, bookings]);
 
-  // ── Tab change handler ──
-  const handleGroupChange = (groupId) => {
-    setSelectedGroupId(groupId);
+  // ── Dropdown change handlers ──
+  const handleFacilityChange = (facId) => {
+    setSelectedFacilityId(facId);
+    setSelectedGroupId('all');
     setSelectedResource('all');
   };
 
-  // ── Booking count helpers (use visibleBookings to exclude blockers) ──
-  const getBookingCountForGroup = (groupId) => {
-    const resIds = resources.filter(r => r.groupId === groupId).map(r => r.id);
-    return visibleBookings.filter(b => resIds.includes(b.resourceId)).length;
+  const handleGroupChange = (groupId) => {
+    setSelectedGroupId(groupId);
+    setSelectedResource('all');
   };
 
   const getBookingCountForResource = (resId) =>
@@ -247,45 +251,37 @@ const MyBookings = ({
   return (
     <div>
       {ConfirmDialogEl}
-      <PageHeader icon={BookMarked} title="Meine Buchungen" />
-
-      {/* ── 1. Resource group filter tabs ── */}
-      <div className="mb-4">
-        <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
-          <button
-            onClick={() => handleGroupChange('all')}
-            className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${
-              selectedGroupId === 'all'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:bg-gray-200'
-            }`}
+      {/* ── Titel + Anlage + Ressourcengruppe ── */}
+      <div className="mb-4 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <BookMarked className="w-6 h-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-gray-900">Meine Buchungen</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <select
+            value={selectedFacilityId}
+            onChange={e => handleFacilityChange(e.target.value)}
+            className="px-3 py-1.5 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
-            Alle Buchungen
-            <span className={`px-2 py-0.5 text-xs rounded-full ${
-              selectedGroupId === 'all' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
-            }`}>
-              {visibleBookings.length}
-            </span>
-          </button>
-
-          {groupTabs.map(group => (
-            <button
-              key={group.id}
-              onClick={() => handleGroupChange(group.id)}
-              className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${
-                selectedGroupId === group.id
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {group.name}
-              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                selectedGroupId === group.id ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
-              }`}>
-                {getBookingCountForGroup(group.id)}
-              </span>
-            </button>
-          ))}
+            <option value="all">Alle Anlagen</option>
+            {(facilities || []).map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <select
+            value={selectedGroupId}
+            onChange={e => handleGroupChange(e.target.value)}
+            className="px-3 py-1.5 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            <option value="all">Alle Gruppen</option>
+            {groupsForDropdown.map(g => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

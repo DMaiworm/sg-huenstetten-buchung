@@ -246,8 +246,6 @@ const CalendarView = ({
     return result;
   };
 
-  const isToday = currentDate.toDateString() === new Date().toDateString();
-
   // ── Grid-Spalten-Definition ─────────────────
   const weekGridCols = `60px repeat(7, 1fr)`;
   const dayGridCols  = `60px repeat(${groupResources.length}, 1fr)`;

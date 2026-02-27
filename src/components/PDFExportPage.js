@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, Building2 } from 'lucide-react';
 import { Button } from './ui/Button';
-import PageHeader from './ui/PageHeader';
 import { EVENT_TYPES } from '../config/organizationConfig';
 
-const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, departments, teams, trainerAssignments }) => {
+const PDFExportPage = ({ bookings, users, resources, resourceGroups, facilities, clubs, departments, teams, trainerAssignments }) => {
   const RESOURCES = resources;
 
   // Lookup org info for a booking (team → department → club)
@@ -27,12 +26,20 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
     const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
     return { team, dept, club };
   };
+  const [selectedFacilityId, setSelectedFacilityId] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Build categories dynamically from actual resource groups
+  // Effektive Anlage (Fallback auf erste)
+  const effectiveFacilityId = (facilities || []).find(f => f.id === selectedFacilityId)
+    ? selectedFacilityId
+    : (facilities || [])[0]?.id || '';
+
+  // Kategorien gefiltert nach Anlage
   const categories = (resourceGroups || [])
+    .filter(g => g.facilityId === effectiveFacilityId)
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
     .map(g => ({
       id: g.id,
@@ -41,11 +48,15 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
     }))
     .filter(c => c.resources.length > 0);
 
-  const [selectedCategory, setSelectedCategory] = useState('');
   // Fall back to first category if current selection is invalid
   const effectiveCategory = categories.find(c => c.id === selectedCategory)
     ? selectedCategory
     : categories[0]?.id || '';
+
+  const handleFacilityChange = (facId) => {
+    setSelectedFacilityId(facId);
+    setSelectedCategory('');
+  };
 
   const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
   const years = [2025, 2026, 2027];
@@ -214,15 +225,39 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
 
   return (
     <div>
-      <PageHeader icon={FileDown} title="Monatsplan als PDF exportieren" />
-
-      <div className="max-w-lg space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
-          <select value={effectiveCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-            {categories.map(cat => (<option key={cat.id} value={cat.id}>{cat.label} ({cat.resources.length} Anlagen)</option>))}
+      {/* ── Titel + Anlage + Ressourcengruppe ── */}
+      <div className="mb-6 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <FileDown className="w-6 h-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-gray-900">Monatsplan als PDF exportieren</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <select
+            value={effectiveFacilityId}
+            onChange={e => handleFacilityChange(e.target.value)}
+            className="px-3 py-1.5 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            {(facilities || []).map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
           </select>
         </div>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <select
+            value={effectiveCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="px-3 py-1.5 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="max-w-lg space-y-4">
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-sm text-gray-600 mb-2">Enthaltene Anlagen:</p>
           <div className="flex flex-wrap gap-2">

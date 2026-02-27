@@ -120,10 +120,10 @@ function AppLayout() {
             <Route path="/meine-buchungen" element={
               <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking}
                 onEdit={setEditingBooking}
-                users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
+                users={users} resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities} {...orgProps} />
             } />
             <Route path="/export" element={
-              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} {...orgProps} />
+              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities} {...orgProps} />
             } />
             <Route path="/teams" element={
               <TeamOverview {...orgProps} bookings={bookings} users={users} resources={RESOURCES} />
