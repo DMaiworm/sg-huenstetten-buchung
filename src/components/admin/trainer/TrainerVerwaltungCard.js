@@ -83,8 +83,15 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
 
   const fullName = `${trainer.firstName} ${trainer.lastName}`;
 
+  const fzOk = d.fuehrungszeugnisVerified;
+  const unterlagenOk = d.unterlagenVollstaendig;
+  const chipOk = !!d.chipId;
+  const vollScore = [fzOk, unterlagenOk, chipOk].filter(Boolean).length;
+  const barColor = vollScore === 3 ? '#059669' : vollScore >= 1 ? '#F59E0B' : '#EF4444';
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: barColor }} />
       {/* Header – immer sichtbar */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -115,7 +122,7 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
         <div className="border-t border-gray-100 px-5 py-5 space-y-5">
           {/* Stammdaten (read-only) */}
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stammdaten</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Stammdaten</h4>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div><span className="text-gray-400">E-Mail:</span> <span className="text-gray-800">{trainer.email}</span></div>
               {trainer.phone && <div><span className="text-gray-400">Tel.:</span> <span className="text-gray-800">{trainer.phone}</span></div>}
@@ -137,7 +144,7 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
 
           {/* Führungszeugnis */}
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Führungszeugnis</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Führungszeugnis</h4>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -175,7 +182,7 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
 
           {/* Chip-ID */}
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Chip / Schlüssel</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Chip / Schlüssel</h4>
             <input
               type="text"
               value={form.chipId}
@@ -200,7 +207,7 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
 
           {/* Notizen (nur Admin sichtbar) */}
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Interne Notizen</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Interne Notizen</h4>
             <textarea
               value={form.notizen}
               onChange={e => set('notizen', e.target.value)}

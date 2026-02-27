@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Edit2, Save, X, Trash2, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit2, Save, X, Trash2 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Badge } from '../../ui/Badge';
 import DepartmentSection from './DepartmentSection';

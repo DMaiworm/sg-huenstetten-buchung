@@ -83,7 +83,7 @@ const TrainerUebersicht = () => {
       result = result.filter(tr => trainerIdsInDept.has(tr.id));
     }
     return result;
-  }, [trainers, selectedClubId, selectedDeptId, teams, trainerAssignments]);
+  }, [trainers, selectedClubId, selectedDeptId, teams, trainerAssignments, trainerIdsForClub]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">

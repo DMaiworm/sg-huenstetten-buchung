@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { FileDown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
+import PageHeader from './ui/PageHeader';
 import { EVENT_TYPES } from '../config/organizationConfig';
 
 const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, departments, teams, trainerAssignments }) => {
-  const navigate = useNavigate();
   const RESOURCES = resources;
 
   // Lookup org info for a booking (team → department → club)
@@ -215,12 +214,7 @@ const PDFExportPage = ({ bookings, users, resources, resourceGroups, clubs, depa
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <FileDown className="w-6 h-6 text-blue-600" />
-          Monatsplan als PDF exportieren
-        </h2>
-      </div>
+      <PageHeader icon={FileDown} title="Monatsplan als PDF exportieren" />
 
       <div className="max-w-lg space-y-4">
         <div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Users } from 'lucide-react';
+import PageHeader from '../../ui/PageHeader';
 import { useConfirm } from '../../../hooks/useConfirm';
 import { trainerStatus, STATUS_CONFIG, emptyUser } from './userConstants';
 import UserCard from './UserCard';
@@ -33,12 +34,10 @@ const UserManagement = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    let savedId = editingUser?.id;
     if (editingUser) {
       if (updateUser) await updateUser(editingUser.id, newUser);
     } else {
-      const { data: created } = createUser ? await createUser(newUser) : {};
-      savedId = created?.id;
+      if (createUser) await createUser(newUser);
     }
     setSaving(false);
     setNewUser(emptyUser); setEditingUser(null); setShowForm(false);
@@ -87,20 +86,17 @@ const UserManagement = ({
   return (
     <>
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Benutzerverwaltung</h2>
-            <p className="text-gray-500 mt-1">
-              {trainerUsers.filter(u => trainerStatus(u) === 'aktiv').length} aktiv ·{' '}
-              {trainerUsers.filter(u => trainerStatus(u) === 'eingeladen').length} eingeladen ·{' '}
-              {trainerUsers.filter(u => trainerStatus(u) === 'passiv').length} passiv
-            </p>
-          </div>
-          <button onClick={() => { setShowForm(true); setEditingUser(null); setNewUser(emptyUser); }}
-            className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors gap-2">
-            <UserPlus className="w-5 h-5" /><span>Neuer Benutzer</span>
-          </button>
-        </div>
+        <PageHeader
+          icon={Users}
+          title="Benutzerverwaltung"
+          subtitle={`${trainerUsers.filter(u => trainerStatus(u) === 'aktiv').length} aktiv · ${trainerUsers.filter(u => trainerStatus(u) === 'eingeladen').length} eingeladen · ${trainerUsers.filter(u => trainerStatus(u) === 'passiv').length} passiv`}
+          actions={
+            <button onClick={() => { setShowForm(true); setEditingUser(null); setNewUser(emptyUser); }}
+              className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors gap-2">
+              <UserPlus className="w-5 h-5" /><span>Neuer Benutzer</span>
+            </button>
+          }
+        />
 
         {/* Tabs */}
         <div className="flex gap-2 mb-4 bg-gray-100 p-1.5 rounded-lg w-fit">

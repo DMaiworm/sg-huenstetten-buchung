@@ -23,6 +23,7 @@ import { EVENT_TYPES } from '../config/organizationConfig';
 import { formatDate, formatDateISO, getWeekDates, getWeekStart, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
+import PageHeader from './ui/PageHeader';
 
 // ──────────────────────────────────────────────
 //  Grid-Layout-Konstanten
@@ -256,7 +257,6 @@ const CalendarView = ({
     return result;
   };
 
-  const selectedFacility = (facilities || []).find(f => f.id === selectedFacilityId);
   const isToday = currentDate.toDateString() === new Date().toDateString();
 
   // ── Grid-Spalten-Definition ─────────────────
@@ -344,6 +344,8 @@ const CalendarView = ({
 
   return (
     <div className="h-full flex flex-col">
+
+      <PageHeader icon={CalendarDays} title="Kalender" />
 
       {/* ── 1. Top-Bar: Anlage + Navigation ── */}
       <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">

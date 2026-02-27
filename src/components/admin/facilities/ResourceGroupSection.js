@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Trash2, Clock, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, Clock } from 'lucide-react';
 import { GROUP_ICONS } from '../../../config/constants';
 import ResourceCard from './ResourceCard';
 import AddButton from '../../ui/AddButton';

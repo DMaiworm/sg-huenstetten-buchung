@@ -47,7 +47,7 @@ const TeamOverviewCard = ({ team, trainerAssignments, users, resources, training
   const nextEventType = nextEvent ? EVENT_TYPES.find(t => t.id === nextEvent.bookingType) : null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       {/* Farbbalken */}
       <div className="h-1.5" style={{ backgroundColor: team.color }} />
 

@@ -9,7 +9,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, List, Repeat, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, BookMarked } from 'lucide-react';
+import PageHeader from './ui/PageHeader';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
@@ -246,7 +247,7 @@ const MyBookings = ({
   return (
     <div>
       {ConfirmDialogEl}
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Meine Buchungen</h2>
+      <PageHeader icon={BookMarked} title="Meine Buchungen" />
 
       {/* ── 1. Resource group filter tabs ── */}
       <div className="mb-4">

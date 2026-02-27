@@ -12,7 +12,7 @@ import React from 'react';
 const PageHeader = ({ icon: Icon, title, subtitle, actions }) => (
   <div className="flex items-center justify-between mb-6">
     <div>
-      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+      <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
         {Icon && <Icon className="w-6 h-6 text-blue-600" />}
         {title}
       </h2>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Mail, RefreshCw } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import PageHeader from '../ui/PageHeader';
 
 const EmailLog = ({ emailService }) => {
   const [selectedEmail, setSelectedEmail] = useState(null);
@@ -36,24 +37,23 @@ const EmailLog = ({ emailService }) => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">E-Mail-Log</h2>
-          <p className="text-gray-500 mt-1">
-            {emails.length} {emails.length === 1 ? 'E-Mail' : 'E-Mails'} protokolliert
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={fetchEmails} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Aktualisieren
-          </Button>
-          {emails.length > 0 && (
-            <Button variant="secondary" onClick={handleClear}>
-              <X className="w-4 h-4 mr-2" />Log leeren
+      <PageHeader
+        icon={Mail}
+        title="E-Mail-Log"
+        subtitle="Protokoll versendeter E-Mails"
+        actions={
+          <>
+            <Button variant="secondary" onClick={fetchEmails} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Aktualisieren
             </Button>
-          )}
-        </div>
-      </div>
+            {emails.length > 0 && (
+              <Button variant="secondary" onClick={handleClear}>
+                <X className="w-4 h-4 mr-2" />Log leeren
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {emails.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">

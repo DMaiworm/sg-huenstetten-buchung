@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import TeamCard from './TeamCard';
 import AddButton from '../../ui/AddButton';
 

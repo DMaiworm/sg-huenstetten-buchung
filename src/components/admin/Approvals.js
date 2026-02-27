@@ -6,11 +6,12 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, MapPin, Users, Check, X, Clock, Shield, ChevronDown, ChevronRight, Repeat, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Calendar, MapPin, Users, Check, X, Clock, Shield, ChevronDown, ChevronRight, Repeat, AlertTriangle, CheckCircle, ClipboardCheck } from 'lucide-react';
 import { ROLES, DAYS_FULL } from '../../config/constants';
 import { EVENT_TYPES } from '../../config/organizationConfig';
 import { Badge } from '../ui/Badge';
 import { findConflicts } from '../../utils/helpers';
+import PageHeader from '../ui/PageHeader';
 
 const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmigerResources = null, isAdmin = false }) => {
   const [rejectDialog, setRejectDialog] = useState(null);
@@ -73,22 +74,27 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmiger
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Offene Genehmigungen</h2>
-        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">
-          {groupedPending.length}
-        </span>
-        {pendingBookings.length !== groupedPending.length && (
-          <span className="text-sm text-gray-500">
-            ({pendingBookings.length} Einzeltermine)
-          </span>
-        )}
-        {!isAdmin && genehmigerResources !== null && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
-            <Shield className="w-3 h-3" /> Nur zugewiesene Ressourcen
-          </span>
-        )}
-      </div>
+      <PageHeader
+        icon={ClipboardCheck}
+        title="Offene Genehmigungen"
+        actions={
+          <>
+            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-400 text-gray-800">
+              {groupedPending.length}
+            </span>
+            {pendingBookings.length !== groupedPending.length && (
+              <span className="text-sm text-gray-500">
+                ({pendingBookings.length} Einzeltermine)
+              </span>
+            )}
+            {!isAdmin && genehmigerResources !== null && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                <Shield className="w-3 h-3" /> Nur zugewiesene Ressourcen
+              </span>
+            )}
+          </>
+        }
+      />
 
       {groupedPending.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
@@ -105,7 +111,6 @@ const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmiger
             const resource = resources.find(r => r.id === item.resourceId);
             const userInfo = getUserInfo(item.userId);
             const isExpanded = isSeries && expandedSeries[item.seriesId];
-            const showingRejectDlg = rejectDialog?.bookingId === item.id || rejectDialog?.seriesId === item.seriesId;
             const bookingType = item.bookingType ? EVENT_TYPES.find(t => t.id === item.bookingType) : null;
 
             if (isSeries) {

@@ -63,12 +63,10 @@ const TrainerUebersichtCard = ({ trainer, trainerAssignments, teams, departments
   const visibleLizenzen = trainer.lizenzen.slice(0, MAX_LIZENZ);
   const visibleErfolge  = trainer.erfolge.slice(0, MAX_ERFOLGE);
 
-  const hasExtra = teamGroups.length > MAX_TEAMS
-    || trainer.lizenzen.length > MAX_LIZENZ
-    || trainer.erfolge.length > MAX_ERFOLGE;
-
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
+
+      <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: '#3B82F6' }} />
 
       {/* Header: Foto + Name + Vereine */}
       <div className="p-5 pb-4 flex items-start gap-4">

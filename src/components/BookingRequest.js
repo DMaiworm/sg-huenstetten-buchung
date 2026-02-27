@@ -6,8 +6,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   Calendar, Clock, Users, Plus, Shield, Repeat, Maximize,
   Building2, Building, Star, CalendarDays, CalendarRange, AlertCircle, X,
-  CheckSquare, Square, Sun, Palmtree,
+  CheckSquare, Square, Sun, Palmtree, CalendarPlus,
 } from 'lucide-react';
+import PageHeader from './ui/PageHeader';
 import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { timeToMinutes, generateSeriesDates, checkBookingConflicts, getDateHolidayInfo } from '../utils/helpers';
@@ -20,7 +21,7 @@ const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm out
 const SectionHeader = ({ icon, title }) => (
   <div className="flex items-center gap-2 mb-3">
     <span className="text-blue-600">{icon}</span>
-    <span className="font-semibold text-[15px] text-gray-800">{title}</span>
+    <span className="font-semibold text-sm text-gray-800">{title}</span>
   </div>
 );
 
@@ -141,6 +142,7 @@ const BookingRequest = ({
   // Dates that will actually be booked (not excluded)
   const effectiveDates = useMemo(() => {
     return previewDates.filter(date => !getDateStatus(date).excluded);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewDates, dateHolidayMap, includeHolidays, includeVacations, manualOverrides]);
 
   // Reset manual overrides when checkboxes change
@@ -216,8 +218,7 @@ const BookingRequest = ({
 
   return (
     <div className="max-w-[720px]">
-      <h2 className="text-2xl font-bold text-gray-800 mb-1">Neue Buchungsanfrage</h2>
-      <p className="text-gray-500 mb-6 text-sm">Ressource und Mannschaft auswählen, Termin festlegen</p>
+      <PageHeader icon={CalendarPlus} title="Neue Buchungsanfrage" subtitle="Ressource und Mannschaft auswählen, Termin festlegen" />
 
       <form onSubmit={handleSubmit}>
 

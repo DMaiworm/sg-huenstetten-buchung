@@ -15,6 +15,10 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
     : user.kannBuchen ? '#2563eb'
     : status === 'eingeladen' ? '#d97706'
     : '#9ca3af';
+  const barColor = user.kannAdministrieren ? '#7C3AED'
+    : user.kannGenehmigen ? '#059669'
+    : user.istTrainer ? '#3B82F6'
+    : '#9CA3AF';
 
   // Build team assignments grouped by club + department
   const userAssignments = (trainerAssignments || []).filter(ta => String(ta.userId) === String(user.id));
@@ -38,7 +42,9 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: barColor }} />
+      <div className="p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 min-w-0 flex-1">
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0"
@@ -124,6 +130,7 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
       {isExpanded && user.kannGenehmigen && (
         <ResourceAssignment user={user} resourceTree={resourceTree} assignedIds={assignedIds} onToggleResource={onToggleResource} />
       )}
+      </div>
     </div>
   );
 };

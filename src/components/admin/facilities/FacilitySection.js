@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import FacilityCard from './FacilityCard';
 import FacilityEditor from './FacilityEditor';
 import ResourceGroupSection from './ResourceGroupSection';
