@@ -19,6 +19,8 @@ function mapTrainerDetails(row) {
     fuehrungszeugnisUrl:      row.fuehrungszeugnis_url     || null,
     fuehrungszeugnisVerified: row.fuehrungszeugnis_verified || false,
     fuehrungszeugnisDate:     row.fuehrungszeugnis_datum   || null,
+    verhaltenskodexUrl:       row.verhaltenskodex_url      || null,
+    verhaltenskodexVerified:  row.verhaltenskodex_verified || false,
     unterlagenVollstaendig:   row.unterlagen_vollstaendig  || false,
     notizen:                  row.notizen                  || '',
   };
@@ -100,6 +102,7 @@ export function useTrainerVerwaltung(operatorId = null) {
       if (data.chipId                  !== undefined) dbData.chip_id                  = data.chipId || null;
       if (data.fuehrungszeugnisVerified !== undefined) dbData.fuehrungszeugnis_verified = data.fuehrungszeugnisVerified;
       if (data.fuehrungszeugnisDate    !== undefined) dbData.fuehrungszeugnis_datum   = data.fuehrungszeugnisDate || null;
+      if (data.verhaltenskodexVerified !== undefined) dbData.verhaltenskodex_verified  = data.verhaltenskodexVerified;
       if (data.unterlagenVollstaendig  !== undefined) dbData.unterlagen_vollstaendig  = data.unterlagenVollstaendig;
       if (data.notizen                 !== undefined) dbData.notizen                  = data.notizen || null;
 
@@ -117,5 +120,29 @@ export function useTrainerVerwaltung(operatorId = null) {
     } catch (err) { return { error: err.message }; }
   }, []);
 
-  return { trainers, loading, error, refresh: fetchAll, updateAdminFields };
+  // Dokument für Trainer hochladen (als Verwalter, z.B. eingescannte Papier-Dokumente)
+  const uploadDocumentForTrainer = useCallback(async (trainerId, docType, file) => {
+    // docType: 'fuehrungszeugnis' | 'verhaltenskodex'
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `${trainerId}/${docType}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('trainer-dokumente')
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const urlField = docType === 'fuehrungszeugnis' ? 'fuehrungszeugnis_url' : 'verhaltenskodex_url';
+      const { error: updErr } = await supabase
+        .from('trainer_profile_details')
+        .upsert({ id: trainerId, [urlField]: path, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+      if (updErr) throw updErr;
+      const urlKey = docType === 'fuehrungszeugnis' ? 'fuehrungszeugnisUrl' : 'verhaltenskodexUrl';
+      setTrainers(prev => prev.map(t => {
+        if (t.id !== trainerId) return t;
+        return { ...t, details: { ...(t.details || {}), [urlKey]: path } };
+      }));
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, []);
+
+  return { trainers, loading, error, refresh: fetchAll, updateAdminFields, uploadDocumentForTrainer };
 }

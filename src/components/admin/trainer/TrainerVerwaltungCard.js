@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle,
-  Upload, Save,
+  Upload, Save, ShieldAlert,
 } from 'lucide-react';
 import { Button } from '../../ui';
 import { supabase } from '../../../lib/supabase';
@@ -10,20 +10,23 @@ import { useToast } from '../../../contexts/ToastContext';
 // -----------------------------------------------------------------------
 // Hilfsfunktionen
 // -----------------------------------------------------------------------
-function Ampel({ details }) {
-  const fzOk       = details?.fuehrungszeugnisVerified;
+function Ampel({ details, isJugend }) {
+  const fzOk         = details?.fuehrungszeugnisVerified;
+  const vkOk         = details?.verhaltenskodexVerified;
   const unterlagenOk = details?.unterlagenVollstaendig;
-  const chipOk     = !!details?.chipId;
-  const score      = [fzOk, unterlagenOk, chipOk].filter(Boolean).length;
+  const chipOk       = !!details?.chipId;
+  const checks       = isJugend ? [vkOk, fzOk, unterlagenOk, chipOk] : [fzOk, unterlagenOk, chipOk];
+  const total        = checks.length;
+  const score        = checks.filter(Boolean).length;
 
-  if (score === 3) return (
+  if (score === total) return (
     <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 rounded-full px-2 py-0.5 text-xs font-medium">
       <CheckCircle className="w-3.5 h-3.5" /> Vollständig
     </span>
   );
   if (score >= 1) return (
     <span className="inline-flex items-center gap-1 text-yellow-700 bg-yellow-50 rounded-full px-2 py-0.5 text-xs font-medium">
-      <Clock className="w-3.5 h-3.5" /> Teilweise ({score}/3)
+      <Clock className="w-3.5 h-3.5" /> Teilweise ({score}/{total})
     </span>
   );
   return (
@@ -36,18 +39,24 @@ function Ampel({ details }) {
 // -----------------------------------------------------------------------
 // TrainerVerwaltungCard
 // -----------------------------------------------------------------------
-export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
+export default function TrainerVerwaltungCard({ trainer, onUpdate, onUpload, jugendteams = [] }) {
   const { showToast } = useToast();
-  const [open,   setOpen]   = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fzRef = useRef(null);
+  const vkRef = useRef(null);
 
   const d = trainer.details || {};
+  const isJugend = jugendteams.length > 0;
+
   const [form, setForm] = useState({
-    chipId:                  d.chipId                  || '',
+    chipId:                   d.chipId                   || '',
     fuehrungszeugnisVerified: d.fuehrungszeugnisVerified || false,
-    fuehrungszeugnisDate:    d.fuehrungszeugnisDate    || '',
-    unterlagenVollstaendig:  d.unterlagenVollstaendig  || false,
-    notizen:                 d.notizen                 || '',
+    fuehrungszeugnisDate:     d.fuehrungszeugnisDate     || '',
+    verhaltenskodexVerified:  d.verhaltenskodexVerified  || false,
+    unterlagenVollstaendig:   d.unterlagenVollstaendig   || false,
+    notizen:                  d.notizen                  || '',
   });
   const [formDirty, setFormDirty] = useState(false);
 
@@ -59,11 +68,12 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
   const handleSave = async () => {
     setSaving(true);
     const { error: e } = await onUpdate(trainer.id, {
-      chipId:                  form.chipId             || null,
+      chipId:                   form.chipId              || null,
       fuehrungszeugnisVerified: form.fuehrungszeugnisVerified,
-      fuehrungszeugnisDate:    form.fuehrungszeugnisDate || null,
-      unterlagenVollstaendig:  form.unterlagenVollstaendig,
-      notizen:                 form.notizen            || null,
+      fuehrungszeugnisDate:     form.fuehrungszeugnisDate || null,
+      verhaltenskodexVerified:  form.verhaltenskodexVerified,
+      unterlagenVollstaendig:   form.unterlagenVollstaendig,
+      notizen:                  form.notizen             || null,
     });
     setSaving(false);
     if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
@@ -71,23 +81,36 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
     showToast('Gespeichert', 'success');
   };
 
-  // Führungszeugnis-Download (Signed URL generieren)
-  const handleFzDownload = async () => {
-    if (!d.fuehrungszeugnisUrl) return;
+  // Dokument ansehen (Signed URL, 5 Minuten)
+  const handleDownload = async (urlPath) => {
+    if (!urlPath) return;
     const { data, error: e } = await supabase.storage
       .from('trainer-dokumente')
-      .createSignedUrl(d.fuehrungszeugnisUrl, 60 * 5); // 5 Minuten
+      .createSignedUrl(urlPath, 60 * 5);
     if (e) { showToast('Fehler: ' + e.message, 'error'); return; }
     window.open(data.signedUrl, '_blank');
   };
 
+  // Dokument hochladen (als Verwalter)
+  const handleUpload = async (docType, file) => {
+    if (!file) return;
+    setUploading(true);
+    const { error: e } = await onUpload(trainer.id, docType, file);
+    setUploading(false);
+    if (e) { showToast('Upload fehlgeschlagen: ' + e, 'error'); return; }
+    const label = docType === 'fuehrungszeugnis' ? 'Führungszeugnis' : 'Verhaltenskodex';
+    showToast(`${label} hochgeladen`, 'success');
+  };
+
   const fullName = `${trainer.firstName} ${trainer.lastName}`;
 
-  const fzOk = d.fuehrungszeugnisVerified;
+  const vkOk         = d.verhaltenskodexVerified;
+  const fzOk         = d.fuehrungszeugnisVerified;
   const unterlagenOk = d.unterlagenVollstaendig;
-  const chipOk = !!d.chipId;
-  const vollScore = [fzOk, unterlagenOk, chipOk].filter(Boolean).length;
-  const barColor = vollScore === 3 ? '#059669' : vollScore >= 1 ? '#F59E0B' : '#EF4444';
+  const chipOk       = !!d.chipId;
+  const checks       = isJugend ? [vkOk, fzOk, unterlagenOk, chipOk] : [fzOk, unterlagenOk, chipOk];
+  const vollScore    = checks.filter(Boolean).length;
+  const barColor     = vollScore === checks.length ? '#059669' : vollScore >= 1 ? '#F59E0B' : '#EF4444';
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -112,7 +135,7 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
           <p className="text-xs text-gray-500 truncate">{trainer.email}</p>
         </div>
         {/* Ampel */}
-        <Ampel details={trainer.details} />
+        <Ampel details={trainer.details} isJugend={isJugend} />
         {/* Toggle */}
         {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
       </button>
@@ -142,11 +165,99 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
             )}
           </div>
 
-          {/* Führungszeugnis */}
-          <div>
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Führungszeugnis</h4>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
+          {/* Kindeswohl-Maßnahmen – nur für Jugendtrainer */}
+          {isJugend && (
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                <ShieldAlert className="w-3 h-3 text-amber-500" /> Kindeswohl-Maßnahmen
+              </h4>
+              <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5 mb-3 border border-amber-100">
+                Erforderlich durch:{' '}
+                <span className="font-medium">{jugendteams.map(t => t.name).join(', ')}</span>
+              </p>
+              <div className="space-y-4">
+                {/* Verhaltenskodex */}
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1.5">Verhaltenskodex</p>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.verhaltenskodexVerified}
+                        onChange={e => set('verhaltenskodexVerified', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">Verifiziert</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {d.verhaltenskodexUrl ? (
+                        <button onClick={() => handleDownload(d.verhaltenskodexUrl)}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                          <Upload className="w-3 h-3 rotate-180" /> Dokument ansehen
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Kein Dokument vorhanden</span>
+                      )}
+                      <button onClick={() => vkRef.current?.click()}
+                        disabled={uploading}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50">
+                        <Upload className="w-3 h-3" /> {d.verhaltenskodexUrl ? 'Ersetzen' : 'Hochladen'}
+                      </button>
+                      <input ref={vkRef} type="file" accept=".pdf,image/*" className="hidden"
+                        onChange={e => { handleUpload('verhaltenskodex', e.target.files?.[0]); e.target.value = ''; }} />
+                    </div>
+                  </div>
+                </div>
+                {/* Führungszeugnis */}
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1.5">Führungszeugnis</p>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.fuehrungszeugnisVerified}
+                        onChange={e => set('fuehrungszeugnisVerified', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">Verifiziert</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-gray-500">Datum:</label>
+                      <input
+                        type="date"
+                        value={form.fuehrungszeugnisDate || ''}
+                        onChange={e => set('fuehrungszeugnisDate', e.target.value || null)}
+                        className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {d.fuehrungszeugnisUrl ? (
+                        <button onClick={() => handleDownload(d.fuehrungszeugnisUrl)}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                          <Upload className="w-3 h-3 rotate-180" /> Dokument ansehen
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Kein Dokument vorhanden</span>
+                      )}
+                      <button onClick={() => fzRef.current?.click()}
+                        disabled={uploading}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50">
+                        <Upload className="w-3 h-3" /> {d.fuehrungszeugnisUrl ? 'Ersetzen' : 'Hochladen'}
+                      </button>
+                      <input ref={fzRef} type="file" accept=".pdf,image/*" className="hidden"
+                        onChange={e => { handleUpload('fuehrungszeugnis', e.target.files?.[0]); e.target.value = ''; }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Führungszeugnis – nur für Nicht-Jugendtrainer */}
+          {!isJugend && (
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Führungszeugnis</h4>
+              <div className="space-y-1.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -156,29 +267,35 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate }) {
                   />
                   <span className="text-sm text-gray-700">Verifiziert</span>
                 </label>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-gray-500">Datum:</label>
+                  <input
+                    type="date"
+                    value={form.fuehrungszeugnisDate || ''}
+                    onChange={e => set('fuehrungszeugnisDate', e.target.value || null)}
+                    className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  {d.fuehrungszeugnisUrl ? (
+                    <button onClick={() => handleDownload(d.fuehrungszeugnisUrl)}
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                      <Upload className="w-3 h-3 rotate-180" /> Dokument ansehen
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">Kein Dokument vorhanden</span>
+                  )}
+                  <button onClick={() => fzRef.current?.click()}
+                    disabled={uploading}
+                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50">
+                    <Upload className="w-3 h-3" /> {d.fuehrungszeugnisUrl ? 'Ersetzen' : 'Hochladen'}
+                  </button>
+                  <input ref={fzRef} type="file" accept=".pdf,image/*" className="hidden"
+                    onChange={e => { handleUpload('fuehrungszeugnis', e.target.files?.[0]); e.target.value = ''; }} />
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs text-gray-500">Datum:</label>
-                <input
-                  type="date"
-                  value={form.fuehrungszeugnisDate || ''}
-                  onChange={e => set('fuehrungszeugnisDate', e.target.value || null)}
-                  className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              {d.fuehrungszeugnisUrl && (
-                <button
-                  onClick={handleFzDownload}
-                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                >
-                  <Upload className="w-3 h-3 rotate-180" /> Dokument ansehen
-                </button>
-              )}
-              {!d.fuehrungszeugnisUrl && (
-                <p className="text-xs text-gray-400 italic">Kein Dokument hochgeladen</p>
-              )}
             </div>
-          </div>
+          )}
 
           {/* Chip-ID */}
           <div>

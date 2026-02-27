@@ -86,6 +86,19 @@ const TeamCard = ({ team, users, trainerAssignments, onUpdateTeam, onDeleteTeam,
           </div>
 
           <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={team.istJugendmannschaft || false}
+                onChange={e => onUpdateTeam({ ...team, istJugendmannschaft: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-xs font-medium text-gray-600">Jugendmannschaft</span>
+              <span className="text-xs text-gray-400">(Kindeswohl-Maßnahmen erforderlich)</span>
+            </label>
+          </div>
+
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
               <UserCheck className="w-3.5 h-3.5" /> Übungsleiter / Trainer
             </label>

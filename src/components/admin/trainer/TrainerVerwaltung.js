@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useOrg } from '../../../contexts/OrganizationContext';
 import { useTrainerVerwaltung } from '../../../hooks/useTrainerVerwaltung';
 import { PageHeader } from '../../ui';
 import TrainerVerwaltungCard from './TrainerVerwaltungCard';
@@ -14,12 +15,13 @@ import TrainerVerwaltungCard from './TrainerVerwaltungCard';
  */
 export default function TrainerVerwaltung({ operators = [] }) {
   const { profile } = useAuth();
+  const { teams, trainerAssignments } = useOrg();
 
   // Verwalter mit operator_id werden auf eigenen Verein eingeschränkt
   const myOperatorId    = profile?.operator_id || null;
   const isSuperAdmin    = !myOperatorId;
 
-  const { trainers, loading, error, refresh, updateAdminFields } = useTrainerVerwaltung(
+  const { trainers, loading, error, refresh, updateAdminFields, uploadDocumentForTrainer } = useTrainerVerwaltung(
     isSuperAdmin ? null : myOperatorId
   );
 
@@ -32,6 +34,18 @@ export default function TrainerVerwaltung({ operators = [] }) {
         ...operators.map(op => ({ id: op.id, label: op.name })),
       ]
     : [];
+
+  // Jugendmannschaften je Trainer vorberechnen
+  const trainerJugendteamsMap = useMemo(() => {
+    const map = {};
+    for (const trainer of trainers) {
+      const assignments = (trainerAssignments || []).filter(ta => ta.userId === trainer.id);
+      map[trainer.id] = assignments
+        .map(ta => (teams || []).find(t => t.id === ta.teamId))
+        .filter(t => t?.istJugendmannschaft);
+    }
+    return map;
+  }, [trainers, teams, trainerAssignments]);
 
   const displayedTrainers = isSuperAdmin && activeTab !== 'all'
     ? trainers.filter(t => t.operatorId === activeTab)
@@ -102,6 +116,8 @@ export default function TrainerVerwaltung({ operators = [] }) {
               key={trainer.id}
               trainer={trainer}
               onUpdate={updateAdminFields}
+              onUpload={uploadDocumentForTrainer}
+              jugendteams={trainerJugendteamsMap[trainer.id] || []}
             />
           ))}
         </div>

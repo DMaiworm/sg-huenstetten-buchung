@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 
 function mapClub(c)       { return { id: c.id, name: c.name, shortName: c.short_name, color: c.color, isHomeClub: c.is_home_club }; }
 function mapDepartment(d) { return { id: d.id, clubId: d.club_id, name: d.name, icon: d.icon || '', sortOrder: d.sort_order }; }
-function mapTeam(t)       { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'] }; }
+function mapTeam(t)       { return { id: t.id, departmentId: t.department_id, name: t.name, shortName: t.short_name, color: t.color, sortOrder: t.sort_order, eventTypes: t.event_types || ['training'], istJugendmannschaft: t.ist_jugendmannschaft || false }; }
 function mapTrainerAssignment(ta) { return { id: ta.id, userId: ta.user_id, teamId: ta.team_id, isPrimary: ta.is_primary }; }
 
 export function useOrganization() {
@@ -121,6 +121,7 @@ export function useOrganization() {
         department_id: teamData.departmentId, name: teamData.name,
         short_name: teamData.shortName || '', color: teamData.color || '#3b82f6',
         sort_order: teamData.sortOrder || 0, event_types: teamData.eventTypes || ['training'],
+        ist_jugendmannschaft: teamData.istJugendmannschaft || false,
       }).select().single();
       if (error) throw error;
       const t = mapTeam(data);
@@ -135,6 +136,7 @@ export function useOrganization() {
         name: team.name, short_name: team.shortName || '',
         color: team.color, sort_order: team.sortOrder || 0,
         event_types: team.eventTypes || ['training'],
+        ist_jugendmannschaft: team.istJugendmannschaft || false,
       }).eq('id', team.id).select().single();
       if (error) throw error;
       const t = mapTeam(data);

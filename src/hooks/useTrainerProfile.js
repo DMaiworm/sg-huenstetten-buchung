@@ -23,6 +23,8 @@ function mapDetails(row) {
     fuehrungszeugnisUrl:     row.fuehrungszeugnis_url    || null,
     fuehrungszeugnisVerified: row.fuehrungszeugnis_verified || false,
     fuehrungszeugnisDate:    row.fuehrungszeugnis_datum  || null,
+    verhaltenskodexUrl:      row.verhaltenskodex_url     || null,
+    verhaltenskodexVerified: row.verhaltenskodex_verified || false,
     unterlagenVollstaendig:  row.unterlagen_vollstaendig || false,
     notizen:                 row.notizen                 || '',
     profilVeroeffentlichen:  row.profil_veroeffentlichen  || false,
@@ -159,6 +161,25 @@ export function useTrainerProfile(userId) {
     } catch (err) { return { error: err.message }; }
   }, [userId]);
 
+  // Verhaltenskodex hochladen (privates Bucket)
+  const uploadVerhaltenskodex = useCallback(async (file) => {
+    if (!userId) return { error: 'Nicht eingeloggt' };
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `${userId}/verhaltenskodex.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('trainer-dokumente')
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { error: updErr } = await supabase
+        .from('trainer_profile_details')
+        .upsert({ id: userId, verhaltenskodex_url: path, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+      if (updErr) throw updErr;
+      setDetails(d => d ? { ...d, verhaltenskodexUrl: path } : { verhaltenskodexUrl: path });
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, [userId]);
+
   // Lizenzen
   const addLizenz = useCallback(async (data) => {
     if (!userId) return { error: 'Nicht eingeloggt' };
@@ -255,7 +276,7 @@ export function useTrainerProfile(userId) {
   return {
     details, lizenzen, erfolge,
     loading, error,
-    upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis,
+    upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis, uploadVerhaltenskodex,
     addLizenz, updateLizenz, deleteLizenz,
     addErfolg, updateErfolg, deleteErfolg,
     refresh: fetchAll,

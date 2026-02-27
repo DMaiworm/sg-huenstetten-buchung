@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
   Camera, Award, Trophy, CheckCircle, Clock, AlertCircle,
-  Plus, Pencil, Trash2, Upload, Save, Mail, Phone, MapPin,
+  Plus, Pencil, Trash2, Upload, Save, Mail, Phone, MapPin, ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrganizationContext';
@@ -42,10 +42,23 @@ export default function TrainerProfil() {
   const { showToast } = useToast();
   const {
     details, lizenzen, erfolge, loading, error,
-    upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis,
+    upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis, uploadVerhaltenskodex,
     addLizenz, updateLizenz, deleteLizenz,
     addErfolg, updateErfolg, deleteErfolg,
   } = useTrainerProfile(profile?.id);
+
+  // Jugendmannschaften, denen dieser Trainer zugeordnet ist
+  const jugendteams = useMemo(() => {
+    const myAssignments = (trainerAssignments || []).filter(ta => ta.userId === profile?.id);
+    return myAssignments
+      .map(ta => (teams || []).find(t => t.id === ta.teamId))
+      .filter(t => t?.istJugendmannschaft)
+      .map(t => {
+        const dept = (departments || []).find(d => d.id === t.departmentId);
+        const club = dept ? (clubs || []).find(c => c.id === dept.clubId) : null;
+        return { ...t, deptName: dept?.name, clubName: club?.name };
+      });
+  }, [trainerAssignments, teams, departments, clubs, profile?.id]);
 
   // Aktiv-für-Vereine aus Team-Zuordnungen ableiten
   const aktivFuer = useMemo(() => {
@@ -75,6 +88,7 @@ export default function TrainerProfil() {
   const [saving,       setSaving]       = useState(false);
   const photoRef = useRef(null);
   const fzRef    = useRef(null);
+  const vkRef    = useRef(null);
 
   // Lizenz-State
   const [showAddLizenz,   setShowAddLizenz]   = useState(false);
@@ -173,6 +187,16 @@ export default function TrainerProfil() {
     setSaving(false);
     if (err) { showToast('Upload fehlgeschlagen: ' + err, 'error'); return; }
     showToast('Führungszeugnis hochgeladen', 'success');
+  };
+
+  const handleVkUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    const { error: err } = await uploadVerhaltenskodex(file);
+    setSaving(false);
+    if (err) { showToast('Upload fehlgeschlagen: ' + err, 'error'); return; }
+    showToast('Verhaltenskodex hochgeladen', 'success');
   };
 
   // Lizenzen
@@ -472,13 +496,6 @@ export default function TrainerProfil() {
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Status (vom Verein gepflegt)</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
               <div>
-                <p className="text-gray-500 text-xs mb-1">Führungszeugnis</p>
-                <StatusBadge ok={details?.fuehrungszeugnisVerified} label={details?.fuehrungszeugnisVerified ? 'Verifiziert' : 'Ausstehend'} />
-                {details?.fuehrungszeugnisDate && (
-                  <p className="text-xs text-gray-400 mt-1">vom {formatDate(details.fuehrungszeugnisDate)}</p>
-                )}
-              </div>
-              <div>
                 <p className="text-gray-500 text-xs mb-1">Unterlagen</p>
                 <StatusBadge ok={details?.unterlagenVollstaendig} label={details?.unterlagenVollstaendig ? 'Vollständig' : 'Unvollständig'} />
               </div>
@@ -497,15 +514,72 @@ export default function TrainerProfil() {
                 </div>
               )}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500 mb-2">Führungszeugnis hochladen (PDF oder Bild, nur für Admins sichtbar)</p>
-              <Button variant="secondary" size="sm" onClick={() => fzRef.current?.click()} disabled={saving}>
-                <Upload className="w-3.5 h-3.5 mr-1.5" />
-                {details?.fuehrungszeugnisUrl ? 'Erneut hochladen' : 'Jetzt hochladen'}
-              </Button>
+          </div>
+
+          {/* Kindeswohl-Maßnahmen – nur für Jugendtrainer */}
+          {jugendteams.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-amber-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-500" /> Kindeswohl-Maßnahmen
+              </h3>
+              <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Durch deine Zuordnung zu{' '}
+                  {jugendteams.length === 1
+                    ? <strong>{jugendteams[0].name}</strong>
+                    : <>den Mannschaften <strong>{jugendteams.map(t => t.name).join(', ')}</strong></>
+                  }{' '}
+                  bist du verpflichtet, an den Maßnahmen zur Sicherstellung des Kindeswohls mitzuwirken.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Verhaltenskodex */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">Verhaltenskodex</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Unterzeichnetes Dokument hochladen</p>
+                    <div className="mt-1.5">
+                      <StatusBadge
+                        ok={details?.verhaltenskodexVerified}
+                        label={details?.verhaltenskodexVerified ? 'Verifiziert' : details?.verhaltenskodexUrl ? 'Eingereicht' : 'Ausstehend'}
+                      />
+                    </div>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => vkRef.current?.click()} disabled={saving} className="flex-shrink-0">
+                    <Upload className="w-3.5 h-3.5 mr-1.5" />
+                    {details?.verhaltenskodexUrl ? 'Erneut hochladen' : 'Hochladen'}
+                  </Button>
+                </div>
+
+                <div className="border-t border-gray-100" />
+
+                {/* Führungszeugnis */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">Polizeiliches Führungszeugnis</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Beantragen und Kopie hochladen</p>
+                    <div className="mt-1.5">
+                      <StatusBadge
+                        ok={details?.fuehrungszeugnisVerified}
+                        label={details?.fuehrungszeugnisVerified ? 'Verifiziert' : details?.fuehrungszeugnisUrl ? 'Eingereicht' : 'Ausstehend'}
+                      />
+                      {details?.fuehrungszeugnisDate && (
+                        <span className="ml-2 text-xs text-gray-400">vom {formatDate(details.fuehrungszeugnisDate)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => fzRef.current?.click()} disabled={saving} className="flex-shrink-0">
+                    <Upload className="w-3.5 h-3.5 mr-1.5" />
+                    {details?.fuehrungszeugnisUrl ? 'Erneut hochladen' : 'Hochladen'}
+                  </Button>
+                </div>
+              </div>
+
+              <input ref={vkRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleVkUpload} />
               <input ref={fzRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleFzUpload} />
             </div>
-          </div>
+          )}
 
           {/* Lizenzen & Zertifikate */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
