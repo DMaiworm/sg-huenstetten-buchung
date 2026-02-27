@@ -181,6 +181,39 @@ export function useFacilities() {
         sort_order: res.sortOrder || 0,
       }).eq('id', res.id).select().single();
       if (error) throw error;
+
+      // Sync sub-resources if provided
+      if (res.subResources !== undefined) {
+        const { data: currentSubs } = await supabase
+          .from('resources').select('id').eq('parent_resource_id', res.id);
+        const currentSubIds = new Set((currentSubs || []).map(s => s.id));
+        const newSubIds     = new Set(res.subResources.filter(s => !s.id.startsWith('sub-')).map(s => s.id));
+
+        // Delete removed sub-resources
+        const toDelete = [...currentSubIds].filter(id => !newSubIds.has(id));
+        if (toDelete.length > 0) {
+          await supabase.from('resources').delete().in('id', toDelete);
+        }
+
+        // Create or update sub-resources
+        for (let i = 0; i < res.subResources.length; i++) {
+          const sub = res.subResources[i];
+          if (sub.id.startsWith('sub-')) {
+            // New → insert
+            await supabase.from('resources').insert({
+              group_id: res.groupId, name: sub.name, color: sub.color || '#3b82f6',
+              splittable: false, booking_mode: 'free',
+              parent_resource_id: res.id, sort_order: i,
+            });
+          } else if (currentSubIds.has(sub.id)) {
+            // Existing → update
+            await supabase.from('resources').update({
+              name: sub.name, color: sub.color || '#3b82f6', sort_order: i,
+            }).eq('id', sub.id);
+          }
+        }
+      }
+
       const allRes = await supabase.from('resources').select('*').order('sort_order');
       if (allRes.error) throw allRes.error;
       setResourcesState(buildConfigResources(allRes.data || []));
