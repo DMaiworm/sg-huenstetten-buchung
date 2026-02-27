@@ -5,14 +5,14 @@ import { useConfirm } from '../../../hooks/useConfirm';
 import { trainerStatus, STATUS_CONFIG, emptyUser } from './userConstants';
 import UserCard from './UserCard';
 import UserFormModal from './UserFormModal';
+import { useUserContext } from '../../../contexts/UserContext';
+import { useFacility } from '../../../contexts/FacilityContext';
+import { useOrg } from '../../../contexts/OrganizationContext';
 
-const UserManagement = ({
-  users, setUsers, createUser, updateUser, deleteUser, inviteUser,
-  operators,
-  resources, resourceGroups, facilities,
-  genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource,
-  trainerAssignments, teams, departments, clubs,
-}) => {
+const UserManagement = () => {
+  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource } = useUserContext();
+  const { RESOURCES: resources, resourceGroups, facilities } = useFacility();
+  const { clubs, departments, teams, trainerAssignments } = useOrg();
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [filterTab, setFilterTab] = useState('trainer');

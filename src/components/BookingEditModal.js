@@ -11,11 +11,15 @@ import { AlertTriangle, Save } from 'lucide-react';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import Modal from './ui/Modal';
 import { Button } from './ui/Button';
+import { useFacility } from '../contexts/FacilityContext';
+import { useUserContext } from '../contexts/UserContext';
 
 const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
 const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
 
-const BookingEditModal = ({ booking, open, onClose, onSave, resources, users }) => {
+const BookingEditModal = ({ booking, open, onClose, onSave }) => {
+  const { RESOURCES: resources } = useFacility();
+  const { users } = useUserContext();
   const [form, setForm] = useState({
     title: '', description: '', bookingType: 'training',
     date: '', startTime: '', endTime: '', resourceId: '',

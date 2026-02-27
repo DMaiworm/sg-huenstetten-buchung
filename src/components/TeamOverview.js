@@ -9,15 +9,20 @@ import { Users2 } from 'lucide-react';
 import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import TeamOverviewCard from './TeamOverviewCard';
+import { useOrg } from '../contexts/OrganizationContext';
+import { useBookingContext } from '../contexts/BookingContext';
+import { useUserContext } from '../contexts/UserContext';
+import { useFacility } from '../contexts/FacilityContext';
 
 const sectionCls = 'bg-white border border-gray-200 rounded-lg p-4 mb-5';
 const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
 const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
 
-const TeamOverview = ({
-  clubs, departments, teams, trainerAssignments,
-  bookings, users, resources,
-}) => {
+const TeamOverview = () => {
+  const { clubs, departments, teams, trainerAssignments } = useOrg();
+  const { bookings } = useBookingContext();
+  const { users } = useUserContext();
+  const { RESOURCES: resources } = useFacility();
   const [selectedClubId, setSelectedClubId] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
 

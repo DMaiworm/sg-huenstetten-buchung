@@ -125,6 +125,71 @@ export const getDateHolidayInfo = (dateStr, holidays) => {
 };
 
 // ────────────────────────────────────────────────
+//  Display helpers
+// ────────────────────────────────────────────────
+
+/**
+ * Get display name for a user by ID.
+ * @param {string} userId
+ * @param {Array} users - Array of mapped user objects (camelCase)
+ * @returns {string} "Vorname Nachname" or "Unbekannt"
+ */
+export const getUserDisplayName = (userId, users) => {
+  const u = users.find(x => x.id === userId);
+  return u ? `${u.firstName} ${u.lastName}` : 'Unbekannt';
+};
+
+/**
+ * Get organization label for a team (Team → Abteilung → Verein).
+ * @param {string} teamId
+ * @param {{ teams: Array, departments: Array, clubs: Array }} org
+ * @returns {{ teamName: string, departmentName: string, clubName: string, label: string }}
+ */
+export const getTeamOrgLabel = (teamId, { teams, departments, clubs }) => {
+  const team = teams.find(t => t.id === teamId);
+  if (!team) return { teamName: '', departmentName: '', clubName: '', label: '' };
+  const dept = departments.find(d => d.id === team.departmentId);
+  const club = dept ? clubs.find(c => c.id === dept.clubId) : null;
+  return {
+    teamName: team.name,
+    departmentName: dept?.name || '',
+    clubName: club?.name || club?.shortName || '',
+    label: [club?.shortName || club?.name, dept?.name, team.name].filter(Boolean).join(' › '),
+  };
+};
+
+/**
+ * Group bookings by seriesId. Singles (no series) are returned as-is.
+ * Each series container has { ...firstBooking, seriesBookings: [...], totalCount, freeCount, blockedCount }.
+ *
+ * @param {Array} bookingsToGroup - Bookings to group (already filtered)
+ * @param {Array} allBookings - All bookings for conflict detection
+ * @returns {Array} Mixed array of series containers and single bookings
+ */
+export const groupBookingsBySeries = (bookingsToGroup, allBookings) => {
+  const seriesMap = {};
+  const singles = [];
+  bookingsToGroup.forEach(b => {
+    if (b.seriesId) {
+      if (!seriesMap[b.seriesId]) {
+        seriesMap[b.seriesId] = { ...b, seriesBookings: [] };
+      }
+      const conflicts = findConflicts(b, allBookings);
+      seriesMap[b.seriesId].seriesBookings.push({ ...b, conflicts });
+    } else {
+      singles.push(b);
+    }
+  });
+  Object.values(seriesMap).forEach(s => {
+    s.seriesBookings.sort((a, b) => a.date.localeCompare(b.date));
+    s.totalCount = s.seriesBookings.length;
+    s.freeCount = s.seriesBookings.filter(sb => sb.conflicts.length === 0).length;
+    s.blockedCount = s.seriesBookings.filter(sb => sb.conflicts.length > 0).length;
+  });
+  return [...Object.values(seriesMap), ...singles];
+};
+
+// ────────────────────────────────────────────────
 //  Conflict detection
 // ────────────────────────────────────────────────
 

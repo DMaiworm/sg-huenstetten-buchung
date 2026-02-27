@@ -12,8 +12,19 @@ import { EVENT_TYPES } from '../../config/organizationConfig';
 import { Badge } from '../ui/Badge';
 import { findConflicts } from '../../utils/helpers';
 import PageHeader from '../ui/PageHeader';
+import { useAuth } from '../../contexts/AuthContext';
+import { useBookingContext } from '../../contexts/BookingContext';
+import { useUserContext } from '../../contexts/UserContext';
+import { useFacility } from '../../contexts/FacilityContext';
 
-const Approvals = ({ bookings, onApprove, onReject, users, resources, genehmigerResources = null, isAdmin = false }) => {
+const Approvals = ({ onApprove, onReject }) => {
+  const { profile, kannAdministrieren } = useAuth();
+  const { bookings } = useBookingContext();
+  const { users, getResourcesForUser } = useUserContext();
+  const { RESOURCES: resources } = useFacility();
+
+  const genehmigerResources = kannAdministrieren ? null : (getResourcesForUser(profile?.id) || null);
+  const isAdmin = kannAdministrieren;
   const [rejectDialog, setRejectDialog] = useState(null);
   const [expandedSeries, setExpandedSeries] = useState({});
 

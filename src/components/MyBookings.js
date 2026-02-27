@@ -14,6 +14,12 @@ import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
 import { useConfirm } from '../hooks/useConfirm';
+import StatusBadge from './ui/StatusBadge';
+import { useBookingContext } from '../contexts/BookingContext';
+import { useFacility } from '../contexts/FacilityContext';
+import { useUserContext } from '../contexts/UserContext';
+import { useOrg } from '../contexts/OrganizationContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // ──────────────────────────────────────────────
 //  Sub-components
@@ -31,21 +37,6 @@ const IconRow = ({ icon, children, bold, muted }) => (
   </div>
 );
 
-/** Status badge pill. */
-const StatusBadge = ({ status }) => {
-  const cfg = {
-    approved: { cls: 'bg-green-500 text-white', label: 'Genehmigt' },
-    pending:  { cls: 'bg-yellow-400 text-gray-800', label: 'Ausstehend' },
-    rejected: { cls: 'bg-red-500 text-white', label: 'Abgelehnt' },
-  }[status];
-  if (!cfg) return null;
-  return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${cfg.cls}`}>
-      {cfg.label}
-    </span>
-  );
-};
-
 // Einheitliche Klassen für Aktions-Buttons (w-full + justify-center für gleiche Breite)
 const btnBase   = 'inline-flex items-center justify-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer w-full';
 const btnEdit   = `${btnBase} bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200`;
@@ -55,10 +46,12 @@ const btnDanger = `${btnBase} bg-red-600 text-white hover:bg-red-700`;
 //  Component
 // ──────────────────────────────────────────────
 
-const MyBookings = ({
-  bookings, isAdmin, onDelete, onEdit, users, resources, resourceGroups, facilities,
-  clubs, departments, teams, trainerAssignments,
-}) => {
+const MyBookings = ({ onDelete, onEdit }) => {
+  const { isAdmin } = useAuth();
+  const { bookings } = useBookingContext();
+  const { RESOURCES: resources, resourceGroups, facilities } = useFacility();
+  const { users } = useUserContext();
+  const { clubs, departments, teams, trainerAssignments } = useOrg();
   // ── Local state ────────────────────────────
   const [selectedFacilityId, setSelectedFacilityId] = useState('all');
   const [selectedGroupId, setSelectedGroupId]       = useState('all');

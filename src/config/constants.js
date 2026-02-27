@@ -19,6 +19,13 @@ export const COLOR_PRESETS = [
   '#e11d48', '#6b7280', '#16a34a', '#dc2626', '#7c3aed',
 ];
 
+/** Wiederverwendbare CSS-Klassen für Formulare. */
+export const FORM_CLASSES = {
+  input: 'w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm',
+  label: 'block text-sm font-medium text-gray-700 mb-1',
+  section: 'bg-white border border-gray-200 rounded-lg p-4 mb-5',
+};
+
 /** Icons für Ressourcengruppen. */
 export const GROUP_ICONS = [
   { id: 'outdoor', label: 'Außenanlagen',    emoji: '🏟️' },

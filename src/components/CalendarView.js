@@ -22,6 +22,10 @@ import { EVENT_TYPES } from '../config/organizationConfig';
 import { formatDate, formatDateISO, getWeekDates, getWeekStart, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
+import { useFacility } from '../contexts/FacilityContext';
+import { useBookingContext } from '../contexts/BookingContext';
+import { useUserContext } from '../contexts/UserContext';
+import { useOrg } from '../contexts/OrganizationContext';
 
 // ──────────────────────────────────────────────
 //  Grid-Layout-Konstanten
@@ -36,12 +40,15 @@ const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT;
 //  Komponente
 // ──────────────────────────────────────────────
 
-const CalendarView = ({
-  bookings, slots, selectedResource, setSelectedResource,
-  currentDate, setCurrentDate, users, adminCheckbox,
-  resources, facilities, resourceGroups, teams, departments, clubs,
-  onBookingClick,
-}) => {
+const CalendarView = ({ onBookingClick }) => {
+  const { RESOURCES: resources, slots, facilities, resourceGroups } = useFacility();
+  const { bookings } = useBookingContext();
+  const { users } = useUserContext();
+  const { teams, departments, clubs } = useOrg();
+
+  // Kalender-State (vormals aus AppLayout)
+  const [selectedResource, setSelectedResource] = useState(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
   // ── Lokaler State ───────────────────────────
   const [selectedFacilityId, setSelectedFacilityId] = useState(facilities?.[0]?.id || '');
   const [selectedGroupId, setSelectedGroupId]       = useState('');
@@ -387,7 +394,6 @@ const CalendarView = ({
             <span className="hidden sm:inline">Tag</span>
           </button>
         </div>
-        {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
       </div>
 
       {/* ── 2. Ressourcen-Tabs (nur Wochenansicht) ── */}

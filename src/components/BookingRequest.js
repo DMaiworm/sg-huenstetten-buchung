@@ -13,6 +13,11 @@ import { DAYS_FULL } from '../config/constants';
 import { EVENT_TYPES } from '../config/organizationConfig';
 import { timeToMinutes, generateSeriesDates, checkBookingConflicts, getDateHolidayInfo } from '../utils/helpers';
 import { Badge } from './ui/Badge';
+import { useFacility } from '../contexts/FacilityContext';
+import { useBookingContext } from '../contexts/BookingContext';
+import { useUserContext } from '../contexts/UserContext';
+import { useOrg } from '../contexts/OrganizationContext';
+import { useHolidayContext } from '../contexts/HolidayContext';
 
 const sectionCls = 'bg-white border border-gray-200 rounded-lg p-4 mb-5';
 const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
@@ -25,12 +30,13 @@ const SectionHeader = ({ icon, title }) => (
   </div>
 );
 
-const BookingRequest = ({
-  slots, onSubmit, users, bookings = [], resources,
-  facilities, resourceGroups,
-  clubs, departments, teams, trainerAssignments,
-  holidays = [],
-}) => {
+const BookingRequest = ({ onSubmit }) => {
+  const { RESOURCES: resources, slots, facilities, resourceGroups } = useFacility();
+  const { bookings } = useBookingContext();
+  const { users } = useUserContext();
+  const { clubs, departments, teams, trainerAssignments } = useOrg();
+  const { holidays } = useHolidayContext();
+
   const [formData, setFormData] = useState({
     facilityId: facilities?.[0]?.id || '', groupId: '', resourceId: '',
     clubId: '', departmentId: '', teamId: '',

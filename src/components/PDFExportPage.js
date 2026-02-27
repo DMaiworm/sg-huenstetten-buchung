@@ -2,9 +2,16 @@ import React, { useState } from 'react';
 import { FileDown, Building2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { EVENT_TYPES } from '../config/organizationConfig';
+import { useFacility } from '../contexts/FacilityContext';
+import { useBookingContext } from '../contexts/BookingContext';
+import { useUserContext } from '../contexts/UserContext';
+import { useOrg } from '../contexts/OrganizationContext';
 
-const PDFExportPage = ({ bookings, users, resources, resourceGroups, facilities, clubs, departments, teams, trainerAssignments }) => {
-  const RESOURCES = resources;
+const PDFExportPage = () => {
+  const { RESOURCES, resourceGroups, facilities } = useFacility();
+  const { bookings } = useBookingContext();
+  const { users } = useUserContext();
+  const { clubs, departments, teams, trainerAssignments } = useOrg();
 
   // Lookup org info for a booking (team → department → club)
   const getBookingOrgInfo = (booking) => {

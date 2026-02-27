@@ -39,22 +39,18 @@ registerLocale('de', de);
  * Bezieht Daten aus Contexts, Handler aus Custom Hooks.
  */
 function AppLayout() {
-  const { profile, istTrainer, kannBuchen, kannGenehmigen, kannVerwalten, kannAdministrieren, isAdmin } = useAuth();
+  const { profile, istTrainer, kannBuchen, kannGenehmigen, kannVerwalten, kannAdministrieren } = useAuth();
   const facility = useFacility();
-  const { facilities, resourceGroups, configResources, slots, RESOURCES, loading: facilitiesLoading } = facility;
+  const { facilities, resourceGroups, configResources, slots, loading: facilitiesLoading } = facility;
   const org = useOrg();
   const { bookings, loading: bookingsLoading } = useBookingContext();
-  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, getResourcesForUser, addGenehmigerResource, removeGenehmigerResource, loading: usersLoading } = useUserContext();
+  const { users, getResourcesForUser, operators, loading: usersLoading } = useUserContext();
   const { handleNewBooking, handleEditBooking, handleApprove, handleReject, handleDeleteBooking } = useBookingActions();
   const holiday = useHolidayContext();
 
-  const [selectedResource, setSelectedResource] = useState(null);
-  const [currentDate, setCurrentDate]           = useState(new Date());
   const [emailService]                          = useState(() => new EmailService());
   const [editingBooking, setEditingBooking]     = useState(null);
   const [sidebarOpen, setSidebarOpen]           = useState(false);
-
-  const effectiveSelectedResource = selectedResource || (RESOURCES.find(r => !r.isComposite)?.id || RESOURCES[0]?.id || null);
 
   const myGenehmigerResources = kannAdministrieren ? null : (kannGenehmigen ? getResourcesForUser(profile?.id) : null);
   const pendingCount = bookings.filter(b => {
@@ -75,10 +71,6 @@ function AppLayout() {
       </div>
     );
   }
-
-  // Shorthand-Props für Komponenten die noch nicht auf Contexts umgestellt sind
-  const orgProps      = { clubs: org.clubs, departments: org.departments, teams: org.teams, trainerAssignments: org.trainerAssignments };
-  const facilityProps = { facilities, resourceGroups };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -111,56 +103,36 @@ function AppLayout() {
           <Routes>
             {/* Allgemein */}
             <Route path="/" element={
-              <CalendarView bookings={bookings} slots={slots}
-                selectedResource={effectiveSelectedResource} setSelectedResource={setSelectedResource}
-                currentDate={currentDate} setCurrentDate={setCurrentDate}
-                users={users} resources={RESOURCES} teams={org.teams}
-                departments={org.departments} clubs={org.clubs} {...facilityProps}
-                onBookingClick={setEditingBooking} />
+              <CalendarView onBookingClick={setEditingBooking} />
             } />
             <Route path="/meine-buchungen" element={
-              <MyBookings bookings={bookings} isAdmin={isAdmin} onDelete={handleDeleteBooking}
-                onEdit={setEditingBooking}
-                users={users} resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities} {...orgProps} />
+              <MyBookings onDelete={handleDeleteBooking} onEdit={setEditingBooking} />
             } />
             <Route path="/export" element={
-              <PDFExportPage bookings={bookings} users={users} resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities} {...orgProps} />
+              <PDFExportPage />
             } />
             <Route path="/teams" element={
-              <TeamOverview {...orgProps} bookings={bookings} users={users} resources={RESOURCES} />
+              <TeamOverview />
             } />
 
             {/* Buchen */}
             <Route path="/buchen" element={
               <PermissionRoute permission="kannBuchen">
-                <BookingRequest slots={slots} bookings={bookings} onSubmit={handleNewBooking}
-                  users={users} resources={RESOURCES} holidays={holiday.holidays} {...facilityProps} {...orgProps} />
+                <BookingRequest onSubmit={handleNewBooking} />
               </PermissionRoute>
             } />
 
             {/* Genehmigungen */}
             <Route path="/genehmigungen" element={
               <PermissionRoute permission="kannGenehmigen">
-                <Approvals bookings={bookings} onApprove={handleApprove} onReject={handleReject}
-                  users={users} resources={RESOURCES}
-                  genehmigerResources={myGenehmigerResources} isAdmin={kannAdministrieren} />
+                <Approvals onApprove={handleApprove} onReject={handleReject} />
               </PermissionRoute>
             } />
 
             {/* Admin */}
             <Route path="/admin/benutzer" element={
               <PermissionRoute permission="kannAdministrieren">
-                <UserManagement
-                  users={users} setUsers={setUsers}
-                  createUser={createUser} updateUser={updateUser} deleteUser={deleteUser} inviteUser={inviteUser}
-                  operators={operators}
-                  resources={RESOURCES} resourceGroups={resourceGroups} facilities={facilities}
-                  genehmigerAssignments={genehmigerAssignments}
-                  addGenehmigerResource={addGenehmigerResource}
-                  removeGenehmigerResource={removeGenehmigerResource}
-                  trainerAssignments={org.trainerAssignments}
-                  teams={org.teams} departments={org.departments} clubs={org.clubs}
-                />
+                <UserManagement />
               </PermissionRoute>
             } />
             <Route path="/admin/anlagen" element={
@@ -237,8 +209,6 @@ function AppLayout() {
         open={!!editingBooking}
         onClose={() => setEditingBooking(null)}
         onSave={handleEditBooking}
-        resources={RESOURCES}
-        users={users}
       />
     </div>
   );
