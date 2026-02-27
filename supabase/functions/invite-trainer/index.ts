@@ -69,7 +69,9 @@ serve(async (req) => {
         ist_trainer:         oldProfile.ist_trainer,
         kann_buchen:         oldProfile.kann_buchen,
         kann_genehmigen:     oldProfile.kann_genehmigen,
+        kann_verwalten:      oldProfile.kann_verwalten,
         kann_administrieren: oldProfile.kann_administrieren,
+        invited_at:          new Date().toISOString(),
       }).eq('id', newAuthId);
 
       await supabase.from('trainer_assignments')

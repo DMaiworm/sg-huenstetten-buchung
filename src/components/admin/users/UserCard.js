@@ -104,14 +104,14 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
             </button>
           )}
 
-          {status === 'passiv' && onInvite && (
+          {!user.invitedAt && onInvite && (
             <button onClick={() => onInvite(user)} disabled={inviting === user.id}
               className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white rounded-full text-sm font-medium hover:bg-blue-600 transition-colors gap-1.5 disabled:opacity-50">
               <Send className="w-4 h-4" />{inviting === user.id ? 'Sende...' : 'Einladen'}
             </button>
           )}
 
-          {status === 'eingeladen' && onInvite && (
+          {user.invitedAt && onInvite && (
             <button onClick={() => onInvite(user)} disabled={inviting === user.id}
               className="inline-flex items-center px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors gap-1.5 disabled:opacity-50">
               <Send className="w-4 h-4" />{inviting === user.id ? 'Sende...' : 'Erneut einladen'}
