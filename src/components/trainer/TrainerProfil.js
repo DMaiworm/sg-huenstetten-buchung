@@ -112,6 +112,20 @@ export default function TrainerProfil() {
     showToast('IBAN gespeichert', 'success');
   };
 
+  const toggleProfilVeroeffentlichen = async () => {
+    setSaving(true);
+    const { error: e } = await upsertProfile({ profilVeroeffentlichen: !(details?.profilVeroeffentlichen || false) });
+    setSaving(false);
+    if (e) showToast('Fehler: ' + e, 'error');
+  };
+
+  const toggleKontaktVeroeffentlichen = async () => {
+    setSaving(true);
+    const { error: e } = await upsertProfile({ kontaktVeroeffentlichen: !(details?.kontaktVeroeffentlichen || false) });
+    setSaving(false);
+    if (e) showToast('Fehler: ' + e, 'error');
+  };
+
   const startKontaktEdit = () => {
     setEmailVal(profile?.email || '');
     setPhoneVal(profile?.phone || '');
@@ -243,8 +257,7 @@ export default function TrainerProfil() {
 
           {/* Name + Bio */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-semibold text-gray-900">{fullName}</h2>
-            <p className="text-sm text-gray-500 mb-3">{profile?.email}</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">{fullName}</h2>
 
             {bioEdit ? (
               <div className="space-y-2">
@@ -278,40 +291,19 @@ export default function TrainerProfil() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* ---- IBAN ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Bankverbindung (IBAN)</h3>
-        {ibanEdit ? (
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={ibanVal}
-              onChange={e => setIbanVal(e.target.value)}
-              placeholder="DE89 3704 0044 0532 0130 00"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <div className="flex gap-2">
-              <Button variant="primary" size="sm" onClick={saveIban} disabled={saving}>
-                <Save className="w-3.5 h-3.5 mr-1" /> Speichern
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setIbanEdit(false)}>Abbrechen</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-sm text-gray-800">
-              {details?.iban || <span className="text-gray-400 italic not-italic font-sans">Noch nicht hinterlegt</span>}
-            </span>
-            <button
-              onClick={startIbanEdit}
-              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              <Pencil className="w-3 h-3" /> Bearbeiten
-            </button>
-          </div>
-        )}
+        <label className="mt-5 pt-4 border-t border-gray-100 flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={details?.profilVeroeffentlichen || false}
+            onChange={toggleProfilVeroeffentlichen}
+            disabled={saving}
+            className="mt-0.5 w-4 h-4 rounded flex-shrink-0"
+            style={{ accentColor: '#2563eb' }}
+          />
+          <span className="text-sm text-gray-700">
+            Ich bin damit einverstanden, dass dieses Profil auf der Vereinswebsite veröffentlicht wird.
+          </span>
+        </label>
       </div>
 
       {/* ---- Kontaktdaten ---- */}
@@ -369,6 +361,53 @@ export default function TrainerProfil() {
             <button
               onClick={startKontaktEdit}
               className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+            >
+              <Pencil className="w-3 h-3" /> Bearbeiten
+            </button>
+          </div>
+        )}
+        <label className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={details?.kontaktVeroeffentlichen || false}
+            onChange={toggleKontaktVeroeffentlichen}
+            disabled={saving}
+            className="mt-0.5 w-4 h-4 rounded flex-shrink-0"
+            style={{ accentColor: '#2563eb' }}
+          />
+          <span className="text-sm text-gray-700">
+            Ich bin damit einverstanden, dass meine Kontaktdaten auf der Vereinswebsite veröffentlicht werden.
+          </span>
+        </label>
+      </div>
+
+      {/* ---- IBAN ---- */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Bankverbindung (IBAN)</h3>
+        {ibanEdit ? (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={ibanVal}
+              onChange={e => setIbanVal(e.target.value)}
+              placeholder="DE89 3704 0044 0532 0130 00"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <div className="flex gap-2">
+              <Button variant="primary" size="sm" onClick={saveIban} disabled={saving}>
+                <Save className="w-3.5 h-3.5 mr-1" /> Speichern
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setIbanEdit(false)}>Abbrechen</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm text-gray-800">
+              {details?.iban || <span className="text-gray-400 italic not-italic font-sans">Noch nicht hinterlegt</span>}
+            </span>
+            <button
+              onClick={startIbanEdit}
+              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
             >
               <Pencil className="w-3 h-3" /> Bearbeiten
             </button>

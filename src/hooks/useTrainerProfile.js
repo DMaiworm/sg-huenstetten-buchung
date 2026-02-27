@@ -25,6 +25,8 @@ function mapDetails(row) {
     fuehrungszeugnisDate:    row.fuehrungszeugnis_datum  || null,
     unterlagenVollstaendig:  row.unterlagen_vollstaendig || false,
     notizen:                 row.notizen                 || '',
+    profilVeroeffentlichen:  row.profil_veroeffentlichen  || false,
+    kontaktVeroeffentlichen: row.kontakt_veroeffentlichen || false,
     createdAt:               row.created_at,
     updatedAt:               row.updated_at,
   };
@@ -84,17 +86,16 @@ export function useTrainerProfile(userId) {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Profil anlegen oder aktualisieren
+  // Profil anlegen oder aktualisieren (nur explizit übergebene Felder werden gesetzt)
   const upsertProfile = useCallback(async (data) => {
     if (!userId) return { error: 'Nicht eingeloggt' };
     try {
-      const dbData = {
-        id:       userId,
-        bio:      data.bio      ?? null,
-        photo_url: data.photoUrl ?? null,
-        iban:     data.iban     ?? null,
-        updated_at: new Date().toISOString(),
-      };
+      const dbData = { id: userId, updated_at: new Date().toISOString() };
+      if ('bio' in data)                     dbData.bio = data.bio ?? null;
+      if ('photoUrl' in data)                dbData.photo_url = data.photoUrl ?? null;
+      if ('iban' in data)                    dbData.iban = data.iban ?? null;
+      if ('profilVeroeffentlichen' in data)  dbData.profil_veroeffentlichen  = data.profilVeroeffentlichen;
+      if ('kontaktVeroeffentlichen' in data) dbData.kontakt_veroeffentlichen = data.kontaktVeroeffentlichen;
       const { data: row, error: e } = await supabase
         .from('trainer_profile_details')
         .upsert(dbData, { onConflict: 'id' })
