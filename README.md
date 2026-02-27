@@ -13,7 +13,9 @@ Internes Buchungssystem für Sportstätten und Räumlichkeiten der SG Hünstette
 - **Genehmiger-Ressourcen** – Admins weisen Genehmigern gezielt einzelne Ressourcen zu
 - **Anlagenverwaltung** – Anlagen → Gruppen → Ressourcen (inklusive Unter-Ressourcen, Splittable-Felder, Slot-basierte Verfügbarkeit)
 - **Organisationsstruktur** – Vereine → Abteilungen → Mannschaften, Trainer-Zuordnung
-- **Benutzerverwaltung** – Einladung per E-Mail, Rollenzuweisung, Trainer-Status
+- **Benutzerverwaltung** – Einladung per E-Mail, Rollenzuweisung, Trainer-Status, Stammverein
+- **Trainer-Portal** – Self-Service-Profil (Bio, Foto, IBAN, Kontaktdaten, Lizenzen, Erfolge, Einwilligungen), Admin-Verwaltung (FZ, Chip-ID, Notizen)
+- **Trainerübersicht** – Intranet-Seite mit gefilterten Trainer-Karten und Vollprofil-Modal
 - **PDF-Export** – Monatsplan pro Kategorie als PDF (jsPDF)
 - **Meine Buchungen** – Filterbarer Überblick aller eigenen Buchungen mit Serien-Gruppierung
 - **Ferien & Feiertage** – Verwaltung und Import von Schulferien/Feiertagen
@@ -128,13 +130,17 @@ Jeder Push auf `main` triggert automatisch ein Vercel-Deployment. Umgebungsvaria
 
 ## Datenbank
 
-Die App nutzt Supabase (PostgreSQL) mit Row Level Security. Migrationen liegen in `supabase/migrations/` (001–012). Wichtige Tabellen:
+Die App nutzt Supabase (PostgreSQL) mit Row Level Security. Migrationen liegen in `supabase/migrations/` (001–019). Wichtige Tabellen:
 
-- `profiles` – Benutzerprofile (verknüpft mit Supabase Auth)
+- `profiles` – Benutzerprofile (verknüpft mit Supabase Auth), inkl. `ist_trainer`, `stammverein_id`
 - `facilities`, `resource_groups`, `resources` – Anlagenstruktur (Sub-Resources via `parent_resource_id`)
 - `slots` – Verfügbarkeitsfenster für limitierte Ressourcen
-- `bookings` – Buchungen (Einzel + Serien, inkl. `team_id` seit Migration 011)
+- `bookings` – Buchungen (Einzel + Serien, inkl. `team_id`)
 - `clubs`, `departments`, `teams`, `trainer_assignments` – Organisationsstruktur
 - `genehmiger_resource_assignments` – Ressourcen-Zuweisung für Genehmiger
+- `trainer_profile_details` – Trainer-Profil 1:1 (Bio, Foto, IBAN, FZ, Chip-ID, Veröffentlichungs-Flags)
+- `trainer_lizenzen`, `trainer_erfolge` – Trainer-Unterlagen (1:n)
 - `holidays` – Ferien & Feiertage
 - `sent_emails` – E-Mail-Protokoll
+
+**Supabase Storage:** `trainer-fotos` (public), `trainer-dokumente` (private, Signed URLs)

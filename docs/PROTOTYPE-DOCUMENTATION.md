@@ -1,6 +1,6 @@
 # SG Hünstetten – Ressourcen-Buchungssystem
 
-## Systemdokumentation (Stand: 26.02.2026)
+## Systemdokumentation (Stand: 27.02.2026)
 
 > **Zweck dieses Dokuments:** Vollständige Beschreibung des Systems als "Source of Truth" für die weitere Entwicklung. Alle Entitäten, Beziehungen, Geschäftsregeln und UI-Seiten sind hier dokumentiert.
 
@@ -58,6 +58,13 @@ Die Datenbank wurde über mehrere Migrationen aufgebaut:
 | 010 | `010_jfv_trainer_profiles.sql` | JFV Trainer-Profile Seed-Daten |
 | 011 | `011_bookings_team_id.sql` | `team_id`-Spalte in `bookings` (FK → teams) |
 | 012 | `012_backfill_booking_team_id.sql` | Backfill `team_id` für bestehende Buchungen |
+| 013 | `013_trainer_portal.sql` | `trainer_profile_details`, `trainer_lizenzen`, `trainer_erfolge` + RLS + Storage Buckets |
+| 014 | `014_trainer_verein_zuordnung.sql` | `stammverein_id`, `stammverein_andere` zu `profiles` |
+| 015 | `015_trainer_aktiv_fuer.sql` | Junction-Tabelle `trainer_verein_aktiv` (temporär, in 018 gedroppt) |
+| 016 | `016_trainer_public_read.sql` | SELECT-RLS für Trainer-Tabellen für alle Auth-User |
+| 017 | `017_profiles_self_update.sql` | RLS-Policy: Trainer können eigenes `profiles`-Profil updaten |
+| 018 | `018_drop_trainer_verein_aktiv.sql` | Drop `trainer_verein_aktiv` (redundant – ergibt sich aus Team-Zuordnungen) |
+| 019 | `019_trainer_veroeffentlichung_flags.sql` | `profil_veroeffentlichen`, `kontakt_veroeffentlichen` Spalten |
 
 **Vollständiges ER-Diagramm:**
 
@@ -78,9 +85,13 @@ clubs
            └── trainer_assignments (team_id → teams.id, user_id → profiles.id)
 
 genehmiger_resource_assignments (user_id → profiles.id, resource_id → resources.id)
+
+trainer_profile_details (id → profiles.id [1:1])
+ └── trainer_lizenzen (trainer_id → profiles.id)
+ └── trainer_erfolge (trainer_id → profiles.id)
 ```
 
-> **Alle IDs sind UUIDs** (gen_random_uuid()). Die Funktion `buildBookableResources()` flacht die hierarchische Ressourcen-Struktur in ein buchbares Array. Die DB→App-Mapper in `useSupabase.js` konvertieren snake_case (PostgreSQL) → camelCase (JavaScript).
+> **Alle IDs sind UUIDs** (gen_random_uuid()). Die Funktion `buildBookableResources()` flacht die hierarchische Ressourcen-Struktur in ein buchbares Array. Die DB→App-Mapper liegen in den domain-spezifischen Hooks (`useBookings`, `useFacilities`, `useOrganization`, `useUsers`, etc.) und konvertieren snake_case (PostgreSQL) → camelCase (JavaScript). `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper.
 
 ### 2.2 State-Architektur (React Contexts)
 
@@ -340,6 +351,9 @@ Das System nutzt **Supabase Auth** mit E-Mail/Passwort. Kein Self-Service-Signup
 | `phone` | String | ❌ | Telefonnummer |
 | `role` | Enum | ✅ | `admin` / `trainer` / `extern` / `genehmiger` |
 | `operatorId` | UUID | ❌ | FK → Operator (Pflicht für Admins) |
+| `istTrainer` | Boolean | ❌ | Trainer-Flag (Trainer-Portal) |
+| `stammvereinId` | UUID | ❌ | FK → clubs (Abrechnung) |
+| `stammvereinAndere` | String | ❌ | Stammverein-Freitext (wenn kein Club) |
 
 #### 2.5.3 Rollen
 
@@ -590,7 +604,43 @@ Export des Buchungsplans als PDF (Querformat A4):
 - Trainer-Zuordnungen (Primary/Co) mit Benutzer-Dropdown
 - Erlaubte Terminarten pro Mannschaft
 
-### 3.11 Shared UI-Komponenten
+### 3.11 Trainerübersicht (TrainerUebersicht)
+
+**Route:** `/trainer` (alle eingeloggten Benutzer)
+
+Intranet-Übersicht aller Trainer mit kaskadierten Filtern:
+- **Verein-Dropdown** (mit Trainer-Anzahl pro Verein)
+- **Abteilung-Dropdown** (nur Abteilungen mit Trainern im gewählten Verein)
+- **Trainer-Cards** (`TrainerUebersichtCard`): Foto/Avatar, Name, Vereine (aus Team-Zuordnungen), Bio, max. 3 Mannschaften, max. 2 Lizenzen, max. 2 Erfolge mit "+N weitere"-Hinweis
+- **Vollprofil-Button**: Öffnet `TrainerDetailModal` (schwebendes Modal mit vollständigen Daten)
+
+### 3.12 Mein Trainer-Profil (TrainerProfil)
+
+**Route:** `/trainer/profil` (nur `istTrainer`)
+
+Self-Service-Seite für Trainer. Sektionen:
+1. **Profil-Header**: Foto-Upload (Kamera-Button), Name, Bio (editierbar)
+   - Checkbox: „Profil auf Website veröffentlichen"
+2. **Kontaktdaten**: E-Mail + Telefon (editierbar), Checkbox: „Kontaktdaten auf Website veröffentlichen"
+3. **Bankverbindung**: IBAN (editierbar, nur für Admins sichtbar)
+4. **Status** (read-only): Führungszeugnis-Status, Chip-ID, Unterlagen vollständig, aktive Vereine (aus Team-Zuordnungen), Stammverein (Abrechnung), Führungszeugnis-Upload
+5. **Lizenzen & Zertifikate**: CRUD mit LizenzForm (Inline-Formular)
+6. **Erfolge**: CRUD mit ErfolgForm (Inline-Formular)
+
+### 3.13 Admin: Trainerverwaltung (TrainerVerwaltung)
+
+**Route:** `/admin/trainer` (nur `kannAdministrieren`)
+
+Admin-Übersicht aller Trainer mit Vollständigkeits-Ampel (grün/gelb/rot):
+- **Vollständigkeits-Ampel**: grün = FZ verifiziert + unterlagen vollständig + chipId gesetzt, gelb = teilweise, rot = unvollständig
+- **Expandierbare Trainer-Karten** (`TrainerVerwaltungCard`):
+  - Stammdaten (read-only)
+  - Führungszeugnis: Verifiziert-Haken + Datum-Eingabe + Download via Signed URL (5 Min)
+  - Chip/Schlüssel-ID: Textfeld
+  - Unterlagen vollständig: Checkbox
+  - Notizen: Textarea (nur Admin sichtbar)
+
+### 3.14 Shared UI-Komponenten
 
 | Komponente | Datei | Beschreibung |
 |-----------|-------|-------------|
@@ -606,7 +656,7 @@ Export des Buchungsplans als PDF (Querformat A4):
 | `Modal` | `ui/Modal.js` | Overlay-Dialog mit Backdrop |
 | `PageHeader` | `ui/PageHeader.js` | Standardisierter Seiten-Header |
 
-### 3.12 Admin: Ferien & Feiertage (HolidayManagement)
+### 3.15 Admin: Ferien & Feiertage (HolidayManagement)
 
 **Route:** `/admin/ferien-feiertage` (nur `kannAdministrieren`)
 
@@ -632,6 +682,9 @@ Export des Buchungsplans als PDF (Querformat A4):
 | `/admin/organisation` | OrganizationManagement | PermissionRoute(kannAdministrieren) | Admin |
 | `/admin/ferien-feiertage` | HolidayManagement | PermissionRoute(kannAdministrieren) | Admin |
 | `/admin/emails` | EmailLog | PermissionRoute(kannAdministrieren) | Admin |
+| `/trainer` | TrainerUebersicht | ProtectedRoute | Alle eingeloggten |
+| `/trainer/profil` | TrainerProfil | PermissionRoute(istTrainer) | Trainer |
+| `/admin/trainer` | TrainerVerwaltung | PermissionRoute(kannAdministrieren) | Admin |
 | `*` | → Redirect `/` | – | Fallback |
 
 ---
@@ -664,6 +717,9 @@ Export des Buchungsplans als PDF (Querformat A4):
 2. Ein Trainer kann **mehreren** Mannschaften zugeordnet sein
 3. Eine Mannschaft kann **mehrere** Trainer haben (Haupt + Co)
 4. Buchung erfordert einen **zugeordneten Trainer** (userId wird aus Primary Trainer aufgelöst)
+5. Die Vereins-/Abteilungszugehörigkeit eines Trainers ergibt sich **implizit** aus seinen Team-Zuordnungen (trainer_assignments → teams → departments → clubs) – keine separate Speicherung nötig
+6. Trainer können ihr Profil (Bio, Foto, IBAN, Kontaktdaten, Lizenzen, Erfolge) per **Self-Service** pflegen
+7. Admin-Felder (Führungszeugnis, Chip-ID, Notizen) können nur durch Benutzer mit `kannAdministrieren` bearbeitet werden
 
 ### 5.4 Benutzer- und Rollen-Regeln
 
@@ -672,6 +728,16 @@ Export des Buchungsplans als PDF (Querformat A4):
 3. **Genehmiger** sehen nur Anfragen für Ressourcen, die ihnen von einem Admin zugewiesen wurden
 4. **Admins** sehen und genehmigen alle Anfragen
 5. Betreiber und Verein sind **getrennte Entitäten**
+
+### 5.5 Trainer-Portal Regeln
+
+1. Trainer können Bio, Foto, IBAN, Kontaktdaten, Lizenzen und Erfolge **selbst pflegen**
+2. Admin-Felder (Führungszeugnis-Verifikation, Chip-ID, Notizen) sind nur für `kannAdministrieren`-Benutzer editierbar
+3. Profilfotos werden in Supabase Storage Bucket `trainer-fotos` (public) gespeichert
+4. Führungszeugnisse werden in Bucket `trainer-dokumente` (private) gespeichert – Zugriff nur via Signed URL (5 Min)
+5. Die Einwilligungs-Flags `profil_veroeffentlichen` und `kontakt_veroeffentlichen` steuern die spätere Website-Veröffentlichung
+6. Vereins-/Abteilungszugehörigkeit wird **immer live** aus Team-Zuordnungen berechnet, nie separat gespeichert
+7. Stammverein (Abrechnung) wird **vom Admin** gesetzt und kann ein bekannter Club (FK) oder ein Freitext sein
 
 ---
 
@@ -705,7 +771,10 @@ src/
 │   ├── useGenehmigerResources.js      # Genehmiger-Ressourcen-Zuweisungen
 │   ├── useSupabase.js                 # Dünner Re-Export-Wrapper (~23 Zeilen)
 │   ├── useBookingActions.js           # Buchen, Genehmigen, Ablehnen, Löschen
-│   └── useConfirm.js                  # Promise-basierter ConfirmDialog
+│   ├── useConfirm.js                  # Promise-basierter ConfirmDialog
+│   ├── useTrainerProfile.js           # Trainer Self-Service (Profil, Lizenzen, Erfolge)
+│   ├── useTrainerVerwaltung.js        # Admin: Alle Trainer verwalten
+│   └── useTrainerUebersicht.js        # Intranet: Öffentliche Trainer-Liste
 │
 ├── routes/
 │   ├── ProtectedRoute.js               # Auth-Guard (→ /login wenn nicht eingeloggt)
@@ -725,7 +794,14 @@ src/
 │   │   ├── SectionHeader.js           #   Sektions-Überschrift
 │   │   └── TabBar.js                  #   Wiederverwendbare Tabs
 │   │
+│   ├── trainer/
+│   │   ├── TrainerProfil.js           # Self-Service Profil-Seite
+│   │   ├── LizenzForm.js             # Inline-Formular Lizenz
+│   │   └── ErfolgForm.js             # Inline-Formular Erfolg
 │   ├── admin/
+│   │   ├── trainer/
+│   │   │   ├── TrainerVerwaltung.js   # Admin-Übersicht
+│   │   │   └── TrainerVerwaltungCard.js # Expandierbare Admin-Karte
 │   │   ├── facilities/                 #   Anlagenverwaltung
 │   │   │   ├── index.js               #     Barrel Export
 │   │   │   ├── FacilitySection.js     #     Anlagen CRUD
@@ -767,6 +843,9 @@ src/
 │   │   ├── OrganizationManagement.js   #   Container für organization/
 │   │   └── UserManagement.js           #   Container für users/
 │   │
+│   ├── TrainerUebersicht.js           # Intranet-Übersicht (gefiltert)
+│   ├── TrainerUebersichtCard.js       # Kompakte Trainer-Karte
+│   ├── TrainerDetailModal.js          # Vollprofil-Modal
 │   ├── CalendarView.js                 #   Wochen-/Tageskalender (Tag/Woche Toggle)
 │   ├── BookingRequest.js               #   Buchungsformular
 │   ├── BookingEditModal.js             #   Buchung bearbeiten (Modal)

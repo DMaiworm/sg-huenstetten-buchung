@@ -29,9 +29,11 @@ npm test           # react-scripts test (Tests für helpers.js, ToastContext, us
 src/
 ├── contexts/          # React Context Provider
 │                      #   Auth, Facility, Organization, Booking, User, Holiday, Toast
-├── hooks/             # Domain-spezifische DB-Hooks (aus useSupabase aufgeteilt):
+├── hooks/             # Domain-spezifische DB-Hooks:
 │                      #   useBookings, useFacilities, useOrganization, useUsers,
 │                      #   useHolidays, useOperators, useGenehmigerResources
+│                      #   useTrainerProfile (Self-Service), useTrainerVerwaltung (Admin)
+│                      #   useTrainerUebersicht (Intranet-Liste)
 │                      #   + useBookingActions, useConfirm
 │                      #   useSupabase.js = dünner Re-Export-Wrapper (~23 Zeilen)
 ├── routes/            # ProtectedRoute (Auth-Guard), PermissionRoute (Rollen-Guard)
@@ -42,7 +44,15 @@ src/
 │   │   ├── facilities/    # Anlagenverwaltung (Facility → ResourceGroup → Resource)
 │   │   ├── organization/  # Vereine → Abteilungen → Mannschaften
 │   │   ├── users/         # Benutzerverwaltung + Genehmiger-Zuweisungen
-│   │   └── holidays/      # Feiertage & Schulferien
+│   │   ├── holidays/      # Feiertage & Schulferien
+│   │   └── trainer/       # Trainerverwaltung (Admin-Seite)
+│   ├── trainer/           # Trainer Self-Service
+│   │   ├── TrainerProfil.js   # Mein Trainer-Profil
+│   │   ├── LizenzForm.js      # Inline-Formular Lizenz
+│   │   └── ErfolgForm.js      # Inline-Formular Erfolg
+│   ├── TrainerUebersicht.js   # Intranet-Übersicht (alle Auth-User)
+│   ├── TrainerUebersichtCard.js # Kompakte Trainer-Karte
+│   ├── TrainerDetailModal.js  # Vollprofil-Modal
 │   ├── CalendarView.js    # Wochen-/Tageskalender (7–22 Uhr Raster, Tag/Woche Toggle)
 │   ├── BookingRequest.js  # Mehrstufiges Buchungsformular
 │   ├── BookingEditModal.js # Buchung bearbeiten
@@ -85,20 +95,27 @@ createContext(null) → SomeProvider({ children }) → useSome() mit Error bei f
 
 ## Datenbank
 
-Supabase PostgreSQL mit RLS. Migrationen in `supabase/migrations/` (001–012).
+Supabase PostgreSQL mit RLS. Migrationen in `supabase/migrations/` (001–019).
 
 **Wichtige Tabellen:**
-- `profiles` – Benutzer (UUID PK, verknüpft mit Supabase Auth)
+- `profiles` – Benutzer (UUID PK, verknüpft mit Supabase Auth). Zusatzfelder für Trainer: `ist_trainer`, `stammverein_id` (FK clubs), `stammverein_andere`
 - `facilities` → `resource_groups` → `resources` (hierarchisch, resources können parent_resource_id haben für Splits)
 - `bookings` – Einzeltermine + Serien (series_id), Status: pending/approved/rejected
 - `clubs` → `departments` → `teams` → `trainer_assignments`
 - `genehmiger_resource_assignments` – Genehmiger↔Ressourcen-Zuordnung
 - `holidays` – Feiertage
 - `sent_emails` – E-Mail-Log
+- `trainer_profile_details` – Trainer-Profil 1:1 zu profiles (Bio, Foto, IBAN, FZ, Chip-ID, Veröffentlichungs-Flags)
+- `trainer_lizenzen` – Lizenzen & Zertifikate 1:n zu profiles
+- `trainer_erfolge` – Erfolge 1:n zu profiles
 
 **ENUMs:** user_role, booking_mode (single/recurring), booking_status, booking_type, resource_group_icon
 
 **IDs:** Immer UUID via `gen_random_uuid()`
+
+**Supabase Storage Buckets:**
+- `trainer-fotos` – public (Profilfotos)
+- `trainer-dokumente` – private (Führungszeugnisse, Zugriff via Signed URL)
 
 ## Datum/Zeit
 
@@ -220,10 +237,42 @@ Vor Beginn jeder größeren Aufgabe:
 
 ## Hinweise für Claude Code Sessions
 
-- DB-Operationen sind auf 7 domain-spezifische Hooks aufgeteilt: `useBookings`, `useFacilities`, `useOrganization`, `useUsers`, `useHolidays`, `useOperators`, `useGenehmigerResources` – bei DB-Änderungen den passenden Hook prüfen
+- DB-Operationen sind auf Domain-Hooks aufgeteilt: `useBookings`, `useFacilities`, `useOrganization`, `useUsers`, `useHolidays`, `useOperators`, `useGenehmigerResources`, `useTrainerProfile`, `useTrainerVerwaltung`, `useTrainerUebersicht`
 - `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper, nicht mehr die zentrale Logik-Datei
 - Tailwind-Klassen direkt in JSX, keine CSS-Dateien anlegen
 - Bestehende UI-Komponenten aus `components/ui/` wiederverwenden (Button, Modal, Badge, ErrorBoundary, etc.)
 - Dokumentation in `docs/PROTOTYPE-DOCUMENTATION.md` enthält ER-Diagramme, API-Details, Berechtigungsmatrix
 - Bei Supabase-Queries: snake_case verwenden, Mapper im jeweiligen Domain-Hook konvertieren zu camelCase
 - Neue Komponenten immer in den passenden Unterordner legen und im jeweiligen `index.js` exportieren
+
+## Trainer-Portal – wichtige Patterns
+
+**Vereinszuordnung aus Team-Assignments ableiten:**
+Niemals `aktivFuer`-Clubs separat speichern. Die Vereins-/Abteilungszugehörigkeit ergibt sich immer live aus:
+```js
+trainerAssignments → teams → departments → clubs
+```
+
+**Partielles Upsert in `useTrainerProfile`:**
+`upsertProfile(data)` verwendet `'key' in data`-Checks, sodass nur explizit übergebene Felder gesetzt werden (kein versehentliches null-Überschreiben):
+```js
+if ('bio' in data) dbData.bio = data.bio ?? null;
+if ('profilVeroeffentlichen' in data) dbData.profil_veroeffentlichen = data.profilVeroeffentlichen;
+// etc.
+```
+
+**AuthContext `profile` ist snake_case:**
+`profile.first_name`, `profile.last_name`, `profile.email` – kommt direkt aus DB ohne Mapping.
+Users aus `useUserContext()` sind dagegen camelCase-gemappt.
+
+**`stammvereinAndere` Semantik:**
+- `null` = "Andere" nicht ausgewählt
+- `''` (leerer String) = "Andere" ausgewählt, aber Freitext noch leer
+- `'Vereinsname'` = "Andere" ausgewählt mit Text
+
+## Bekannte SQL-Fallstricke
+
+- `CREATE POLICY IF NOT EXISTS` existiert in PostgreSQL **nicht** → stattdessen `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE ...) THEN CREATE POLICY...; END IF; END $$;`
+- Supabase upsert (PostgREST) updated bei Konflikt **nur die im Payload enthaltenen Spalten** – andere Spalten bleiben unverändert
+- `UsersRound` gibt es in lucide-react nicht → `Users` verwenden
+- `PageHeader` nimmt `actions` (nicht `action`) als Prop für Buttons oben rechts
