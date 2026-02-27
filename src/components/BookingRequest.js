@@ -250,7 +250,10 @@ const BookingRequest = ({
           </div>
           {isComposite && (
             <div className="mt-3 px-3 py-2.5 bg-blue-50 rounded-lg flex items-center gap-2 text-[13px] text-blue-800">
-              <Maximize className="w-4 h-4" /><strong>Ganzes Spielfeld:</strong> Reserviert automatisch beide Hälften.
+              <Maximize className="w-4 h-4 flex-shrink-0" />
+              <span><strong>Reserviert automatisch:</strong>{' '}
+                {resources.filter(r => (resource.includes || []).includes(r.id)).map(r => r.name).join(', ')}
+              </span>
             </div>
           )}
           {isLimited && (
