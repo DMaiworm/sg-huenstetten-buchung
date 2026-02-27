@@ -6,12 +6,11 @@
  *   'day'  – 1 Tag, alle Ressourcen der Gruppe nebeneinander als Spalten
  *
  * Layout (top → bottom):
- *   1. Anlagen-Dropdown + Navigation (Woche/Tag Toggle, ←/→, DatePicker, Heute)
- *   2. Ressourcengruppen-Tabs  (gefiltert nach Anlage)
- *   3. Ressourcen-Tabs         (nur Wochenansicht, gefiltert nach Gruppe via groupId)
- *   4. Ressourcen-Info-Leiste  (nur Wochenansicht: Farbe, Name, Badges)
- *   5. Kalender-Grid           (07:00–22:00, Slot-Shading bei limitierten Ressourcen)
- *   6. Legende
+ *   1. Titel + Anlage-Dropdown + Ressourcengruppe-Dropdown (eine Zeile)
+ *   2. Ressourcen-Tabs         (nur Wochenansicht)
+ *   3. Ressource-Info-Leiste  (links) + Navigation (rechts)
+ *   4. Kalender-Grid           (07:00–22:00, Slot-Shading bei limitierten Ressourcen)
+ *   5. Legende
  */
 
 import React, { useState, useMemo } from 'react';
@@ -23,7 +22,6 @@ import { EVENT_TYPES } from '../config/organizationConfig';
 import { formatDate, formatDateISO, getWeekDates, getWeekStart, timeToMinutes } from '../utils/helpers';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
-import PageHeader from './ui/PageHeader';
 
 // ──────────────────────────────────────────────
 //  Grid-Layout-Konstanten
@@ -176,15 +174,6 @@ const CalendarView = ({
   const getUserName = (userId) => {
     const user = users.find(u => u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'Unbekannt';
-  };
-
-  const getBookingCountForGroup = (group) => {
-    const from = formatDateISO(displayDates[0]);
-    const to   = formatDateISO(displayDates[displayDates.length - 1]);
-    const resIds = resources.filter(r => r.groupId === group.id).map(r => r.id);
-    return bookings.filter(b =>
-      resIds.includes(b.resourceId) && b.date >= from && b.date <= to
-    ).length;
   };
 
   const getBookingCountForResource = (resId) => {
@@ -345,25 +334,89 @@ const CalendarView = ({
   return (
     <div className="h-full flex flex-col">
 
-      <PageHeader icon={CalendarDays} title="Kalender" />
-
-      {/* ── 1. Top-Bar: Anlage + Navigation ── */}
-      <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
-
-        {/* Links: Anlage */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+      {/* ── 1. Titel + Anlage + Ressourcengruppe ── */}
+      <div className="mb-3 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <CalendarDays className="w-6 h-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-gray-900">Kalender</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <select
             value={selectedFacilityId}
             onChange={e => handleFacilityChange(e.target.value)}
-            className="px-4 py-2 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+            className="px-3 py-1.5 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
           >
             {(facilities || []).map(f => (
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <select
+            value={selectedGroupId}
+            onChange={e => handleGroupChange(e.target.value)}
+            className="px-3 py-1.5 text-sm font-semibold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+          >
+            {facilityGroups.map(g => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+        </div>
+        {adminCheckbox && <div className="flex-shrink-0 ml-auto">{adminCheckbox}</div>}
+      </div>
 
-          {adminCheckbox && <div className="flex-shrink-0">{adminCheckbox}</div>}
+      {/* ── 2. Ressourcen-Tabs (nur Wochenansicht) ── */}
+      {viewMode === 'week' && (
+        <div className="mb-3 h-[42px]">
+          <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto h-[40px] whitespace-nowrap" style={{ scrollbarWidth: 'thin' }}>
+            {groupResources.map(res => (
+              <button
+                key={res.id}
+                onClick={() => setSelectedResource(res.id)}
+                className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                  selectedResource === res.id
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
+              >
+                {res.isComposite && <span>⭐</span>}
+                {res.type === 'limited' && <span>⚠️</span>}
+                {res.name}
+                {getBookingCountForResource(res.id) > 0 && (
+                  <span className="ml-1 min-w-6 h-6 px-1.5 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
+                    {getBookingCountForResource(res.id)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Ressource-Info (links) + Navigation (rechts) ── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+
+        {/* Links: Ressource-Info (nur Wochenansicht) */}
+        <div className="flex items-center gap-2 flex-wrap min-h-[32px]">
+          {viewMode === 'week' && resource && (
+            <>
+              <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: resource?.color }} />
+              <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
+              {isLimited && (
+                <Badge variant="warning" className="inline-flex items-center whitespace-nowrap">
+                  <Shield className="w-3 h-3 inline mr-1" />Nur in zugewiesenen Slots
+                </Badge>
+              )}
+              {isComposite && (
+                <Badge variant="info" className="inline-flex items-center whitespace-nowrap">
+                  <Maximize className="w-3 h-3 inline mr-1" />Beide Hälften
+                </Badge>
+              )}
+            </>
+          )}
         </div>
 
         {/* Rechts: Navigation */}
@@ -441,83 +494,7 @@ const CalendarView = ({
         </div>
       </div>
 
-      {/* ── 2. Ressourcengruppen-Tabs ── */}
-      <div className="mb-3">
-        <div className="flex flex-wrap gap-2 bg-gray-100 p-1.5 rounded-lg">
-          {facilityGroups.map(group => {
-            const count = getBookingCountForGroup(group);
-            return (
-              <button
-                key={group.id}
-                onClick={() => handleGroupChange(group.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${
-                  selectedGroupId === group.id
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
-                }`}
-              >
-                {group.name}
-                {count > 0 && (
-                  <span className={`ml-1 min-w-6 h-6 px-1.5 flex items-center justify-center text-xs font-bold rounded-full ${
-                    selectedGroupId === group.id ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-700'
-                  }`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 3. Ressourcen-Tabs (nur Wochenansicht) ── */}
-      {viewMode === 'week' && (
-        <div className="mb-3 h-[42px]">
-          <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200 overflow-x-auto h-[40px] whitespace-nowrap" style={{ scrollbarWidth: 'thin' }}>
-            {groupResources.map(res => (
-              <button
-                key={res.id}
-                onClick={() => setSelectedResource(res.id)}
-                className={`px-3 py-1.5 text-sm font-medium rounded transition-all flex items-center gap-1.5 flex-shrink-0 ${
-                  selectedResource === res.id
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                style={selectedResource === res.id ? { borderLeft: `3px solid ${res.color}` } : {}}
-              >
-                {res.isComposite && <span>⭐</span>}
-                {res.type === 'limited' && <span>⚠️</span>}
-                {res.name}
-                {getBookingCountForResource(res.id) > 0 && (
-                  <span className="ml-1 min-w-6 h-6 px-1.5 flex items-center justify-center bg-blue-600 text-white text-xs font-bold rounded-full">
-                    {getBookingCountForResource(res.id)}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── 4. Ressourcen-Info (nur Wochenansicht) ── */}
-      {viewMode === 'week' && (
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: resource?.color }} />
-          <h3 className="font-semibold text-gray-800">{resource?.name}</h3>
-          {isLimited && (
-            <Badge variant="warning" className="inline-flex items-center whitespace-nowrap">
-              <Shield className="w-3 h-3 inline mr-1" />Nur in zugewiesenen Slots
-            </Badge>
-          )}
-          {isComposite && (
-            <Badge variant="info" className="inline-flex items-center whitespace-nowrap">
-              <Maximize className="w-3 h-3 inline mr-1" />Beide Hälften
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* ── 5. Kalender-Grid ── */}
+      {/* ── 4. Kalender-Grid ── */}
       <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-[400px]">
 
         {viewMode === 'week' ? (
@@ -718,7 +695,7 @@ const CalendarView = ({
         )}
       </div>
 
-      {/* ── 6. Legende ── */}
+      {/* ── 5. Legende ── */}
       <div className="mt-2 py-2 flex gap-6 text-sm flex-wrap items-center border-t border-gray-200">
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-500 rounded" /><span>Genehmigt</span></div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded" /><span>Ausstehend</span></div>
