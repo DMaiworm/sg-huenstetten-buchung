@@ -424,7 +424,7 @@ const CalendarView = ({
       {/* ── 3. Ressource-Info (links) + Navigation (rechts) ── */}
       <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
 
-        {/* Links: Ressource-Info (nur Wochenansicht) */}
+        {/* Links: Ressource-Info (Woche) / Gruppen-Info (Tag) */}
         <div className="flex items-center gap-2 flex-wrap min-h-[32px]">
           {viewMode === 'week' && resource && (
             <>
@@ -440,6 +440,14 @@ const CalendarView = ({
                   <Maximize className="w-3 h-3 inline mr-1" />Beide Hälften
                 </Badge>
               )}
+            </>
+          )}
+          {viewMode === 'day' && (
+            <>
+              <div className="w-3 h-6 rounded flex-shrink-0" style={{ backgroundColor: groupResources[0]?.color }} />
+              <h3 className="font-semibold text-gray-800">
+                {facilityGroups.find(g => g.id === selectedGroupId)?.name}
+              </h3>
             </>
           )}
         </div>
@@ -588,22 +596,6 @@ const CalendarView = ({
           <>
             {/* ── Tagesansicht: Fixe Header-Zeilen ── */}
             <div className="flex-shrink-0" style={{ minWidth: dayMinWidth }}>
-
-              {/* Datum-Header (spans alle Ressourcen-Spalten) */}
-              <div className="grid" style={{ gridTemplateColumns: `60px 1fr` }}>
-                <div className="bg-gray-50 border-b border-r border-gray-200 p-2" />
-                <div className="bg-gray-50 border-b border-gray-200 p-2 text-center">
-                  <span className="text-sm text-gray-500 mr-2">
-                    {DAYS_FULL ? DAYS_FULL[currentDate.getDay()] : DAYS[currentDate.getDay()]}
-                  </span>
-                  <span className={`text-xl font-bold mx-1 ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
-                    {currentDate.getDate()}
-                  </span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    {currentDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-                  </span>
-                </div>
-              </div>
 
               {/* Ressourcen-Spalten-Header */}
               <div className="grid" style={{ gridTemplateColumns: dayGridCols }}>
