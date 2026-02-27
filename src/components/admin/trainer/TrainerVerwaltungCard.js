@@ -253,50 +253,6 @@ export default function TrainerVerwaltungCard({ trainer, onUpdate, onUpload, jug
             </div>
           )}
 
-          {/* Führungszeugnis – nur für Nicht-Jugendtrainer */}
-          {!isJugend && (
-            <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Führungszeugnis</h4>
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.fuehrungszeugnisVerified}
-                    onChange={e => set('fuehrungszeugnisVerified', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Verifiziert</span>
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="text-xs text-gray-500">Datum:</label>
-                  <input
-                    type="date"
-                    value={form.fuehrungszeugnisDate || ''}
-                    onChange={e => set('fuehrungszeugnisDate', e.target.value || null)}
-                    className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  {d.fuehrungszeugnisUrl ? (
-                    <button onClick={() => handleDownload(d.fuehrungszeugnisUrl)}
-                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                      <Upload className="w-3 h-3 rotate-180" /> Dokument ansehen
-                    </button>
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">Kein Dokument vorhanden</span>
-                  )}
-                  <button onClick={() => fzRef.current?.click()}
-                    disabled={uploading}
-                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50">
-                    <Upload className="w-3 h-3" /> {d.fuehrungszeugnisUrl ? 'Ersetzen' : 'Hochladen'}
-                  </button>
-                  <input ref={fzRef} type="file" accept=".pdf,image/*" className="hidden"
-                    onChange={e => { handleUpload('fuehrungszeugnis', e.target.files?.[0]); e.target.value = ''; }} />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Chip-ID */}
           <div>
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Chip / Schlüssel</h4>
