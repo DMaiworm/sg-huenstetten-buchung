@@ -236,10 +236,23 @@ export function useTrainerProfile(userId) {
     } catch (err) { return { error: err.message }; }
   }, []);
 
+  // Eigene Kontaktdaten (email, phone) in profiles aktualisieren
+  const updateContactInfo = useCallback(async ({ email, phone }) => {
+    if (!userId) return { error: 'Nicht eingeloggt' };
+    try {
+      const { error: e } = await supabase
+        .from('profiles')
+        .update({ email: email || null, phone: phone || null })
+        .eq('id', userId);
+      if (e) throw e;
+      return { error: null };
+    } catch (err) { return { error: err.message }; }
+  }, [userId]);
+
   return {
     details, lizenzen, erfolge, aktivFuer,
     loading, error,
-    upsertProfile, uploadPhoto, uploadFuehrungszeugnis,
+    upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis,
     addLizenz, updateLizenz, deleteLizenz,
     addErfolg, updateErfolg, deleteErfolg,
     refresh: fetchAll,

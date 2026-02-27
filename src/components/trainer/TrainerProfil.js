@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Camera, Award, Trophy, CheckCircle, Clock, AlertCircle,
-  Plus, Pencil, Trash2, Upload, Save,
+  Plus, Pencil, Trash2, Upload, Save, Mail, Phone,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrganizationContext';
@@ -42,7 +42,7 @@ export default function TrainerProfil() {
   const { showToast } = useToast();
   const {
     details, lizenzen, erfolge, aktivFuer, loading, error,
-    upsertProfile, uploadPhoto, uploadFuehrungszeugnis,
+    upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis,
     addLizenz, updateLizenz, deleteLizenz,
     addErfolg, updateErfolg, deleteErfolg,
   } = useTrainerProfile(profile?.id);
@@ -50,8 +50,11 @@ export default function TrainerProfil() {
   // Profil-Header State
   const [bioEdit, setBioEdit]   = useState(false);
   const [bioVal,  setBioVal]    = useState('');
-  const [ibanEdit, setIbanEdit] = useState(false);
-  const [ibanVal,  setIbanVal]  = useState('');
+  const [ibanEdit,    setIbanEdit]    = useState(false);
+  const [ibanVal,     setIbanVal]     = useState('');
+  const [kontaktEdit, setKontaktEdit] = useState(false);
+  const [emailVal,    setEmailVal]    = useState('');
+  const [phoneVal,    setPhoneVal]    = useState('');
   const [saving,  setSaving]    = useState(false);
   const photoRef  = useRef(null);
   const fzRef     = useRef(null);
@@ -94,6 +97,21 @@ export default function TrainerProfil() {
     if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setIbanEdit(false);
     showToast('IBAN gespeichert', 'success');
+  };
+
+  const startKontaktEdit = () => {
+    setEmailVal(profile?.email || '');
+    setPhoneVal(profile?.phone || '');
+    setKontaktEdit(true);
+  };
+
+  const saveKontakt = async () => {
+    setSaving(true);
+    const { error: e } = await updateContactInfo({ email: emailVal, phone: phoneVal });
+    setSaving(false);
+    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    setKontaktEdit(false);
+    showToast('Kontaktdaten gespeichert', 'success');
   };
 
   const handlePhotoUpload = async (e) => {
@@ -276,6 +294,68 @@ export default function TrainerProfil() {
             <button
               onClick={startIbanEdit}
               className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+            >
+              <Pencil className="w-3 h-3" /> Bearbeiten
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Kontaktdaten ---- */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Kontaktdaten</h3>
+        {kontaktEdit ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <Mail className="w-3 h-3" /> E-Mail
+              </label>
+              <input
+                type="email"
+                value={emailVal}
+                onChange={e => setEmailVal(e.target.value)}
+                placeholder="email@beispiel.de"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <Phone className="w-3 h-3" /> Telefon
+              </label>
+              <input
+                type="tel"
+                value={phoneVal}
+                onChange={e => setPhoneVal(e.target.value)}
+                placeholder="+49 151 12345678"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="primary" size="sm" onClick={saveKontakt} disabled={saving}>
+                <Save className="w-3.5 h-3.5 mr-1" /> Speichern
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setKontaktEdit(false)}>Abbrechen</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              {profile?.email
+                ? <span>{profile.email}</span>
+                : <span className="text-gray-400 italic">Keine E-Mail hinterlegt</span>
+              }
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              {profile?.phone
+                ? <span>{profile.phone}</span>
+                : <span className="text-gray-400 italic">Keine Telefonnummer hinterlegt</span>
+              }
+            </div>
+            <button
+              onClick={startKontaktEdit}
+              className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
             >
               <Pencil className="w-3 h-3" /> Bearbeiten
             </button>
