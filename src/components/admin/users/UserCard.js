@@ -11,11 +11,13 @@ const UserCard = ({ user, isExpanded, inviting, resourceTree, assignedIds,
   const status = trainerStatus(user);
   const initials = `${(user.firstName || '?')[0]}${(user.lastName || '?')[0]}`.toUpperCase();
   const avatarColor = user.kannAdministrieren ? '#dc2626'
+    : user.kannVerwalten ? '#ea580c'
     : user.kannGenehmigen ? '#7c3aed'
     : user.kannBuchen ? '#2563eb'
     : status === 'eingeladen' ? '#d97706'
     : '#9ca3af';
   const barColor = user.kannAdministrieren ? '#7C3AED'
+    : user.kannVerwalten ? '#EA580C'
     : user.kannGenehmigen ? '#059669'
     : user.istTrainer ? '#3B82F6'
     : '#9CA3AF';

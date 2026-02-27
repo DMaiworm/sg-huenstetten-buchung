@@ -5,10 +5,11 @@ import { supabase } from '../lib/supabase';
  * AuthContext – stellt Auth-Status und granulare Berechtigungen bereit.
  *
  * Permissions (direkt aus profiles-Flags):
- *   istTrainer        – erscheint als Trainer bei Mannschaften
- *   kannBuchen        – darf Buchungsanfragen stellen
- *   kannGenehmigen    – darf Anfragen genehmigen + eigene Buchungen auto-approved
- *   kannAdministrieren – Zugang zu Verwaltungsbereichen
+ *   istTrainer         – erscheint als Trainer bei Mannschaften
+ *   kannBuchen         – darf Buchungsanfragen stellen
+ *   kannGenehmigen     – darf Anfragen genehmigen + eigene Buchungen auto-approved
+ *   kannVerwalten      – Tagesbetrieb (Trainerverwaltung, E-Mail, PDF) – abgeleitet: true wenn kann_verwalten ODER kann_administrieren
+ *   kannAdministrieren – Zugang zu System-Setup (Anlagen, Organisation, Ferien)
  */
 const AuthContext = createContext(null);
 
@@ -60,6 +61,8 @@ export function AuthProvider({ children }) {
     istTrainer:         profile?.ist_trainer         ?? false,
     kannBuchen:         profile?.kann_buchen         ?? false,
     kannGenehmigen:     profile?.kann_genehmigen     ?? false,
+    // Verwalten = Tagesbetrieb; abgeleitet: Admins haben implizit auch Verwalten
+    kannVerwalten:      (profile?.kann_verwalten || profile?.kann_administrieren) ?? false,
     kannAdministrieren: profile?.kann_administrieren ?? false,
     // Convenience: isAdmin bleibt als Alias für kann_administrieren
     isAdmin:            profile?.kann_administrieren ?? false,

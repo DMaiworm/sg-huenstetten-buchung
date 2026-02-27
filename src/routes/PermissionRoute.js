@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
  * Schützt Routen die eine bestimmte Berechtigung benötigen.
  *
  * Props:
- *   permission  - Name des Auth-Flags: 'kannBuchen' | 'kannGenehmigen' | 'kannAdministrieren'
+ *   permission  - Name des Auth-Flags: 'kannBuchen' | 'kannGenehmigen' | 'kannVerwalten' | 'kannAdministrieren' | 'istTrainer'
  *   fallback    - optionale Redirect-URL (default: '/')
  *   children    - geschützter Inhalt
  */

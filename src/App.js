@@ -39,7 +39,7 @@ registerLocale('de', de);
  * Bezieht Daten aus Contexts, Handler aus Custom Hooks.
  */
 function AppLayout() {
-  const { profile, istTrainer, kannBuchen, kannGenehmigen, kannAdministrieren, isAdmin } = useAuth();
+  const { profile, istTrainer, kannBuchen, kannGenehmigen, kannVerwalten, kannAdministrieren, isAdmin } = useAuth();
   const facility = useFacility();
   const { facilities, resourceGroups, configResources, slots, RESOURCES, loading: facilitiesLoading } = facility;
   const org = useOrg();
@@ -84,7 +84,8 @@ function AppLayout() {
     <div className="flex h-screen bg-gray-50">
       <Sidebar
         kannBuchen={kannBuchen} kannGenehmigen={kannGenehmigen}
-        kannAdministrieren={kannAdministrieren} istTrainer={istTrainer}
+        kannVerwalten={kannVerwalten} kannAdministrieren={kannAdministrieren}
+        istTrainer={istTrainer}
         pendingCount={pendingCount}
         open={sidebarOpen} onClose={() => setSidebarOpen(false)}
       />
@@ -201,7 +202,7 @@ function AppLayout() {
               </PermissionRoute>
             } />
             <Route path="/admin/emails" element={
-              <PermissionRoute permission="kannAdministrieren">
+              <PermissionRoute permission="kannVerwalten">
                 <EmailLog emailService={emailService} />
               </PermissionRoute>
             } />
@@ -216,9 +217,9 @@ function AppLayout() {
               </PermissionRoute>
             } />
 
-            {/* Admin – Trainerverwaltung */}
+            {/* Tagesbetrieb – Trainerverwaltung */}
             <Route path="/admin/trainer" element={
-              <PermissionRoute permission="kannAdministrieren">
+              <PermissionRoute permission="kannVerwalten">
                 <TrainerVerwaltung operators={operators} />
               </PermissionRoute>
             } />

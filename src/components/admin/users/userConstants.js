@@ -1,15 +1,16 @@
 import { UserX, Clock, CheckCircle } from 'lucide-react';
 
 export const PERMISSIONS = [
-  { key: 'istTrainer',         label: 'Trainer',        description: 'Erscheint als Trainer bei Mannschaften',          color: '#2563eb' },
-  { key: 'kannBuchen',         label: 'Buchen',         description: 'Darf Buchungsanfragen stellen',                   color: '#16a34a' },
-  { key: 'kannGenehmigen',     label: 'Genehmigen',     description: 'Darf Anfragen genehmigen (eigene: auto-approved)',color: '#7c3aed' },
-  { key: 'kannAdministrieren', label: 'Administrieren', description: 'Zugang zu Benutzerverwaltung & Anlagen',          color: '#dc2626' },
+  { key: 'istTrainer',         label: 'Trainer',     description: 'Erscheint als Trainer bei Mannschaften',                      color: '#2563eb' },
+  { key: 'kannBuchen',         label: 'Buchen',      description: 'Darf Buchungsanfragen stellen',                               color: '#16a34a' },
+  { key: 'kannGenehmigen',     label: 'Genehmigen',  description: 'Darf Anfragen genehmigen (eigene: auto-approved)',            color: '#7c3aed' },
+  { key: 'kannVerwalten',      label: 'Verwalten',   description: 'Tagesbetrieb: Trainerverwaltung, E-Mail-Log, PDF-Export',     color: '#ea580c' },
+  { key: 'kannAdministrieren', label: 'Admin',       description: 'System-Setup: Benutzer, Anlagen, Organisation, Feiertage',   color: '#dc2626' },
 ];
 
 export const emptyUser = {
   firstName: '', lastName: '', email: '', phone: '', operatorId: '',
-  isPassive: false, istTrainer: false, kannBuchen: false, kannGenehmigen: false, kannAdministrieren: false,
+  isPassive: false, istTrainer: false, kannBuchen: false, kannGenehmigen: false, kannVerwalten: false, kannAdministrieren: false,
   stammvereinId: null, stammvereinAndere: null,
 };
 

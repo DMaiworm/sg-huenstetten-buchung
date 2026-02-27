@@ -15,7 +15,7 @@ import UserMenu from './UserMenu';
  * Mobile (< md): fixed, per Hamburger-Button in AppLayout öffenbar.
  * Desktop (md+): immer sichtbar.
  */
-const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren, istTrainer, open, onClose }) => {
+const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannVerwalten, kannAdministrieren, istTrainer, open, onClose }) => {
   const navItem = (to, icon, label, badge) => (
     <NavLink
       key={to}
@@ -105,7 +105,7 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
           {istTrainer && navItem('/trainer/profil', <UserCircle className="w-5 h-5" />, 'Mein Trainer-Profil')}
 
           {/* ── Tagesbetrieb ── */}
-          {kannAdministrieren && (
+          {kannVerwalten && (
             <>
               {section('Tagesbetrieb')}
               {navItem('/admin/trainer', <ClipboardCheck className="w-5 h-5" />, 'Trainerverwaltung')}
