@@ -18,7 +18,7 @@ const TeamOverview = ({
   clubs, departments, teams, trainerAssignments,
   bookings, users, resources,
 }) => {
-  const [selectedClubId, setSelectedClubId] = useState(clubs?.[0]?.id || '');
+  const [selectedClubId, setSelectedClubId] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
 
   // ── Cascading filters ──
@@ -28,9 +28,16 @@ const TeamOverview = ({
   }, [departments, selectedClubId]);
 
   const departmentTeams = useMemo(() => {
-    if (!teams || !selectedDeptId) return [];
-    return teams.filter(t => t.departmentId === selectedDeptId).sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  }, [teams, selectedDeptId]);
+    if (!teams) return [];
+    let result = selectedClubId
+      ? teams.filter(t => {
+          const dept = (departments || []).find(d => d.id === t.departmentId);
+          return dept?.clubId === selectedClubId;
+        })
+      : teams;
+    if (selectedDeptId) result = result.filter(t => t.departmentId === selectedDeptId);
+    return result.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  }, [teams, departments, selectedClubId, selectedDeptId]);
 
   const handleClubChange = (v) => { setSelectedClubId(v); setSelectedDeptId(''); };
 
@@ -75,14 +82,14 @@ const TeamOverview = ({
           <div>
             <label className={labelCls}>Verein</label>
             <select value={selectedClubId} onChange={e => handleClubChange(e.target.value)} className={inputCls}>
-              <option value="">-- Verein --</option>
+              <option value="">Alle Vereine</option>
               {(clubs || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
             <label className={labelCls}>Abteilung</label>
             <select value={selectedDeptId} onChange={e => setSelectedDeptId(e.target.value)} className={inputCls} disabled={!selectedClubId}>
-              <option value="">-- Abteilung wählen --</option>
+              <option value="">Alle Abteilungen</option>
               {clubDepartments.map(d => <option key={d.id} value={d.id}>{d.icon} {d.name}</option>)}
             </select>
           </div>
@@ -90,10 +97,8 @@ const TeamOverview = ({
       </div>
 
       {/* Team Grid oder Empty State */}
-      {!selectedDeptId ? (
-        <EmptyState icon={Users2} title="Abteilung auswählen" subtitle="Wähle einen Verein und eine Abteilung, um die Mannschaften zu sehen." />
-      ) : departmentTeams.length === 0 ? (
-        <EmptyState icon={Users2} title="Keine Mannschaften" subtitle={`In der Abteilung „${selectedDept?.icon} ${selectedDept?.name}" sind noch keine Mannschaften angelegt.`} />
+      {departmentTeams.length === 0 ? (
+        <EmptyState icon={Users2} title="Keine Mannschaften" subtitle={selectedDeptId ? `In der Abteilung „${selectedDept?.icon} ${selectedDept?.name}" sind noch keine Mannschaften angelegt.` : 'Es sind noch keine Mannschaften angelegt.'} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {departmentTeams.map(team => (

@@ -255,7 +255,7 @@ const MyBookings = ({
       <div className="mb-4 flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2 flex-shrink-0">
           <BookMarked className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Meine Buchungen</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Buchungsübersicht</h2>
         </div>
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />

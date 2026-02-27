@@ -83,10 +83,10 @@ const Sidebar = ({ pendingCount, kannBuchen, kannGenehmigen, kannAdministrieren,
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Allgemein</p>
           {navItem('/', <Calendar className="w-5 h-5" />, 'Kalender')}
-          {navItem('/meine-buchungen', <ClipboardList className="w-5 h-5" />, 'Meine Buchungen')}
+          {navItem('/meine-buchungen', <ClipboardList className="w-5 h-5" />, 'Buchungsübersicht')}
           {navItem('/teams', <Users2 className="w-5 h-5" />, 'Teamübersicht')}
           {navItem('/trainer', <Users className="w-5 h-5" />, 'Trainerübersicht')}
-          {kannBuchen && navItem('/buchen', <FileText className="w-5 h-5" />, 'Neue Anfrage')}
+          {kannBuchen && navItem('/buchen', <FileText className="w-5 h-5" />, 'Buchungsanfrage')}
           {navItem('/export', <FileDown className="w-5 h-5" />, 'PDF-Export')}
 
           {istTrainer && (
