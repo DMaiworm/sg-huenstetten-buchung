@@ -10,7 +10,7 @@ import { useFacility } from '../../../contexts/FacilityContext';
 import { useOrg } from '../../../contexts/OrganizationContext';
 
 const UserManagement = () => {
-  const { users, setUsers, createUser, updateUser, deleteUser, inviteUser, operators, genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource } = useUserContext();
+  const { users, createUser, updateUser, deleteUser, inviteUser, genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource } = useUserContext();
   const { RESOURCES: resources, resourceGroups, facilities } = useFacility();
   const { clubs, departments, teams, trainerAssignments } = useOrg();
   const [showForm, setShowForm] = useState(false);
