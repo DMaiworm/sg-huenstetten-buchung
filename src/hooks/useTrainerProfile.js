@@ -27,6 +27,9 @@ function mapDetails(row) {
     notizen:                 row.notizen                 || '',
     profilVeroeffentlichen:  row.profil_veroeffentlichen  || false,
     kontaktVeroeffentlichen: row.kontakt_veroeffentlichen || false,
+    adresseStrasse:          row.adresse_strasse          || '',
+    adressePlz:              row.adresse_plz              || '',
+    adresseOrt:              row.adresse_ort              || '',
     createdAt:               row.created_at,
     updatedAt:               row.updated_at,
   };
@@ -96,6 +99,9 @@ export function useTrainerProfile(userId) {
       if ('iban' in data)                    dbData.iban = data.iban ?? null;
       if ('profilVeroeffentlichen' in data)  dbData.profil_veroeffentlichen  = data.profilVeroeffentlichen;
       if ('kontaktVeroeffentlichen' in data) dbData.kontakt_veroeffentlichen = data.kontaktVeroeffentlichen;
+      if ('adresseStrasse' in data)          dbData.adresse_strasse = data.adresseStrasse ?? null;
+      if ('adressePlz'     in data)          dbData.adresse_plz     = data.adressePlz     ?? null;
+      if ('adresseOrt'     in data)          dbData.adresse_ort     = data.adresseOrt     ?? null;
       const { data: row, error: e } = await supabase
         .from('trainer_profile_details')
         .upsert(dbData, { onConflict: 'id' })

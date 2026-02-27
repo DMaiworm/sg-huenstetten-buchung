@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
   Camera, Award, Trophy, CheckCircle, Clock, AlertCircle,
-  Plus, Pencil, Trash2, Upload, Save, Mail, Phone,
+  Plus, Pencil, Trash2, Upload, Save, Mail, Phone, MapPin,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrganizationContext';
@@ -60,17 +60,21 @@ export default function TrainerProfil() {
     return [...clubIds];
   }, [trainerAssignments, teams, departments, profile?.id]);
 
-  // Profil-Header State
-  const [bioEdit, setBioEdit]   = useState(false);
-  const [bioVal,  setBioVal]    = useState('');
-  const [ibanEdit,    setIbanEdit]    = useState(false);
-  const [ibanVal,     setIbanVal]     = useState('');
-  const [kontaktEdit, setKontaktEdit] = useState(false);
-  const [emailVal,    setEmailVal]    = useState('');
-  const [phoneVal,    setPhoneVal]    = useState('');
-  const [saving,  setSaving]    = useState(false);
-  const photoRef  = useRef(null);
-  const fzRef     = useRef(null);
+  // State
+  const [bioEdit,      setBioEdit]      = useState(false);
+  const [bioVal,       setBioVal]       = useState('');
+  const [ibanEdit,     setIbanEdit]     = useState(false);
+  const [ibanVal,      setIbanVal]      = useState('');
+  const [kontaktEdit,  setKontaktEdit]  = useState(false);
+  const [emailVal,     setEmailVal]     = useState('');
+  const [phoneVal,     setPhoneVal]     = useState('');
+  const [adresseEdit,  setAdresseEdit]  = useState(false);
+  const [strasseVal,   setStrasseVal]   = useState('');
+  const [plzVal,       setPlzVal]       = useState('');
+  const [ortVal,       setOrtVal]       = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const photoRef = useRef(null);
+  const fzRef    = useRef(null);
 
   // Lizenz-State
   const [showAddLizenz,   setShowAddLizenz]   = useState(false);
@@ -84,32 +88,57 @@ export default function TrainerProfil() {
 
   // ---- Handler ----
 
-  const startBioEdit = () => {
-    setBioVal(details?.bio || '');
-    setBioEdit(true);
-  };
-
+  const startBioEdit = () => { setBioVal(details?.bio || ''); setBioEdit(true); };
   const saveBio = async () => {
     setSaving(true);
-    const { error: e } = await upsertProfile({ bio: bioVal, iban: details?.iban || null });
+    const { error: e } = await upsertProfile({ bio: bioVal });
     setSaving(false);
     if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setBioEdit(false);
     showToast('Bio gespeichert', 'success');
   };
 
-  const startIbanEdit = () => {
-    setIbanVal(details?.iban || '');
-    setIbanEdit(true);
-  };
-
+  const startIbanEdit = () => { setIbanVal(details?.iban || ''); setIbanEdit(true); };
   const saveIban = async () => {
     setSaving(true);
-    const { error: e } = await upsertProfile({ bio: details?.bio || null, iban: ibanVal });
+    const { error: e } = await upsertProfile({ iban: ibanVal });
     setSaving(false);
     if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setIbanEdit(false);
     showToast('IBAN gespeichert', 'success');
+  };
+
+  const startKontaktEdit = () => {
+    setEmailVal(profile?.email || '');
+    setPhoneVal(profile?.phone || '');
+    setKontaktEdit(true);
+  };
+  const saveKontakt = async () => {
+    setSaving(true);
+    const { error: e } = await updateContactInfo({ email: emailVal, phone: phoneVal });
+    setSaving(false);
+    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    setKontaktEdit(false);
+    showToast('Kontaktdaten gespeichert', 'success');
+  };
+
+  const startAdresseEdit = () => {
+    setStrasseVal(details?.adresseStrasse || '');
+    setPlzVal(details?.adressePlz || '');
+    setOrtVal(details?.adresseOrt || '');
+    setAdresseEdit(true);
+  };
+  const saveAdresse = async () => {
+    setSaving(true);
+    const { error: e } = await upsertProfile({
+      adresseStrasse: strasseVal || null,
+      adressePlz:     plzVal     || null,
+      adresseOrt:     ortVal     || null,
+    });
+    setSaving(false);
+    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    setAdresseEdit(false);
+    showToast('Adresse gespeichert', 'success');
   };
 
   const toggleProfilVeroeffentlichen = async () => {
@@ -124,21 +153,6 @@ export default function TrainerProfil() {
     const { error: e } = await upsertProfile({ kontaktVeroeffentlichen: !(details?.kontaktVeroeffentlichen || false) });
     setSaving(false);
     if (e) showToast('Fehler: ' + e, 'error');
-  };
-
-  const startKontaktEdit = () => {
-    setEmailVal(profile?.email || '');
-    setPhoneVal(profile?.phone || '');
-    setKontaktEdit(true);
-  };
-
-  const saveKontakt = async () => {
-    setSaving(true);
-    const { error: e } = await updateContactInfo({ email: emailVal, phone: phoneVal });
-    setSaving(false);
-    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
-    setKontaktEdit(false);
-    showToast('Kontaktdaten gespeichert', 'success');
   };
 
   const handlePhotoUpload = async (e) => {
@@ -170,7 +184,6 @@ export default function TrainerProfil() {
     setShowAddLizenz(false);
     showToast('Lizenz hinzugefügt', 'success');
   };
-
   const handleUpdateLizenz = async (id, data) => {
     setLizenzSaving(true);
     const { error: e } = await updateLizenz(id, data);
@@ -179,7 +192,6 @@ export default function TrainerProfil() {
     setEditingLizenzId(null);
     showToast('Lizenz aktualisiert', 'success');
   };
-
   const handleDeleteLizenz = async (id) => {
     const { error: e } = await deleteLizenz(id);
     if (e) { showToast('Fehler: ' + e, 'error'); return; }
@@ -195,7 +207,6 @@ export default function TrainerProfil() {
     setShowAddErfolg(false);
     showToast('Erfolg hinzugefügt', 'success');
   };
-
   const handleUpdateErfolg = async (id, data) => {
     setErfolgSaving(true);
     const { error: e } = await updateErfolg(id, data);
@@ -204,7 +215,6 @@ export default function TrainerProfil() {
     setEditingErfolgId(null);
     showToast('Erfolg aktualisiert', 'success');
   };
-
   const handleDeleteErfolg = async (id) => {
     const { error: e } = await deleteErfolg(id);
     if (e) { showToast('Fehler: ' + e, 'error'); return; }
@@ -226,45 +236,201 @@ export default function TrainerProfil() {
   );
 
   const fullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+  const hasAdresse = details?.adresseStrasse || details?.adressePlz || details?.adresseOrt;
+
+  const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const editLinkCls = 'mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800';
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-4">
       <PageHeader title="Mein Trainer-Profil" subtitle="Self-Service – du kannst dein Profil selbst pflegen" />
 
-      {/* ---- Profil-Header ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-start gap-5">
-          {/* Foto */}
-          <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-              {details?.photoUrl
-                ? <img src={details.photoUrl} alt={fullName} className="w-full h-full object-cover" />
-                : <span className="text-2xl font-bold text-blue-600">
-                    {(profile?.first_name?.[0] || '') + (profile?.last_name?.[0] || '')}
-                  </span>
-              }
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+
+        {/* ── LINKE SPALTE ── */}
+        <div className="w-full md:w-72 flex-shrink-0 space-y-4">
+
+          {/* Foto + Name + Vereine */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col items-center text-center">
+            <div className="relative mb-3">
+              <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                {details?.photoUrl
+                  ? <img src={details.photoUrl} alt={fullName} className="w-full h-full object-cover" />
+                  : <span className="text-3xl font-bold text-blue-600">
+                      {(profile?.first_name?.[0] || '') + (profile?.last_name?.[0] || '')}
+                    </span>
+                }
+              </div>
+              <button
+                onClick={() => photoRef.current?.click()}
+                disabled={saving}
+                className="absolute bottom-0 right-0 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 shadow"
+                title="Foto hochladen"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+              <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
             </div>
-            <button
-              onClick={() => photoRef.current?.click()}
-              disabled={saving}
-              className="absolute bottom-0 right-0 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 shadow"
-              title="Foto hochladen"
-            >
-              <Camera className="w-3.5 h-3.5" />
-            </button>
-            <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+            <h2 className="text-lg font-semibold text-gray-900">{fullName}</h2>
+            {aktivFuer.length > 0 && (
+              <div className="flex flex-wrap gap-1 justify-center mt-2">
+                {aktivFuer.map(clubId => {
+                  const club = clubs.find(c => c.id === clubId);
+                  return club ? (
+                    <span key={clubId} className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {club.name}
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Name + Bio */}
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">{fullName}</h2>
+          {/* Kontaktdaten */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Kontaktdaten</h3>
+            {kontaktEdit ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    <Mail className="w-3 h-3" /> E-Mail
+                  </label>
+                  <input type="email" value={emailVal} onChange={e => setEmailVal(e.target.value)}
+                    placeholder="email@beispiel.de" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> Telefon
+                  </label>
+                  <input type="tel" value={phoneVal} onChange={e => setPhoneVal(e.target.value)}
+                    placeholder="+49 151 12345678" className={inputCls} />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="primary" size="sm" onClick={saveKontakt} disabled={saving}>
+                    <Save className="w-3.5 h-3.5 mr-1" /> Speichern
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setKontaktEdit(false)}>Abbrechen</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  {profile?.email
+                    ? <span className="truncate">{profile.email}</span>
+                    : <span className="text-gray-400 italic">Keine E-Mail hinterlegt</span>
+                  }
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  {profile?.phone
+                    ? <span>{profile.phone}</span>
+                    : <span className="text-gray-400 italic">Kein Telefon hinterlegt</span>
+                  }
+                </div>
+                <button onClick={startKontaktEdit} className={editLinkCls}>
+                  <Pencil className="w-3 h-3" /> Bearbeiten
+                </button>
+              </div>
+            )}
+            <label className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={details?.kontaktVeroeffentlichen || false}
+                onChange={toggleKontaktVeroeffentlichen}
+                disabled={saving}
+                className="mt-0.5 w-4 h-4 rounded flex-shrink-0"
+                style={{ accentColor: '#2563eb' }}
+              />
+              <span className="text-xs text-gray-600">Kontaktdaten auf Website veröffentlichen</span>
+            </label>
+          </div>
 
+          {/* Postadresse */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Postadresse</h3>
+            {adresseEdit ? (
+              <div className="space-y-2">
+                <input type="text" value={strasseVal} onChange={e => setStrasseVal(e.target.value)}
+                  placeholder="Straße und Hausnummer" className={inputCls} />
+                <div className="flex gap-2">
+                  <input type="text" value={plzVal} onChange={e => setPlzVal(e.target.value)}
+                    placeholder="PLZ" className="w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <input type="text" value={ortVal} onChange={e => setOrtVal(e.target.value)}
+                    placeholder="Ort" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="primary" size="sm" onClick={saveAdresse} disabled={saving}>
+                    <Save className="w-3.5 h-3.5 mr-1" /> Speichern
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setAdresseEdit(false)}>Abbrechen</Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {hasAdresse ? (
+                  <div className="flex items-start gap-2 text-sm text-gray-700">
+                    <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      {details.adresseStrasse && <p>{details.adresseStrasse}</p>}
+                      {(details.adressePlz || details.adresseOrt) && (
+                        <p>{details.adressePlz} {details.adresseOrt}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Noch nicht hinterlegt</p>
+                )}
+                <button onClick={startAdresseEdit} className={editLinkCls}>
+                  <Pencil className="w-3 h-3" /> Bearbeiten
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* IBAN */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Bankverbindung (IBAN)</h3>
+            {ibanEdit ? (
+              <div className="space-y-2">
+                <input type="text" value={ibanVal} onChange={e => setIbanVal(e.target.value)}
+                  placeholder="DE89 3704 0044 0532 0130 00"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <div className="flex gap-2">
+                  <Button variant="primary" size="sm" onClick={saveIban} disabled={saving}>
+                    <Save className="w-3.5 h-3.5 mr-1" /> Speichern
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setIbanEdit(false)}>Abbrechen</Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <span className="font-mono text-sm text-gray-800">
+                  {details?.iban || <span className="text-gray-400 italic not-italic font-sans">Noch nicht hinterlegt</span>}
+                </span>
+                <div>
+                  <button onClick={startIbanEdit} className={editLinkCls}>
+                    <Pencil className="w-3 h-3" /> Bearbeiten
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* ── RECHTE SPALTE ── */}
+        <div className="flex-1 min-w-0 space-y-4">
+
+          {/* Bio + Profil veröffentlichen */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Über mich</h3>
             {bioEdit ? (
               <div className="space-y-2">
                 <textarea
                   value={bioVal}
                   onChange={e => setBioVal(e.target.value)}
-                  rows={3}
+                  rows={4}
                   placeholder="Kurze Vorstellung, Trainergeschichte, Schwerpunkte..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 />
@@ -276,345 +442,183 @@ export default function TrainerProfil() {
                 </div>
               </div>
             ) : (
-              <div className="group relative">
+              <div>
                 {details?.bio
                   ? <p className="text-sm text-gray-700 leading-relaxed">{details.bio}</p>
                   : <p className="text-sm text-gray-400 italic">Noch keine Bio hinterlegt.</p>
                 }
-                <button
-                  onClick={startBioEdit}
-                  className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-                >
+                <button onClick={startBioEdit} className={editLinkCls}>
                   <Pencil className="w-3 h-3" /> Bio bearbeiten
                 </button>
               </div>
             )}
-          </div>
-        </div>
-        <label className="mt-5 pt-4 border-t border-gray-100 flex items-start gap-2.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={details?.profilVeroeffentlichen || false}
-            onChange={toggleProfilVeroeffentlichen}
-            disabled={saving}
-            className="mt-0.5 w-4 h-4 rounded flex-shrink-0"
-            style={{ accentColor: '#2563eb' }}
-          />
-          <span className="text-sm text-gray-700">
-            Ich bin damit einverstanden, dass dieses Profil auf der Vereinswebsite veröffentlicht wird.
-          </span>
-        </label>
-      </div>
-
-      {/* ---- Kontaktdaten ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Kontaktdaten</h3>
-        {kontaktEdit ? (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
-                <Mail className="w-3 h-3" /> E-Mail
-              </label>
+            <label className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-2.5 cursor-pointer">
               <input
-                type="email"
-                value={emailVal}
-                onChange={e => setEmailVal(e.target.value)}
-                placeholder="email@beispiel.de"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                type="checkbox"
+                checked={details?.profilVeroeffentlichen || false}
+                onChange={toggleProfilVeroeffentlichen}
+                disabled={saving}
+                className="mt-0.5 w-4 h-4 rounded flex-shrink-0"
+                style={{ accentColor: '#2563eb' }}
               />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
-                <Phone className="w-3 h-3" /> Telefon
-              </label>
-              <input
-                type="tel"
-                value={phoneVal}
-                onChange={e => setPhoneVal(e.target.value)}
-                placeholder="+49 151 12345678"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="primary" size="sm" onClick={saveKontakt} disabled={saving}>
-                <Save className="w-3.5 h-3.5 mr-1" /> Speichern
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setKontaktEdit(false)}>Abbrechen</Button>
-            </div>
+              <span className="text-sm text-gray-700">
+                Ich bin damit einverstanden, dass dieses Profil auf der Vereinswebsite veröffentlicht wird.
+              </span>
+            </label>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              {profile?.email
-                ? <span>{profile.email}</span>
-                : <span className="text-gray-400 italic">Keine E-Mail hinterlegt</span>
-              }
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              {profile?.phone
-                ? <span>{profile.phone}</span>
-                : <span className="text-gray-400 italic">Keine Telefonnummer hinterlegt</span>
-              }
-            </div>
-            <button
-              onClick={startKontaktEdit}
-              className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-            >
-              <Pencil className="w-3 h-3" /> Bearbeiten
-            </button>
-          </div>
-        )}
-        <label className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-2.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={details?.kontaktVeroeffentlichen || false}
-            onChange={toggleKontaktVeroeffentlichen}
-            disabled={saving}
-            className="mt-0.5 w-4 h-4 rounded flex-shrink-0"
-            style={{ accentColor: '#2563eb' }}
-          />
-          <span className="text-sm text-gray-700">
-            Ich bin damit einverstanden, dass meine Kontaktdaten auf der Vereinswebsite veröffentlicht werden.
-          </span>
-        </label>
-      </div>
 
-      {/* ---- IBAN ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Bankverbindung (IBAN)</h3>
-        {ibanEdit ? (
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={ibanVal}
-              onChange={e => setIbanVal(e.target.value)}
-              placeholder="DE89 3704 0044 0532 0130 00"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <div className="flex gap-2">
-              <Button variant="primary" size="sm" onClick={saveIban} disabled={saving}>
-                <Save className="w-3.5 h-3.5 mr-1" /> Speichern
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setIbanEdit(false)}>Abbrechen</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-sm text-gray-800">
-              {details?.iban || <span className="text-gray-400 italic not-italic font-sans">Noch nicht hinterlegt</span>}
-            </span>
-            <button
-              onClick={startIbanEdit}
-              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              <Pencil className="w-3 h-3" /> Bearbeiten
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ---- Status-Box (Admin-Infos, read-only für Trainer) ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Status (vom Verein gepflegt)</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-gray-500 text-xs mb-1">Führungszeugnis</p>
-            <StatusBadge ok={details?.fuehrungszeugnisVerified} label={details?.fuehrungszeugnisVerified ? 'Verifiziert' : 'Ausstehend'} />
-            {details?.fuehrungszeugnisDate && (
-              <p className="text-xs text-gray-400 mt-1">vom {formatDate(details.fuehrungszeugnisDate)}</p>
-            )}
-          </div>
-          <div>
-            <p className="text-gray-500 text-xs mb-1">Chip / Schlüssel-ID</p>
-            <p className="text-gray-800">{details?.chipId || <span className="text-gray-400">–</span>}</p>
-          </div>
-          <div className="sm:col-span-2">
-            <p className="text-gray-500 text-xs mb-1">Unterlagen vollständig</p>
-            <StatusBadge ok={details?.unterlagenVollstaendig} label={details?.unterlagenVollstaendig ? 'Vollständig' : 'Unvollständig'} />
-          </div>
-          {aktivFuer.length > 0 && (
-            <div className="sm:col-span-2">
-              <p className="text-gray-500 text-xs mb-1">Aktiv für</p>
-              <div className="flex flex-wrap gap-1">
-                {aktivFuer.map(clubId => {
-                  const club = clubs.find(c => c.id === clubId);
-                  return club ? (
-                    <span key={clubId} className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                      {club.name}
-                    </span>
-                  ) : null;
-                })}
+          {/* Status (Admin-Infos, read-only) */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Status (vom Verein gepflegt)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500 text-xs mb-1">Führungszeugnis</p>
+                <StatusBadge ok={details?.fuehrungszeugnisVerified} label={details?.fuehrungszeugnisVerified ? 'Verifiziert' : 'Ausstehend'} />
+                {details?.fuehrungszeugnisDate && (
+                  <p className="text-xs text-gray-400 mt-1">vom {formatDate(details.fuehrungszeugnisDate)}</p>
+                )}
               </div>
-            </div>
-          )}
-          {(profile?.stammverein_id || profile?.stammverein_andere) && (
-            <div>
-              <p className="text-gray-500 text-xs mb-1">Stammverein (Abrechnung)</p>
-              <p className="text-gray-800 text-sm">
-                {profile.stammverein_id
-                  ? clubs.find(c => c.id === profile.stammverein_id)?.name || '–'
-                  : profile.stammverein_andere || '–'}
-              </p>
-            </div>
-          )}
-        </div>
-        {/* Führungszeugnis hochladen */}
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500 mb-2">Führungszeugnis hochladen (PDF oder Bild, nur für Admins sichtbar)</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => fzRef.current?.click()}
-            disabled={saving}
-          >
-            <Upload className="w-3.5 h-3.5 mr-1.5" />
-            {details?.fuehrungszeugnisUrl ? 'Erneut hochladen' : 'Jetzt hochladen'}
-          </Button>
-          <input ref={fzRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleFzUpload} />
-        </div>
-      </div>
-
-      {/* ---- Lizenzen & Zertifikate ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <Award className="w-4 h-4 text-blue-500" /> Lizenzen & Zertifikate
-          </h3>
-          {!showAddLizenz && (
-            <Button variant="secondary" size="sm" onClick={() => setShowAddLizenz(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
-            </Button>
-          )}
-        </div>
-
-        {showAddLizenz && (
-          <div className="mb-4">
-            <LizenzForm
-              onSave={handleAddLizenz}
-              onCancel={() => setShowAddLizenz(false)}
-              loading={lizenzSaving}
-            />
-          </div>
-        )}
-
-        {lizenzen.length === 0 && !showAddLizenz && (
-          <p className="text-sm text-gray-400 italic">Noch keine Lizenzen hinterlegt.</p>
-        )}
-
-        <div className="space-y-3">
-          {lizenzen.map(l => (
-            <div key={l.id}>
-              {editingLizenzId === l.id ? (
-                <LizenzForm
-                  initial={{
-                    bezeichnung:       l.bezeichnung,
-                    ausstellendeOrg:   l.ausstellendeOrg,
-                    ausstellungsdatum: l.ausstellungsdatum,
-                    ablaufdatum:       l.ablaufdatum,
-                  }}
-                  onSave={data => handleUpdateLizenz(l.id, data)}
-                  onCancel={() => setEditingLizenzId(null)}
-                  loading={lizenzSaving}
-                />
-              ) : (
-                <div className="flex items-start justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{l.bezeichnung}</p>
-                    {l.ausstellendeOrg && <p className="text-xs text-gray-500">{l.ausstellendeOrg}</p>}
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {l.ausstellungsdatum && `Ausgestellt: ${formatDate(l.ausstellungsdatum)}`}
-                      {l.ausstellungsdatum && l.ablaufdatum && ' · '}
-                      {l.ablaufdatum && `Gültig bis: ${formatDate(l.ablaufdatum)}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => setEditingLizenzId(l.id)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
-                      title="Bearbeiten"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteLizenz(l.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                      title="Löschen"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+              <div>
+                <p className="text-gray-500 text-xs mb-1">Unterlagen</p>
+                <StatusBadge ok={details?.unterlagenVollstaendig} label={details?.unterlagenVollstaendig ? 'Vollständig' : 'Unvollständig'} />
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs mb-1">Chip / Schlüssel-ID</p>
+                <p className="text-gray-800">{details?.chipId || <span className="text-gray-400">–</span>}</p>
+              </div>
+              {(profile?.stammverein_id || profile?.stammverein_andere) && (
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Stammverein (Abrechnung)</p>
+                  <p className="text-gray-800 text-sm">
+                    {profile.stammverein_id
+                      ? clubs.find(c => c.id === profile.stammverein_id)?.name || '–'
+                      : profile.stammverein_andere || '–'}
+                  </p>
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ---- Erfolge ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-yellow-500" /> Erfolge
-          </h3>
-          {!showAddErfolg && (
-            <Button variant="secondary" size="sm" onClick={() => setShowAddErfolg(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
-            </Button>
-          )}
-        </div>
-
-        {showAddErfolg && (
-          <div className="mb-4">
-            <ErfolgForm
-              onSave={handleAddErfolg}
-              onCancel={() => setShowAddErfolg(false)}
-              loading={erfolgSaving}
-            />
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-500 mb-2">Führungszeugnis hochladen (PDF oder Bild, nur für Admins sichtbar)</p>
+              <Button variant="secondary" size="sm" onClick={() => fzRef.current?.click()} disabled={saving}>
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                {details?.fuehrungszeugnisUrl ? 'Erneut hochladen' : 'Jetzt hochladen'}
+              </Button>
+              <input ref={fzRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleFzUpload} />
+            </div>
           </div>
-        )}
 
-        {erfolge.length === 0 && !showAddErfolg && (
-          <p className="text-sm text-gray-400 italic">Noch keine Erfolge hinterlegt.</p>
-        )}
-
-        <div className="space-y-3">
-          {erfolge.map(e => (
-            <div key={e.id}>
-              {editingErfolgId === e.id ? (
-                <ErfolgForm
-                  initial={{ jahr: e.jahr, mannschaft: e.mannschaft, titel: e.titel }}
-                  onSave={data => handleUpdateErfolg(e.id, data)}
-                  onCancel={() => setEditingErfolgId(null)}
-                  loading={erfolgSaving}
-                />
-              ) : (
-                <div className="flex items-start justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{e.titel}</p>
-                    <p className="text-xs text-gray-500">{e.mannschaft} · {e.jahr}</p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => setEditingErfolgId(e.id)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
-                      title="Bearbeiten"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteErfolg(e.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                      title="Löschen"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+          {/* Lizenzen & Zertifikate */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Award className="w-4 h-4 text-blue-500" /> Lizenzen & Zertifikate
+              </h3>
+              {!showAddLizenz && (
+                <Button variant="secondary" size="sm" onClick={() => setShowAddLizenz(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
+                </Button>
               )}
             </div>
-          ))}
+            {showAddLizenz && (
+              <div className="mb-4">
+                <LizenzForm onSave={handleAddLizenz} onCancel={() => setShowAddLizenz(false)} loading={lizenzSaving} />
+              </div>
+            )}
+            {lizenzen.length === 0 && !showAddLizenz && (
+              <p className="text-sm text-gray-400 italic">Noch keine Lizenzen hinterlegt.</p>
+            )}
+            <div className="space-y-3">
+              {lizenzen.map(l => (
+                <div key={l.id}>
+                  {editingLizenzId === l.id ? (
+                    <LizenzForm
+                      initial={{
+                        bezeichnung:       l.bezeichnung,
+                        ausstellendeOrg:   l.ausstellendeOrg,
+                        ausstellungsdatum: l.ausstellungsdatum,
+                        ablaufdatum:       l.ablaufdatum,
+                      }}
+                      onSave={data => handleUpdateLizenz(l.id, data)}
+                      onCancel={() => setEditingLizenzId(null)}
+                      loading={lizenzSaving}
+                    />
+                  ) : (
+                    <div className="flex items-start justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{l.bezeichnung}</p>
+                        {l.ausstellendeOrg && <p className="text-xs text-gray-500">{l.ausstellendeOrg}</p>}
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {l.ausstellungsdatum && `Ausgestellt: ${formatDate(l.ausstellungsdatum)}`}
+                          {l.ausstellungsdatum && l.ablaufdatum && ' · '}
+                          {l.ablaufdatum && `Gültig bis: ${formatDate(l.ablaufdatum)}`}
+                        </p>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button onClick={() => setEditingLizenzId(l.id)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded" title="Bearbeiten">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDeleteLizenz(l.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Löschen">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Erfolge */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-yellow-500" /> Erfolge
+              </h3>
+              {!showAddErfolg && (
+                <Button variant="secondary" size="sm" onClick={() => setShowAddErfolg(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
+                </Button>
+              )}
+            </div>
+            {showAddErfolg && (
+              <div className="mb-4">
+                <ErfolgForm onSave={handleAddErfolg} onCancel={() => setShowAddErfolg(false)} loading={erfolgSaving} />
+              </div>
+            )}
+            {erfolge.length === 0 && !showAddErfolg && (
+              <p className="text-sm text-gray-400 italic">Noch keine Erfolge hinterlegt.</p>
+            )}
+            <div className="space-y-3">
+              {erfolge.map(e => (
+                <div key={e.id}>
+                  {editingErfolgId === e.id ? (
+                    <ErfolgForm
+                      initial={{ jahr: e.jahr, mannschaft: e.mannschaft, titel: e.titel }}
+                      onSave={data => handleUpdateErfolg(e.id, data)}
+                      onCancel={() => setEditingErfolgId(null)}
+                      loading={erfolgSaving}
+                    />
+                  ) : (
+                    <div className="flex items-start justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{e.titel}</p>
+                        <p className="text-xs text-gray-500">{e.mannschaft} · {e.jahr}</p>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button onClick={() => setEditingErfolgId(e.id)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded" title="Bearbeiten">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDeleteErfolg(e.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Löschen">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
