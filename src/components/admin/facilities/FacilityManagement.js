@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, Plus } from 'lucide-react';
 import { COLOR_PRESETS } from '../../../config/constants';
 import { useConfirm } from '../../../hooks/useConfirm';
+import { useToast } from '../../../contexts/ToastContext';
 import { Button } from '../../ui/Button';
 import PageHeader from '../../ui/PageHeader';
 import EmptyState from '../../ui/EmptyState';
@@ -17,16 +18,17 @@ const FacilityManagement = ({
 }) => {
   const [addingFacility, setAddingFacility] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
+  const { addToast } = useToast();
 
   const handleAddFacility = async (form) => {
     const { error } = await createFacility({ ...form, sortOrder: facilities.length + 1 });
-    if (error) { console.error('Anlage erstellen fehlgeschlagen:', error); return; }
+    if (error) { addToast('Anlage erstellen fehlgeschlagen: ' + error, 'error'); return; }
     setAddingFacility(false);
   };
 
   const handleUpdateFacility = async (updated) => {
     const { error } = await updateFacility(updated);
-    if (error) console.error('Anlage aktualisieren fehlgeschlagen:', error);
+    if (error) addToast('Anlage aktualisieren fehlgeschlagen: ' + error, 'error');
   };
 
   const handleDeleteFacility = async (id) => {
@@ -41,7 +43,7 @@ const FacilityManagement = ({
       if (!ok) return;
     }
     const { error } = await deleteFacility(id);
-    if (error) console.error('Anlage löschen fehlgeschlagen:', error);
+    if (error) addToast('Anlage löschen fehlgeschlagen: ' + error, 'error');
   };
 
   const handleAddGroup = async (facilityId) => {
@@ -50,12 +52,12 @@ const FacilityManagement = ({
       sortOrder: resourceGroups.filter(g => g.facilityId === facilityId).length + 1,
       sharedScheduling: false,
     });
-    if (error) console.error('Gruppe erstellen fehlgeschlagen:', error);
+    if (error) addToast('Gruppe erstellen fehlgeschlagen: ' + error, 'error');
   };
 
   const handleUpdateGroup = async (updated) => {
     const { error } = await updateResourceGroup(updated);
-    if (error) console.error('Gruppe aktualisieren fehlgeschlagen:', error);
+    if (error) addToast('Gruppe aktualisieren fehlgeschlagen: ' + error, 'error');
   };
 
   const handleDeleteGroup = async (groupId) => {
@@ -69,7 +71,7 @@ const FacilityManagement = ({
       if (!ok) return;
     }
     const { error } = await deleteResourceGroup(groupId);
-    if (error) console.error('Gruppe löschen fehlgeschlagen:', error);
+    if (error) addToast('Gruppe löschen fehlgeschlagen: ' + error, 'error');
   };
 
   const handleAddResource = async (groupId) => {
@@ -78,27 +80,27 @@ const FacilityManagement = ({
       color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)],
       splittable: false, bookingMode: 'free',
     });
-    if (error) console.error('Ressource erstellen fehlgeschlagen:', error);
+    if (error) addToast('Ressource erstellen fehlgeschlagen: ' + error, 'error');
   };
 
   const handleUpdateResource = async (id, updated) => {
     const { error } = await updateResource({ ...updated, id });
-    if (error) console.error('Ressource aktualisieren fehlgeschlagen:', error);
+    if (error) addToast('Ressource aktualisieren fehlgeschlagen: ' + error, 'error');
   };
 
   const handleDeleteResource = async (id) => {
     const { error } = await deleteResource(id);
-    if (error) console.error('Ressource löschen fehlgeschlagen:', error);
+    if (error) addToast('Ressource löschen fehlgeschlagen: ' + error, 'error');
   };
 
   const handleAddSlot = async (slotData) => {
     const { error } = await createSlot(slotData);
-    if (error) console.error('Slot erstellen fehlgeschlagen:', error);
+    if (error) addToast('Slot erstellen fehlgeschlagen: ' + error, 'error');
   };
 
   const handleDeleteSlot = async (id) => {
     const { error } = await deleteSlot(id);
-    if (error) console.error('Slot löschen fehlgeschlagen:', error);
+    if (error) addToast('Slot löschen fehlgeschlagen: ' + error, 'error');
   };
 
   const totalResources = resources.length;

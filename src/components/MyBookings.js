@@ -15,6 +15,7 @@ import { EVENT_TYPES } from '../config/organizationConfig';
 import { findConflicts } from '../utils/helpers';
 import { useConfirm } from '../hooks/useConfirm';
 import StatusBadge from './ui/StatusBadge';
+import EmptyState from './ui/EmptyState';
 import { useBookingContext } from '../contexts/BookingContext';
 import { useFacility } from '../contexts/FacilityContext';
 import { useUserContext } from '../contexts/UserContext';
@@ -313,10 +314,7 @@ const MyBookings = ({ onDelete, onEdit }) => {
 
       {/* ── 3. Booking cards ── */}
       {groupedBookings.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <List className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p>Keine Buchungen</p>
-        </div>
+        <EmptyState icon={List} title="Keine Buchungen" />
       ) : (
         <div className="flex flex-col gap-3">
           {groupedBookings.map((booking, idx) => {

@@ -39,7 +39,7 @@ function StatusBadge({ ok, label }) {
 export default function TrainerProfil() {
   const { profile } = useAuth();
   const { clubs, departments, teams, trainerAssignments } = useOrg();
-  const { showToast } = useToast();
+  const { addToast } = useToast();
   const {
     details, lizenzen, erfolge, loading, error,
     upsertProfile, updateContactInfo, uploadPhoto, uploadFuehrungszeugnis, uploadVerhaltenskodex,
@@ -107,9 +107,9 @@ export default function TrainerProfil() {
     setSaving(true);
     const { error: e } = await upsertProfile({ bio: bioVal });
     setSaving(false);
-    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setBioEdit(false);
-    showToast('Bio gespeichert', 'success');
+    addToast('Bio gespeichert', 'success');
   };
 
   const startIbanEdit = () => { setIbanVal(details?.iban || ''); setIbanEdit(true); };
@@ -117,9 +117,9 @@ export default function TrainerProfil() {
     setSaving(true);
     const { error: e } = await upsertProfile({ iban: ibanVal });
     setSaving(false);
-    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setIbanEdit(false);
-    showToast('IBAN gespeichert', 'success');
+    addToast('IBAN gespeichert', 'success');
   };
 
   const startKontaktEdit = () => {
@@ -131,9 +131,9 @@ export default function TrainerProfil() {
     setSaving(true);
     const { error: e } = await updateContactInfo({ email: emailVal, phone: phoneVal });
     setSaving(false);
-    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setKontaktEdit(false);
-    showToast('Kontaktdaten gespeichert', 'success');
+    addToast('Kontaktdaten gespeichert', 'success');
   };
 
   const startAdresseEdit = () => {
@@ -150,23 +150,23 @@ export default function TrainerProfil() {
       adresseOrt:     ortVal     || null,
     });
     setSaving(false);
-    if (e) { showToast('Fehler beim Speichern: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler beim Speichern: ' + e, 'error'); return; }
     setAdresseEdit(false);
-    showToast('Adresse gespeichert', 'success');
+    addToast('Adresse gespeichert', 'success');
   };
 
   const toggleProfilVeroeffentlichen = async () => {
     setSaving(true);
     const { error: e } = await upsertProfile({ profilVeroeffentlichen: !(details?.profilVeroeffentlichen || false) });
     setSaving(false);
-    if (e) showToast('Fehler: ' + e, 'error');
+    if (e) addToast('Fehler: ' + e, 'error');
   };
 
   const toggleKontaktVeroeffentlichen = async () => {
     setSaving(true);
     const { error: e } = await upsertProfile({ kontaktVeroeffentlichen: !(details?.kontaktVeroeffentlichen || false) });
     setSaving(false);
-    if (e) showToast('Fehler: ' + e, 'error');
+    if (e) addToast('Fehler: ' + e, 'error');
   };
 
   const handlePhotoUpload = async (e) => {
@@ -175,8 +175,8 @@ export default function TrainerProfil() {
     setSaving(true);
     const { error: err } = await uploadPhoto(file);
     setSaving(false);
-    if (err) { showToast('Foto-Upload fehlgeschlagen: ' + err, 'error'); return; }
-    showToast('Foto hochgeladen', 'success');
+    if (err) { addToast('Foto-Upload fehlgeschlagen: ' + err, 'error'); return; }
+    addToast('Foto hochgeladen', 'success');
   };
 
   const handleFzUpload = async (e) => {
@@ -185,8 +185,8 @@ export default function TrainerProfil() {
     setSaving(true);
     const { error: err } = await uploadFuehrungszeugnis(file);
     setSaving(false);
-    if (err) { showToast('Upload fehlgeschlagen: ' + err, 'error'); return; }
-    showToast('Führungszeugnis hochgeladen', 'success');
+    if (err) { addToast('Upload fehlgeschlagen: ' + err, 'error'); return; }
+    addToast('Führungszeugnis hochgeladen', 'success');
   };
 
   const handleVkUpload = async (e) => {
@@ -195,8 +195,8 @@ export default function TrainerProfil() {
     setSaving(true);
     const { error: err } = await uploadVerhaltenskodex(file);
     setSaving(false);
-    if (err) { showToast('Upload fehlgeschlagen: ' + err, 'error'); return; }
-    showToast('Verhaltenskodex hochgeladen', 'success');
+    if (err) { addToast('Upload fehlgeschlagen: ' + err, 'error'); return; }
+    addToast('Verhaltenskodex hochgeladen', 'success');
   };
 
   // Lizenzen
@@ -204,22 +204,22 @@ export default function TrainerProfil() {
     setLizenzSaving(true);
     const { error: e } = await addLizenz(data);
     setLizenzSaving(false);
-    if (e) { showToast('Fehler: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler: ' + e, 'error'); return; }
     setShowAddLizenz(false);
-    showToast('Lizenz hinzugefügt', 'success');
+    addToast('Lizenz hinzugefügt', 'success');
   };
   const handleUpdateLizenz = async (id, data) => {
     setLizenzSaving(true);
     const { error: e } = await updateLizenz(id, data);
     setLizenzSaving(false);
-    if (e) { showToast('Fehler: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler: ' + e, 'error'); return; }
     setEditingLizenzId(null);
-    showToast('Lizenz aktualisiert', 'success');
+    addToast('Lizenz aktualisiert', 'success');
   };
   const handleDeleteLizenz = async (id) => {
     const { error: e } = await deleteLizenz(id);
-    if (e) { showToast('Fehler: ' + e, 'error'); return; }
-    showToast('Lizenz gelöscht', 'success');
+    if (e) { addToast('Fehler: ' + e, 'error'); return; }
+    addToast('Lizenz gelöscht', 'success');
   };
 
   // Erfolge
@@ -227,22 +227,22 @@ export default function TrainerProfil() {
     setErfolgSaving(true);
     const { error: e } = await addErfolg(data);
     setErfolgSaving(false);
-    if (e) { showToast('Fehler: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler: ' + e, 'error'); return; }
     setShowAddErfolg(false);
-    showToast('Erfolg hinzugefügt', 'success');
+    addToast('Erfolg hinzugefügt', 'success');
   };
   const handleUpdateErfolg = async (id, data) => {
     setErfolgSaving(true);
     const { error: e } = await updateErfolg(id, data);
     setErfolgSaving(false);
-    if (e) { showToast('Fehler: ' + e, 'error'); return; }
+    if (e) { addToast('Fehler: ' + e, 'error'); return; }
     setEditingErfolgId(null);
-    showToast('Erfolg aktualisiert', 'success');
+    addToast('Erfolg aktualisiert', 'success');
   };
   const handleDeleteErfolg = async (id) => {
     const { error: e } = await deleteErfolg(id);
-    if (e) { showToast('Fehler: ' + e, 'error'); return; }
-    showToast('Erfolg gelöscht', 'success');
+    if (e) { addToast('Fehler: ' + e, 'error'); return; }
+    addToast('Erfolg gelöscht', 'success');
   };
 
   // ---- Render ----

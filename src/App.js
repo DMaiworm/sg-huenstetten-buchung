@@ -11,6 +11,7 @@ import { HolidayProvider, useHolidayContext } from './contexts/HolidayContext';
 import { useBookingActions } from './hooks/useBookingActions';
 
 import ProtectedRoute from './routes/ProtectedRoute';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import PermissionRoute from './routes/PermissionRoute';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
@@ -118,31 +119,33 @@ function AppLayout() {
             {/* Buchen */}
             <Route path="/buchen" element={
               <PermissionRoute permission="kannBuchen">
-                <BookingRequest onSubmit={handleNewBooking} />
+                <ErrorBoundary><BookingRequest onSubmit={handleNewBooking} /></ErrorBoundary>
               </PermissionRoute>
             } />
 
             {/* Genehmigungen */}
             <Route path="/genehmigungen" element={
               <PermissionRoute permission="kannGenehmigen">
-                <Approvals onApprove={handleApprove} onReject={handleReject} />
+                <ErrorBoundary><Approvals onApprove={handleApprove} onReject={handleReject} /></ErrorBoundary>
               </PermissionRoute>
             } />
 
             {/* Admin */}
             <Route path="/admin/benutzer" element={
               <PermissionRoute permission="kannAdministrieren">
-                <UserManagement />
+                <ErrorBoundary><UserManagement /></ErrorBoundary>
               </PermissionRoute>
             } />
             <Route path="/admin/anlagen" element={
               <PermissionRoute permission="kannAdministrieren">
+                <ErrorBoundary>
                 <FacilityManagement facilities={facilities} resourceGroups={resourceGroups}
                   resources={configResources} slots={slots}
                   createFacility={facility.createFacility} updateFacility={facility.updateFacility} deleteFacility={facility.deleteFacility}
                   createResourceGroup={facility.createResourceGroup} updateResourceGroup={facility.updateResourceGroup} deleteResourceGroup={facility.deleteResourceGroup}
                   createResource={facility.createResource} updateResource={facility.updateResource} deleteResource={facility.deleteResource}
                   createSlot={facility.createSlot} updateSlot={facility.updateSlot} deleteSlot={facility.deleteSlot} />
+                </ErrorBoundary>
               </PermissionRoute>
             } />
             <Route path="/admin/organisation" element={
@@ -185,7 +188,7 @@ function AppLayout() {
             {/* Trainer-Portal */}
             <Route path="/trainer/profil" element={
               <PermissionRoute permission="istTrainer">
-                <TrainerProfil />
+                <ErrorBoundary><TrainerProfil /></ErrorBoundary>
               </PermissionRoute>
             } />
 

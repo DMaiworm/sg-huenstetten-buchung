@@ -13,6 +13,7 @@ import Modal from './ui/Modal';
 import { Button } from './ui/Button';
 import { useFacility } from '../contexts/FacilityContext';
 import { useUserContext } from '../contexts/UserContext';
+import { timeToMinutes } from '../utils/helpers';
 
 const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
 const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
@@ -25,6 +26,7 @@ const BookingEditModal = ({ booking, open, onClose, onSave }) => {
     date: '', startTime: '', endTime: '', resourceId: '',
   });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(null);
 
   // Formular mit Buchungsdaten befüllen wenn Modal geöffnet wird
   useEffect(() => {
@@ -82,6 +84,12 @@ const BookingEditModal = ({ booking, open, onClose, onSave }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!hasChanges || !booking) return;
+
+    if (form.startTime && form.endTime && timeToMinutes(form.startTime) >= timeToMinutes(form.endTime)) {
+      setFormError('Endzeit muss nach der Startzeit liegen.');
+      return;
+    }
+    setFormError(null);
 
     setSaving(true);
     const updates = {};
@@ -214,7 +222,7 @@ const BookingEditModal = ({ booking, open, onClose, onSave }) => {
               <label className={labelCls}>Startzeit</label>
               <input
                 type="time" value={form.startTime}
-                onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))}
+                onChange={e => { setForm(p => ({ ...p, startTime: e.target.value })); setFormError(null); }}
                 className={inputCls} required
               />
             </div>
@@ -222,7 +230,7 @@ const BookingEditModal = ({ booking, open, onClose, onSave }) => {
               <label className={labelCls}>Endzeit</label>
               <input
                 type="time" value={form.endTime}
-                onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))}
+                onChange={e => { setForm(p => ({ ...p, endTime: e.target.value })); setFormError(null); }}
                 className={inputCls} required
               />
             </div>
@@ -246,6 +254,13 @@ const BookingEditModal = ({ booking, open, onClose, onSave }) => {
             </div>
           </div>
         </div>
+
+        {formError && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {formError}
+          </div>
+        )}
       </form>
     </Modal>
   );

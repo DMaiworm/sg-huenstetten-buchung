@@ -12,6 +12,7 @@ import { EVENT_TYPES } from '../../config/organizationConfig';
 import { Badge } from '../ui/Badge';
 import { findConflicts } from '../../utils/helpers';
 import PageHeader from '../ui/PageHeader';
+import EmptyState from '../ui/EmptyState';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBookingContext } from '../../contexts/BookingContext';
 import { useUserContext } from '../../contexts/UserContext';
@@ -27,6 +28,7 @@ const Approvals = ({ onApprove, onReject }) => {
   const isAdmin = kannAdministrieren;
   const [rejectDialog, setRejectDialog] = useState(null);
   const [expandedSeries, setExpandedSeries] = useState({});
+  const [processingId, setProcessingId] = useState(null);
 
   const toggleSeries = (seriesId) =>
     setExpandedSeries(prev => ({ ...prev, [seriesId]: !prev[seriesId] }));
@@ -76,9 +78,19 @@ const Approvals = ({ onApprove, onReject }) => {
   const fmtDate = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const fmtDateShort = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 
-  const handleReject = (bookingId, opts) => {
+  const handleApproveWrapped = async (bookingId, opts) => {
+    if (processingId) return;
+    setProcessingId(bookingId);
+    await onApprove(bookingId, opts);
+    setProcessingId(null);
+  };
+
+  const handleReject = async (bookingId, opts) => {
+    if (processingId) return;
     if (rejectDialog && rejectDialog.reason !== undefined) {
-      onReject(bookingId, opts);
+      setProcessingId(bookingId);
+      await onReject(bookingId, opts);
+      setProcessingId(null);
       setRejectDialog(null);
     }
   };
@@ -108,13 +120,13 @@ const Approvals = ({ onApprove, onReject }) => {
       />
 
       {groupedPending.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <Check className="w-12 h-12 mx-auto mb-4 text-green-500" />
-          <p>Keine offenen Anfragen</p>
-          {!isAdmin && genehmigerResources !== null && genehmigerResources.length === 0 && (
-            <p className="text-sm text-gray-400 mt-2">Dir wurden noch keine Ressourcen zur Genehmigung zugewiesen.</p>
-          )}
-        </div>
+        <EmptyState
+          icon={ClipboardCheck}
+          title="Keine offenen Anfragen"
+          subtitle={!isAdmin && genehmigerResources !== null && genehmigerResources.length === 0
+            ? 'Dir wurden noch keine Ressourcen zur Genehmigung zugewiesen.'
+            : undefined}
+        />
       ) : (
         <div className="space-y-4">
           {groupedPending.map(item => {
@@ -208,12 +220,14 @@ const Approvals = ({ onApprove, onReject }) => {
                       {/* Series-level actions */}
                       {!(rejectDialog?.seriesId === item.seriesId) && (
                         <div className="flex gap-2 ml-4 flex-shrink-0">
-                          <button onClick={() => onApprove(item.seriesBookings[0].id)}
-                            className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors gap-1.5">
+                          <button onClick={() => handleApproveWrapped(item.seriesBookings[0].id)}
+                            disabled={!!processingId}
+                            className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                             <Check className="w-4 h-4" /> Alle genehmigen
                           </button>
                           <button onClick={() => setRejectDialog({ seriesId: item.seriesId, reason: '' })}
-                            className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5">
+                            disabled={!!processingId}
+                            className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                             <X className="w-4 h-4" /> Alle ablehnen
                           </button>
                         </div>
@@ -257,12 +271,14 @@ const Approvals = ({ onApprove, onReject }) => {
                                   {/* Individual actions only for conflicted dates */}
                                   {hasConflict && !showingSbReject && (
                                     <div className="flex gap-1 ml-auto flex-shrink-0">
-                                      <button onClick={() => onApprove(sb.id, { singleOnly: true })}
-                                        className="inline-flex items-center px-2 py-0.5 bg-green-500 text-white rounded-full text-[11px] font-medium hover:bg-green-600 transition-colors gap-1">
+                                      <button onClick={() => handleApproveWrapped(sb.id, { singleOnly: true })}
+                                        disabled={!!processingId}
+                                        className="inline-flex items-center px-2 py-0.5 bg-green-500 text-white rounded-full text-[11px] font-medium hover:bg-green-600 transition-colors gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                         <Check className="w-3 h-3" /> Genehmigen
                                       </button>
                                       <button onClick={() => setRejectDialog({ bookingId: sb.id, seriesId: item.seriesId, reason: '' })}
-                                        className="inline-flex items-center px-2 py-0.5 bg-red-500 text-white rounded-full text-[11px] font-medium hover:bg-red-600 transition-colors gap-1">
+                                        disabled={!!processingId}
+                                        className="inline-flex items-center px-2 py-0.5 bg-red-500 text-white rounded-full text-[11px] font-medium hover:bg-red-600 transition-colors gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                         <X className="w-3 h-3" /> Ablehnen
                                       </button>
                                     </div>
@@ -356,12 +372,14 @@ const Approvals = ({ onApprove, onReject }) => {
                   </div>
                   {!showingSingleReject && (
                     <div className="flex gap-2 ml-4">
-                      <button onClick={() => onApprove(item.id)}
-                        className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors gap-1.5">
+                      <button onClick={() => handleApproveWrapped(item.id)}
+                        disabled={!!processingId}
+                        className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                         <Check className="w-4 h-4" /> Genehmigen
                       </button>
                       <button onClick={() => setRejectDialog({ bookingId: item.id, reason: '' })}
-                        className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5">
+                        disabled={!!processingId}
+                        className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                         <X className="w-4 h-4" /> Ablehnen
                       </button>
                     </div>

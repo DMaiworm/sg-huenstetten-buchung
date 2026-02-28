@@ -8,6 +8,7 @@ import UserFormModal from './UserFormModal';
 import { useUserContext } from '../../../contexts/UserContext';
 import { useFacility } from '../../../contexts/FacilityContext';
 import { useOrg } from '../../../contexts/OrganizationContext';
+import EmptyState from '../../ui/EmptyState';
 
 const UserManagement = () => {
   const { users, createUser, updateUser, deleteUser, inviteUser, genehmigerAssignments, addGenehmigerResource, removeGenehmigerResource } = useUserContext();
@@ -34,12 +35,17 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    let result;
     if (editingUser) {
-      if (updateUser) await updateUser(editingUser.id, newUser);
+      result = updateUser ? await updateUser(editingUser.id, newUser) : null;
     } else {
-      if (createUser) await createUser(newUser);
+      result = createUser ? await createUser(newUser) : null;
     }
     setSaving(false);
+    if (result?.error) {
+      await confirm({ title: 'Fehler', message: `Speichern fehlgeschlagen: ${result.error}`, confirmLabel: 'OK', variant: 'danger' });
+      return;
+    }
     setNewUser(emptyUser); setEditingUser(null); setShowForm(false);
   };
 
@@ -148,9 +154,7 @@ const UserManagement = () => {
           ))}
 
           {sortedDisplay.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              <p>Keine Einträge in dieser Kategorie</p>
-            </div>
+            <EmptyState icon={Users} title="Keine Einträge in dieser Kategorie" />
           )}
         </div>
       </div>

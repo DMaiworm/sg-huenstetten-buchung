@@ -199,6 +199,9 @@ const BookingRequest = ({ onSubmit }) => {
     e.preventDefault();
     if (conflictAnalysis.hasErrors) { setSubmitError('Es gibt Konflikte, die eine Buchung unmöglich machen.'); return; }
     if (!formData.resourceId) { setSubmitError('Bitte Ressource auswählen.'); return; }
+    if (formData.startTime && formData.endTime && timeToMinutes(formData.startTime) >= timeToMinutes(formData.endTime)) {
+      setSubmitError('Endzeit muss nach der Startzeit liegen.'); return;
+    }
     if (effectiveDates.length === 0) { setSubmitError('Keine Termine zum Buchen vorhanden (alle ausgeschlossen oder keine Termine angegeben).'); return; }
     if (isLimited && availableSlots.length === 0) { setSubmitError(`Am ${DAYS_FULL[formData.dayOfWeek]} ist kein Slot verfügbar!`); return; }
     if (isLimited && availableSlots.length > 0) {

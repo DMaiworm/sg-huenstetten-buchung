@@ -54,6 +54,18 @@ jest.mock('../contexts/ToastContext', () => ({
   useToast: () => ({ addToast: mockAddToast }),
 }));
 
+jest.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ profile: { id: 'admin1', first_name: 'Test', last_name: 'Admin' } }),
+}));
+
+const mockResources = [
+  { id: 'r1', name: 'Platz 1' },
+];
+
+jest.mock('../contexts/FacilityContext', () => ({
+  useFacility: () => ({ RESOURCES: mockResources }),
+}));
+
 // ── resolveBookingStatus ─────────────────────────────────────
 describe('resolveBookingStatus', () => {
   it('gibt pending zurück für Trainer ohne Genehmigungs-Berechtigung', () => {
