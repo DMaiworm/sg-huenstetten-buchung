@@ -7,7 +7,7 @@ Internes Buchungssystem für Sportstätten der SG Hünstetten. React-SPA mit Sup
 
 ## Tech Stack
 
-- **Frontend:** React 18.2, React Router 6, Tailwind CSS (CDN – nicht als Build-Dependency!)
+- **Frontend:** React 18.2, React Router 6, Tailwind CSS 3 (Build-Dependency, PostCSS/JIT)
 - **Backend:** Supabase (PostgreSQL, Auth, Row Level Security)
 - **PDF:** jsPDF 2.5 (als npm-Dependency)
 - **Icons:** Lucide React
@@ -217,7 +217,7 @@ Edge Functions mit `SUPABASE_SERVICE_ROLE_KEY` umgehen RLS vollständig.
 ## Bekannte Einschränkungen
 
 - **Tests:** Tests für `utils/helpers.js` (46), `ToastContext` und `useBookingActions` vorhanden. `npm test` nach Änderungen an Helfer-/Logik-Funktionen ausführen.
-- **Tailwind via CDN** – kein Purging, keine Build-Time-Optimierung
+- **Tailwind als Build-Dependency** – JIT-Modus mit Purging, `tailwind.config.js` im Projekt-Root
 - **Keine TypeScript** – reines JavaScript
 - **Kein Linting-Setup** – nur Standard react-app ESLint-Config
 

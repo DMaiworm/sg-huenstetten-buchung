@@ -1,14 +1,10 @@
-/* Tailwind wird via CDN in index.html geladen.
-   Hier nur projektspezifische Custom-Styles. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* Projektspezifische Custom-Styles */
 
 body {
-  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
@@ -21,7 +17,7 @@ body {
   height: 100vh;
 }
 
-/* Toast-Einblendanimation */
+/* Toast-Einblendanimation (referenziert via animate-[fadeInDown_0.2s_ease-out]) */
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
