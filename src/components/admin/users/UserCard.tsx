@@ -1,0 +1,169 @@
+import React from 'react';
+import { Mail, Phone, Shield, Send, X } from 'lucide-react';
+import { trainerStatus } from './userConstants';
+import PermBadges from './PermBadges';
+import StatusBadge from './StatusBadge';
+import ResourceAssignment from './ResourceAssignment';
+import type { Club, Department, Team, TrainerAssignment, User } from '../../../types';
+
+interface AssignmentGroup {
+  club: Club | null;
+  dept: Department | null;
+  teams: Team[];
+}
+
+interface ResourceTreeItem {
+  id: string;
+  name: string;
+  groups: { id: string; name: string; resources: { id: string; name: string }[] }[];
+}
+
+interface UserCardProps {
+  user: User;
+  isExpanded: boolean;
+  inviting: string | null;
+  resourceTree: ResourceTreeItem[];
+  assignedIds: string[];
+  onEdit: (user: User) => void;
+  onDelete: (id: string) => void;
+  onInvite: ((user: User) => void) | null;
+  onToggleExpand: () => void;
+  onToggleResource: (userId: string, resourceId: string, isAssigned: boolean) => void;
+  showResourceButton: boolean;
+  trainerAssignments: TrainerAssignment[];
+  teams: Team[];
+  departments: Department[];
+  clubs: Club[];
+}
+
+const UserCard: React.FC<UserCardProps> = ({ user, isExpanded, inviting, resourceTree, assignedIds,
+  onEdit, onDelete, onInvite, onToggleExpand, onToggleResource, showResourceButton,
+  trainerAssignments, teams, departments, clubs }) => {
+  const status = trainerStatus(user);
+  const initials = `${(user.firstName || '?')[0]}${(user.lastName || '?')[0]}`.toUpperCase();
+  const avatarColor = user.kannAdministrieren ? '#dc2626'
+    : user.kannVerwalten ? '#ea580c'
+    : user.kannGenehmigen ? '#7c3aed'
+    : user.kannBuchen ? '#2563eb'
+    : status === 'eingeladen' ? '#d97706'
+    : '#9ca3af';
+  const barColor = user.kannAdministrieren ? '#7C3AED'
+    : user.kannVerwalten ? '#EA580C'
+    : user.kannGenehmigen ? '#059669'
+    : user.istTrainer ? '#3B82F6'
+    : '#9CA3AF';
+
+  // Build team assignments grouped by club + department
+  const userAssignments = (trainerAssignments || []).filter(ta => String(ta.userId) === String(user.id));
+  const assignmentGroups: Record<string, AssignmentGroup> = {};
+  for (const ta of userAssignments) {
+    const team = (teams || []).find(t => t.id === ta.teamId);
+    if (!team) continue;
+    const dept = (departments || []).find(d => d.id === team.departmentId);
+    const club = dept ? (clubs || []).find(c => c.id === dept.clubId) : null;
+    const key = `${club?.id || ''}-${dept?.id || ''}`;
+    if (!assignmentGroups[key]) {
+      assignmentGroups[key] = { club: club || null, dept: dept || null, teams: [] };
+    }
+    assignmentGroups[key].teams.push(team);
+  }
+  const sortedGroups = Object.values(assignmentGroups)
+    .sort((a, b) => (a.club?.name || '').localeCompare(b.club?.name || '', 'de') || (a.dept?.name || '').localeCompare(b.dept?.name || '', 'de'));
+  for (const g of sortedGroups) {
+    g.teams.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: barColor }} />
+      <div className="p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 min-w-0 flex-1">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0"
+            style={{ backgroundColor: avatarColor }}>
+            {initials}
+          </div>
+          <div className="min-w-0 w-72">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-gray-800">{user.firstName} {user.lastName}</h3>
+              {status && <StatusBadge user={user} />}
+            </div>
+            <p className="text-sm text-gray-500 flex items-center gap-1">
+              <Mail className="w-3 h-3" />{user.email}
+            </p>
+            {user.phone && <p className="text-sm text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{user.phone}</p>}
+            <PermBadges user={user} />
+            {user.istTrainer && (user.stammvereinId || user.stammvereinAndere) && (
+              <p className="text-xs text-gray-400 mt-1">
+                Abrechnung:{' '}
+                <span className="text-gray-600 font-medium">
+                  {user.stammvereinId
+                    ? (clubs || []).find(c => c.id === user.stammvereinId)?.name || '–'
+                    : user.stammvereinAndere}
+                </span>
+              </p>
+            )}
+          </div>
+
+          {sortedGroups.length > 0 && (
+            <div className="flex-shrink-0 ml-4 space-y-1.5">
+              {sortedGroups.map((g, i) => (
+                <div key={i}>
+                  <p className="text-sm font-semibold text-gray-500">
+                    {[g.club?.name, g.dept?.name].filter(Boolean).join(', ')}
+                  </p>
+                  {g.teams.map(t => (
+                    <p key={t.id} className="text-sm text-gray-700">
+                      {t.name}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+          {showResourceButton && (
+            <button onClick={onToggleExpand}
+              className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors gap-1.5 ${
+                isExpanded ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600 hover:bg-violet-100 hover:text-violet-700'
+              }`}>
+              <Shield className="w-4 h-4" />{isExpanded ? 'Schließen' : 'Ressourcen'}
+            </button>
+          )}
+
+          {!user.invitedAt && onInvite && (
+            <button onClick={() => onInvite(user)} disabled={inviting === user.id}
+              className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white rounded-full text-sm font-medium hover:bg-blue-600 transition-colors gap-1.5 disabled:opacity-50">
+              <Send className="w-4 h-4" />{inviting === user.id ? 'Sende...' : 'Einladen'}
+            </button>
+          )}
+
+          {user.invitedAt && onInvite && (
+            <button onClick={() => onInvite(user)} disabled={inviting === user.id}
+              className="inline-flex items-center px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors gap-1.5 disabled:opacity-50">
+              <Send className="w-4 h-4" />{inviting === user.id ? 'Sende...' : 'Erneut einladen'}
+            </button>
+          )}
+
+          <button onClick={() => onEdit(user)}
+            className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
+            Bearbeiten
+          </button>
+          <button onClick={() => onDelete(user.id)}
+            className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-red-600 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && user.kannGenehmigen && (
+        <ResourceAssignment user={user} resourceTree={resourceTree} assignedIds={assignedIds} onToggleResource={onToggleResource} />
+      )}
+      </div>
+    </div>
+  );
+};
+
+export default UserCard;
