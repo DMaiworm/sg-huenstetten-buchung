@@ -7,7 +7,7 @@ Internes Buchungssystem für Sportstätten der SG Hünstetten. React-SPA mit Sup
 
 ## Tech Stack
 
-- **Frontend:** React 18.2, React Router 6, Tailwind CSS 3 (Build-Dependency, PostCSS/JIT), TypeScript (strict mode)
+- **Frontend:** React 18.2, React Router 6, Tailwind CSS 3 (Build-Dependency, PostCSS/JIT), TypeScript 4.9 (strict mode)
 - **Backend:** Supabase (PostgreSQL, Auth, Row Level Security)
 - **PDF:** jsPDF 2.5 (als npm-Dependency)
 - **Icons:** Lucide React
@@ -20,26 +20,27 @@ Internes Buchungssystem für Sportstätten der SG Hünstetten. React-SPA mit Sup
 ```bash
 npm start          # Dev-Server auf localhost:3000
 npm run build      # Production Build (CI=false unterdrückt Warnings als Errors)
-npm test           # react-scripts test (Tests für helpers.js, ToastContext, useBookingActions)
+npm test           # react-scripts test (Tests für helpers, ToastContext, useBookingActions)
 ```
 
 ## Projektstruktur
 
 ```
 src/
-├── contexts/          # React Context Provider
-│                      #   Auth, Facility, Organization, Booking, User, Holiday, Toast
-├── hooks/             # Domain-spezifische DB-Hooks:
-│                      #   useBookings, useFacilities, useOrganization, useUsers,
-│                      #   useHolidays, useOperators, useGenehmigerResources
-│                      #   useTrainerProfile (Self-Service), useTrainerVerwaltung (Admin)
-│                      #   useTrainerUebersicht (Intranet-Liste)
-│                      #   + useBookingActions, useConfirm
-│                      #   useSupabase.js = dünner Re-Export-Wrapper (~23 Zeilen)
-├── routes/            # ProtectedRoute (Auth-Guard), PermissionRoute (Rollen-Guard)
+├── types/index.ts         # Zentrale Type Definitions (~50 Interfaces)
+├── contexts/              # React Context Provider (.tsx)
+│                          #   Auth, Facility, Organization, Booking, User, Holiday, Toast
+├── hooks/                 # Domain-spezifische DB-Hooks (.ts):
+│                          #   useBookings, useFacilities, useOrganization, useUsers,
+│                          #   useHolidays, useOperators, useGenehmigerResources
+│                          #   useTrainerProfile (Self-Service), useTrainerVerwaltung (Admin)
+│                          #   useTrainerUebersicht (Intranet-Liste)
+│                          #   + useBookingActions, useConfirm
+│                          #   useSupabase.ts = dünner Re-Export-Wrapper (~23 Zeilen)
+├── routes/                # ProtectedRoute (Auth-Guard), PermissionRoute (Rollen-Guard) (.tsx)
 ├── components/
-│   ├── ui/            # Shared: Button, Badge, Modal, ConfirmDialog, EmptyState,
-│   │                  #         ErrorBoundary, ExpandableSection, PageHeader, etc.
+│   ├── ui/                # Shared: Button, Badge, Modal, ConfirmDialog, EmptyState,
+│   │                      #         ErrorBoundary, ExpandableSection, PageHeader, etc. (.tsx)
 │   ├── admin/
 │   │   ├── facilities/    # Anlagenverwaltung (Facility → ResourceGroup → Resource)
 │   │   ├── organization/  # Vereine → Abteilungen → Mannschaften
@@ -47,25 +48,36 @@ src/
 │   │   ├── holidays/      # Feiertage & Schulferien
 │   │   └── trainer/       # Trainerverwaltung (Admin-Seite)
 │   ├── trainer/           # Trainer Self-Service
-│   │   ├── TrainerProfil.js   # Mein Trainer-Profil
-│   │   ├── LizenzForm.js      # Inline-Formular Lizenz
-│   │   └── ErfolgForm.js      # Inline-Formular Erfolg
-│   ├── TrainerUebersicht.js   # Intranet-Übersicht (alle Auth-User)
-│   ├── TrainerUebersichtCard.js # Kompakte Trainer-Karte
-│   ├── TrainerDetailModal.js  # Vollprofil-Modal
-│   ├── CalendarView.js    # Wochen-/Tageskalender (7–22 Uhr Raster, Tag/Woche Toggle)
-│   ├── BookingRequest.js  # Mehrstufiges Buchungsformular
-│   ├── BookingEditModal.js # Buchung bearbeiten
-│   ├── MyBookings.js      # Eigene Buchungen mit Serien-Gruppierung
-│   └── PDFExportPage.js   # Monatsplan-PDF pro Kategorie
+│   │   ├── TrainerProfil.tsx  # Mein Trainer-Profil
+│   │   ├── LizenzForm.tsx     # Inline-Formular Lizenz
+│   │   └── ErfolgForm.tsx     # Inline-Formular Erfolg
+│   ├── TrainerUebersicht.tsx  # Intranet-Übersicht (alle Auth-User)
+│   ├── TrainerUebersichtCard.tsx # Kompakte Trainer-Karte
+│   ├── TrainerDetailModal.tsx # Vollprofil-Modal
+│   ├── CalendarView.tsx   # Wochen-/Tageskalender (7–22 Uhr Raster, Tag/Woche Toggle)
+│   ├── BookingRequest.tsx # Mehrstufiges Buchungsformular
+│   ├── BookingEditModal.tsx # Buchung bearbeiten
+│   ├── MyBookings.tsx     # Eigene Buchungen mit Serien-Gruppierung
+│   └── PDFExportPage.tsx  # Monatsplan-PDF pro Kategorie
 ├── config/
-│   ├── constants.js       # ROLES, DAYS, COLOR_PRESETS, GROUP_ICONS
-│   ├── organizationConfig.js  # EVENT_TYPES, Default-Daten für Demo-Modus
-│   └── facilityConfig.js     # Default-Anlagen, buildBookableResources()
-├── services/emailService.js   # E-Mail-Templates + Logging
-├── lib/supabase.js            # Supabase-Client Init
-└── utils/helpers.js           # Datum-/Format-Helfer
+│   ├── constants.ts       # ROLES, DAYS, COLOR_PRESETS, GROUP_ICONS
+│   ├── organizationConfig.ts  # EVENT_TYPES, Default-Daten für Demo-Modus
+│   └── facilityConfig.ts     # Default-Anlagen, buildBookableResources()
+├── services/emailService.ts   # E-Mail-Templates + Logging
+├── lib/supabase.ts            # Supabase-Client Init
+└── utils/helpers.ts           # Datum-/Format-Helfer
 ```
+
+## TypeScript
+
+- **Strict mode** aktiviert (`tsconfig.json`), `allowJs: true` für Testdateien
+- **TypeScript 4.9.5** – `react-scripts@5.0.1` akzeptiert nur `^3.2.1 || ^4`
+- **Zentrale Typen** in `src/types/index.ts`: ~50 Interfaces (Booking, User, Facility, Resource, Club, Team, etc.)
+- **Alle Quellcode-Dateien** sind `.ts`/`.tsx` – nur 3 Testdateien bleiben `.js`
+- **`.npmrc`** mit `legacy-peer-deps=true` für Vercel-Kompatibilität
+- **Komponenten:** `React.FC<Props>` Pattern mit typed Props-Interfaces
+- **Hooks:** Typisierte Return-Values und DB-Mapper (`Record<string, unknown>` → Domain-Types)
+- **Set-Iteration:** `Array.from(set)` statt `[...set]` (CRA `target: es5` unterstützt kein `downlevelIteration`)
 
 ## Code-Konventionen
 
@@ -73,21 +85,21 @@ src/
 - **Variablen/Funktionen:** camelCase
 - **Komponenten/Dateien:** PascalCase
 - **Konstanten:** UPPER_SNAKE_CASE
-- **DB-Spalten:** snake_case in PostgreSQL, automatisch zu camelCase konvertiert via Mapper in `useSupabase.js`
+- **DB-Spalten:** snake_case in PostgreSQL, automatisch zu camelCase konvertiert via Mapper in Domain-Hooks
 - **Styling:** Tailwind-Utility-Klassen inline, keine separaten CSS-Dateien
 - **Icons:** Lucide React, per Komponente importiert
-- **Barrel-Exports:** `index.js` in ui/, admin/, facilities/, organization/, users/
+- **Barrel-Exports:** `index.ts` in ui/, admin/, facilities/, organization/, users/
 
 ## Architektur-Patterns
 
 **Context-Pattern:** Jeder Context hat Provider + Custom Hook mit Null-Check:
-```
-createContext(null) → SomeProvider({ children }) → useSome() mit Error bei fehlendem Provider
+```ts
+createContext<XxxContextValue | null>(null) → XxxProvider({ children }) → useXxx() mit Error bei fehlendem Provider
 ```
 
 **Demo-Modus:** Contexts prüfen `isDemo` und fallen auf DEFAULT_*-Daten zurück. CRUD gibt `{ error: 'Demo-Modus' }` zurück.
 
-**Daten-Mapping:** Die domain-spezifischen Hooks (`useBookings`, `useFacilities`, etc.) enthalten alle DB↔App Mapper (mapProfile, mapFacility, mapBooking, etc.) für snake_case↔camelCase. `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper.
+**Daten-Mapping:** Die domain-spezifischen Hooks (`useBookings`, `useFacilities`, etc.) enthalten alle DB↔App Mapper (mapProfile, mapFacility, mapBooking, etc.) für snake_case↔camelCase. `useSupabase.ts` ist nur noch ein dünner Re-Export-Wrapper.
 
 **Routing:** `<ProtectedRoute>` (Auth) wrapping `<PermissionRoute requiredPermission="kannBuchen">` (Rolle).
 
@@ -121,7 +133,7 @@ Supabase PostgreSQL mit RLS. Migrationen in `supabase/migrations/` (001–023, a
 
 - **DB-Format:** YYYY-MM-DD (Datum), HH:mm (Zeit, 24h)
 - **UI-Format:** dd.MM.yyyy (deutsch)
-- **Helfer:** `formatDate()`, `formatDateISO()`, `getWeekStart()`, `getWeekDates()` in utils/helpers.js
+- **Helfer:** `formatDate()`, `formatDateISO()`, `getWeekStart()`, `getWeekDates()` in utils/helpers.ts
 - **Kalender:** Woche Mo–So, Stunden 7–22
 
 ## Umgebungsvariablen
@@ -138,6 +150,7 @@ Vorlage in `.env.example`. Niemals `.env` committen.
 - Push auf `main` → automatisches Vercel-Deployment
 - `vercel.json` enthält SPA-Rewrites (alle Routen → index.html)
 - Env-Variablen in Vercel Dashboard pflegen
+- `.npmrc` mit `legacy-peer-deps=true` (nötig wegen react-scripts Peer-Dependency-Konflikte)
 
 ## Supabase Edge Functions
 
@@ -216,9 +229,8 @@ Edge Functions mit `SUPABASE_SERVICE_ROLE_KEY` umgehen RLS vollständig.
 
 ## Bekannte Einschränkungen
 
-- **Tests:** Tests für `utils/helpers.js` (46), `ToastContext` und `useBookingActions` vorhanden. `npm test` nach Änderungen an Helfer-/Logik-Funktionen ausführen.
+- **Tests:** 76 Tests in 3 Dateien (`helpers.test.js`, `ToastContext.test.js`, `useBookingActions.test.js`). `npm test` nach Änderungen an Helfer-/Logik-Funktionen ausführen.
 - **Tailwind als Build-Dependency** – JIT-Modus mit Purging, `tailwind.config.js` im Projekt-Root
-- **TypeScript** – strict mode, alle Quellcode-Dateien migriert (.ts/.tsx), nur Testdateien noch .js
 - **Kein Linting-Setup** – nur Standard react-app ESLint-Config
 
 ## Workflow: Visuelle Änderungen (UI, PDF, Layout)
@@ -249,24 +261,25 @@ Vor Beginn jeder größeren Aufgabe:
 ## Hinweise für Claude Code Sessions
 
 - DB-Operationen sind auf Domain-Hooks aufgeteilt: `useBookings`, `useFacilities`, `useOrganization`, `useUsers`, `useHolidays`, `useOperators`, `useGenehmigerResources`, `useTrainerProfile`, `useTrainerVerwaltung`, `useTrainerUebersicht`
-- `useSupabase.js` ist nur noch ein dünner Re-Export-Wrapper, nicht mehr die zentrale Logik-Datei
+- `useSupabase.ts` ist nur noch ein dünner Re-Export-Wrapper, nicht mehr die zentrale Logik-Datei
 - Tailwind-Klassen direkt in JSX, keine CSS-Dateien anlegen
 - Bestehende UI-Komponenten aus `components/ui/` wiederverwenden (Button, Modal, Badge, ErrorBoundary, etc.)
 - Dokumentation in `docs/PROTOTYPE-DOCUMENTATION.md` enthält ER-Diagramme, API-Details, Berechtigungsmatrix
 - Bei Supabase-Queries: snake_case verwenden, Mapper im jeweiligen Domain-Hook konvertieren zu camelCase
-- Neue Komponenten immer in den passenden Unterordner legen und im jeweiligen `index.js` exportieren
+- Neue Komponenten immer in den passenden Unterordner legen und im jeweiligen `index.ts` exportieren
+- Typen für neue Interfaces in `src/types/index.ts` definieren und importieren
 
 ## Trainer-Portal – wichtige Patterns
 
 **Vereinszuordnung aus Team-Assignments ableiten:**
 Niemals `aktivFuer`-Clubs separat speichern. Die Vereins-/Abteilungszugehörigkeit ergibt sich immer live aus:
-```js
+```ts
 trainerAssignments → teams → departments → clubs
 ```
 
 **Partielles Upsert in `useTrainerProfile`:**
 `upsertProfile(data)` verwendet `'key' in data`-Checks, sodass nur explizit übergebene Felder gesetzt werden (kein versehentliches null-Überschreiben):
-```js
+```ts
 if ('bio' in data) dbData.bio = data.bio ?? null;
 if ('profilVeroeffentlichen' in data) dbData.profil_veroeffentlichen = data.profilVeroeffentlichen;
 // etc.
